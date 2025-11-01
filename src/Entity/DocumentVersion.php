@@ -21,7 +21,7 @@ class DocumentVersion
     #[ORM\Column(type: 'integer')]
     private int $versionNr;
 
-    #[ORM\Column(type: 'longtext')]
+    #[ORM\Column(type: 'text', options: ['comment' => 'JSON snapshot'])]
     private string $jsonText;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
