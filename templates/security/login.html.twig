@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>Inloggen</h1>
+    <form method="post" action="{{ path('app_login') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+        <div>
+            <label>Email</label>
+            <input type="email" name="email" required autofocus>
+        </div>
+        <div>
+            <label>Pincode (6 cijfers)</label>
+            <input type="password" name="pin" pattern="\d{6}" inputmode="numeric" required>
+        </div>
+        <button type="submit">Inloggen</button>
+    </form>
+{% endblock %}
