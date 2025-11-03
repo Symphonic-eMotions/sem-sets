@@ -9,6 +9,7 @@ namespace App\Form;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -23,9 +24,9 @@ final class DocumentFormType extends AbstractType
             ->add('title', TextType::class, [
                 'constraints' => [new Assert\NotBlank(), new Assert\Length(max:200)],
             ])
-            ->add('slug', TextType::class, [
-                'constraints' => [new Assert\NotBlank(), new Assert\Regex('/^[a-z0-9-]+$/')],
-                'help' => 'korte naam in de URL (lowercase, cijfers en -)',
+            ->add('slug', HiddenType::class, [
+                'mapped' => false,
+                'required' => false,
             ])
             ->add('semVersion', TextType::class, [
                 'constraints' => [new Assert\NotBlank(), new Assert\Regex('/^\d+\.\d+\.\d+$/')],

@@ -16,6 +16,8 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Throwable;
 
@@ -45,6 +47,9 @@ final class DocumentController extends AbstractController
             // 1) Persist voor ID
             $doc->setCreatedBy($this->getUser());
             $doc->setUpdatedBy($this->getUser());
+            $title = $form->get('title')->getData();
+            $slug = $this->slugify($title);
+            $doc->setSlug($slug);
             $this->em->persist($doc);
             $this->em->flush();
 
@@ -72,6 +77,11 @@ final class DocumentController extends AbstractController
         $form->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
+
+            $title = $form->get('title')->getData();
+            $slug = $this->slugify($title);
+            $doc->setSlug($slug);
+
             // 1) Metadata bijwerken
             $doc->setUpdatedBy($this->getUser());
             $this->em->flush();
@@ -132,7 +142,6 @@ final class DocumentController extends AbstractController
         return $response;
     }
 
-// Delete
     #[Route('documents/{id}/assets/{assetId}/delete', name: 'doc_asset_delete', methods: ['POST'])]
     public function deleteAsset(
         Document $doc,
@@ -156,7 +165,7 @@ final class DocumentController extends AbstractController
         try {
             $storage->delete($asset); // zie storage helper hieronder
             $this->addFlash('success', 'Bestand verwijderd.');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->addFlash('danger', 'Verwijderen mislukt: '.$e->getMessage());
         }
 
@@ -171,6 +180,14 @@ final class DocumentController extends AbstractController
             'document' => $doc,
             'versions' => $versions,
         ]);
+    }
+
+    private function slugify(string $text): string
+    {
+        $text = strtolower(trim($text));
+        $text = preg_replace('/[^a-z0-9]+/i', '-', $text);
+        $text = trim($text, '-');
+        return $text ?: 'set';
     }
 
     /**

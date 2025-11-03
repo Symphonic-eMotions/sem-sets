@@ -1,0 +1,25 @@
+{# templates/_partials/ui_styles.html.twig #}
+<style>
+    :root{--bg:#0f172a;--card:#0b1224cc;--accent:#6366f1;--accent-600:#4f46e5;--muted:#94a3b8;--text:#e2e8f0;--error:#ef4444;--ring:#22d3ee55}
+    body{background:
+            radial-gradient(1200px 600px at 10% 10%, #1e293b 0%, transparent 50%),
+            radial-gradient(900px 500px at 90% 20%, #111827 0%, transparent 40%),
+            linear-gradient(180deg, var(--bg), #020617);
+        min-height:100dvh;color:var(--text)}
+    .wrap{min-height:100dvh;display:grid;align-content:start;gap:24px;padding:24px}
+    .card{background:linear-gradient(180deg,#0b1224aa,#0b1224f2);border:1px solid #1f2937;border-radius:16px;padding:20px;
+        box-shadow:0 10px 30px #0008,inset 0 1px 0 #ffffff0a;backdrop-filter:blur(10px)}
+    .title{font-size:22px;margin:0}
+    .subtitle{color:var(--muted);font-size:14px;margin:4px 0 0}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;border:0;
+        background:linear-gradient(180deg,var(--accent),var(--accent-600));color:#fff;font-weight:600;text-decoration:none}
+    .btn.secondary{background:#0b1224;border:1px solid #243148;color:var(--text)}
+    .form-row{display:grid;gap:8px;margin:10px 0}
+    .label{font-size:13px;color:#cbd5e1}
+    .input,.textarea,select{
+        background:#0b1224;border:1px solid #243148;border-radius:12px;color:var(--text);
+        padding:12px 14px;outline:none;transition:border-color .15s,box-shadow .15s,background .2s;width:100%}
+    .input:focus,.textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--ring);background:#0e162e}
+    .error-box{background:#7f1d1d;border:1px solid var(--error);color:#fee2e2;padding:10px 12px;border-radius:12px;font-size:14px}
+    .form-errors{color:#fecaca;font-size:13px}
+</style>

@@ -1,0 +1,75 @@
+{# Gebruik de standaard layout als basis #}
+{% use "form_div_layout.html.twig" %}
+
+{# 2a) Eén rij met label, widget, errors en help #}
+{% block form_row %}
+    <div class="form-row">
+        {{- form_label(form, null, { label_attr: (label_attr|default({}))|merge({
+            class: ((label_attr.class|default('')) ~ ' label')|trim
+        }) }) -}}
+
+        <div>
+            {# widget krijgt standaard .input/.textarea etc. via de widget-blokken hieronder #}
+            {{- form_widget(form) -}}
+
+            {# errors (indien aanwezig) #}
+            {% if errors|length %}
+                <div class="form-errors">
+                    {{- form_errors(form) -}}
+                </div>
+            {% endif %}
+
+            {% if help is not empty %}
+                <div class="subtitle" style="font-size:12px">{{ help|raw }}</div>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
+
+{# 2b) Textachtige widgets ⇒ .input #}
+{% block form_widget_simple %}
+    {% set attr = attr|merge({class: (attr.class|default('') ~ ' input')|trim}) %}
+    {{ parent() }}
+{% endblock %}
+
+{# 2c) Textarea ⇒ .textarea #}
+{% block textarea_widget %}
+    {% set attr = attr|merge({class: (attr.class|default('') ~ ' textarea')|trim}) %}
+    {{ parent() }}
+{% endblock %}
+
+{# 2d) Choice (select) ⇒ geef select een nette basis #}
+{% block choice_widget_collapsed %}
+    {% set attr = attr|merge({class: (attr.class|default('') ~ ' input')|trim}) %}
+    {{ parent() }}
+{% endblock %}
+
+{# 2e) Checkbox/radio: geen .input class maar nette rij #}
+{% block checkbox_row %}
+    <div class="form-row" style="align-items:center;grid-template-columns:auto 1fr">
+        {{- form_widget(form) -}}
+        {{- form_label(form, null, { label_attr: (label_attr|default({}))|merge({
+            class: ((label_attr.class|default('')) ~ ' label')|trim
+        }) }) -}}
+        {% if errors|length %}
+            <div class="form-errors">{{ form_errors(form) }}</div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{# 2f) Bestand ⇒ laat browser widget, maar met .input voor focusring #}
+{% block file_widget %}
+    {% set attr = attr|merge({class: (attr.class|default('') ~ ' input')|trim}) %}
+    {{ block('form_widget_simple') }}
+{% endblock %}
+
+{# 2g) Form-level errors mooi blokken (bijv. CSRF of globale) #}
+{% block form_errors %}
+    {% if errors|length %}
+        <div class="error-box">
+            {% for error in errors %}
+                <div>{{ error.message }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endblock %}

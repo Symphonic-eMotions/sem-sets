@@ -1,16 +1,24 @@
 {% extends 'base.html.twig' %}
+{% block title %}{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Set' }}{% endblock %}
+
 {% block body %}
-    <h1>{{ document is defined ? 'Bewerken: '~document.title : 'Nieuw document' }}</h1>
+    <div class="wrap">
+        <div class="card">
+            <h1 class="title">{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Symphonic eMotions Set' }}</h1>
+            <p class="subtitle">Titel, semver, publicatie en MIDI-assets</p>
 
-    {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
-    {{ form_row(form.title) }}
-    {{ form_row(form.slug) }}
-    {{ form_row(form.semVersion) }}
-    {{ form_row(form.published) }}
-    {{ form_row(form.midiFiles) }}
+            {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
+            {{ form_row(form.title) }}
+            {# slug is hidden in FormType (mapped: false) #}
+            {{ form_row(form.semVersion) }}
+            {{ form_row(form.published) }}
+            {{ form_row(form.midiFiles) }}
 
-    <button>Opslaan</button>
-    {{ form_end(form) }}
+            <button class="btn" type="submit">Opslaan</button>
+            <a class="btn secondary" href="{{ path('app_dashboard') }}" style="margin-left:8px">Terug</a>
+            {{ form_end(form) }}
+        </div>
+    </div>
 
     {% if assets is defined and assets|length %}
         <hr>
