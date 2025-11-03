@@ -1,16 +1,56 @@
-{# templates/document/edit.html.twig (en new.html.twig) #}
 {% extends 'base.html.twig' %}
 {% block body %}
     <h1>{{ document is defined ? 'Bewerken: '~document.title : 'Nieuw document' }}</h1>
+
     {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
     {{ form_row(form.title) }}
     {{ form_row(form.slug) }}
     {{ form_row(form.semVersion) }}
     {{ form_row(form.published) }}
-
-    {# ▼ Nieuwe upload rij #}
     {{ form_row(form.midiFiles) }}
 
     <button>Opslaan</button>
     {{ form_end(form) }}
+
+    {% if assets is defined and assets|length %}
+        <hr>
+        <h2>Assets</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>Bestand</th>
+                <th>Grootte</th>
+                <th>Pad</th>
+                <th>Acties</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for a in assets %}
+                <tr>
+                    <td>{{ a.originalName }}</td>
+                    <td>
+                        {% if a.size is not null %}
+                            {{ (a.size / 1024)|number_format(1, '.', ' ') }} KB
+                        {% else %}
+                            –
+                        {% endif %}
+                    </td>
+                    <td><code>{{ a.storagePath }}</code></td>
+                    <td>
+                        <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}">Download</a>
+
+                        <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                              method="post"
+                              style="display:inline"
+                              onsubmit="return confirm('Weet je zeker dat je dit bestand wilt verwijderen?');">
+                            <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
+                            <button class="btn btn-link">Verwijder</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
 {% endblock %}

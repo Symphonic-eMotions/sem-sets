@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Entity\Document;
 use App\Form\DocumentFormType;
+use App\Repository\AssetRepository;
 use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
 use App\Service\AssetStorage;
@@ -60,8 +61,13 @@ final class DocumentController extends AbstractController
     }
 
     #[Route('documents/{id}/edit', name: 'doc_edit', methods: ['GET','POST'])]
-    public function edit(Document $doc, Request $req, VersioningService $vs, AssetStorage $assets): Response
-    {
+    public function edit(
+        Document $doc,
+        Request $req,
+        VersioningService $vs,
+        AssetStorage $assets,
+        AssetRepository $assetRepo
+    ): Response {
         $form = $this->createForm(DocumentFormType::class, $doc);
         $form->handleRequest($req);
 
@@ -79,10 +85,82 @@ final class DocumentController extends AbstractController
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
+        $assetList = $assetRepo->findBy(['document' => $doc], ['id' => 'DESC']);
+
         return $this->render('document/edit.html.twig', [
             'form' => $form,
             'document' => $doc,
+            'assets'   => $assetList,
         ]);
+    }
+
+    #[Route('documents/{id}/assets/{assetId}/download', name: 'doc_asset_download', methods: ['GET'])]
+    public function downloadAsset(
+        Document $doc,
+        int $assetId,
+        AssetRepository $assetRepo,
+        AssetStorage $storage
+    ): Response {
+        $asset = $assetRepo->find($assetId);
+        if (!$asset || $asset->getDocument()->getId() !== $doc->getId()) {
+            throw $this->createNotFoundException();
+        }
+
+        // Lees via Flysystem stream
+        $stream = $storage->openReadStream($asset); // zie storage helper hieronder
+        if ($stream === false) {
+            $this->addFlash('danger', 'Kon bestand niet openen.');
+            return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
+        }
+
+        $response = new StreamedResponse(function() use ($stream) {
+            fpassthru($stream);
+            fclose($stream);
+        });
+
+        $disposition = $response->headers->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $asset->getOriginalName()
+        );
+
+        $response->headers->set('Content-Type', $asset->getMimeType() ?: 'application/octet-stream');
+        if ($asset->getSize()) {
+            $response->headers->set('Content-Length', (string)$asset->getSize());
+        }
+        $response->headers->set('Content-Disposition', $disposition);
+
+        return $response;
+    }
+
+// Delete
+    #[Route('documents/{id}/assets/{assetId}/delete', name: 'doc_asset_delete', methods: ['POST'])]
+    public function deleteAsset(
+        Document $doc,
+        int $assetId,
+        Request $req,
+        AssetRepository $assetRepo,
+        AssetStorage $storage
+    ): Response {
+        $token = $req->request->get('_token');
+        if (!$this->isCsrfTokenValid('delete-asset-'.$assetId, $token)) {
+            $this->addFlash('danger', 'Ongeldige CSRF token.');
+            return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
+        }
+
+        $asset = $assetRepo->find($assetId);
+        if (!$asset || $asset->getDocument()->getId() !== $doc->getId()) {
+            $this->addFlash('danger', 'Bestand niet gevonden.');
+            return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
+        }
+
+        try {
+            $storage->delete($asset); // zie storage helper hieronder
+            $this->addFlash('success', 'Bestand verwijderd.');
+        } catch (\Throwable $e) {
+            $this->addFlash('danger', 'Verwijderen mislukt: '.$e->getMessage());
+        }
+
+        return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
     }
 
     #[Route('documents/{id}/versions', name: 'doc_versions', methods: ['GET'])]

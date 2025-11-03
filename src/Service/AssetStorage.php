@@ -7,7 +7,9 @@ use App\Entity\Asset;
 use App\Entity\Document;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
+use Throwable;
 use function preg_replace;
 
 final class AssetStorage
@@ -17,6 +19,9 @@ final class AssetStorage
         private readonly EntityManagerInterface $em
     ) {}
 
+    /**
+     * @throws FilesystemException
+     */
     public function store(
         Document $doc,
         string $originalName,
@@ -45,6 +50,9 @@ final class AssetStorage
         return $a;
     }
 
+    /**
+     * @throws FilesystemException
+     */
     private function uniquePath(string $dir, string $filename): string
     {
         // split naam.ext
@@ -59,5 +67,28 @@ final class AssetStorage
             $i++;
         }
         return $candidate;
+    }
+
+    public function openReadStream(Asset $asset)
+    {
+        try {
+            return $this->uploadsStorage->readStream($asset->getStoragePath());
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * @throws FilesystemException
+     */
+    public function delete(Asset $asset): void
+    {
+        // 1) fysiek bestand weg
+        if ($this->uploadsStorage->fileExists($asset->getStoragePath())) {
+            $this->uploadsStorage->delete($asset->getStoragePath());
+        }
+        // 2) DB record weg
+        $this->em->remove($asset);
+        $this->em->flush();
     }
 }
