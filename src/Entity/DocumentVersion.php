@@ -38,5 +38,12 @@ class DocumentVersion
         $this->createdAt = new DateTimeImmutable();
     }
 
-    // getters/setters ...
+    public function setDocument(Document $d): self { $this->document = $d; return $this; }
+    public function setVersionNr(int $n): self { $this->versionNr = $n; return $this; }
+    public function setJsonText(string $t): self { $this->jsonText = $t; return $this; }
+    public function setAuthor(?User $u): self { $this->author = $u; return $this; }
+    public function setChangelog(?string $c): self { $this->changelog = $c; return $this; }
+
+    public function getVersionNr(): int { return $this->versionNr; }
+    public function getJsonText(): string { return $this->jsonText; }
 }

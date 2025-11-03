@@ -1,0 +1,16 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>Symphonic eMotions Sets</h1>
+    <p><a href="{{ path('doc_new') }}">+ Nieuwe Set</a></p>
+    <ul>
+        {% for d in documents %}
+            <li>
+                <strong>{{ d.title }}</strong> (slug: {{ d.slug }}) —
+                <a href="{{ path('doc_edit',{id:d.id})}}">bewerken</a> |
+                <a href="{{ path('doc_versions',{id:d.id})}}">versies</a>
+            </li>
+        {% else %}
+            <li>Er zijn nog geen sets gemaakt</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

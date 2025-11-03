@@ -1,11 +1,10 @@
 <?php
-declare(strict_types=1);
 
 namespace App\Entity;
 
 use App\Repository\AssetRepository;
-use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: AssetRepository::class)]
 #[ORM\Table(name: 'assets')]
@@ -28,7 +27,7 @@ class Asset
     private int $size;
 
     #[ORM\Column(type: 'string', length: 255)]
-    private string $storagePath; // relative
+    private string $storagePath;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     private ?User $createdBy = null;
@@ -41,5 +40,85 @@ class Asset
         $this->createdAt = new DateTimeImmutable();
     }
 
-    // getters/setters ...
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
+    public function getDocument(): Document
+    {
+        return $this->document;
+    }
+
+    public function setDocument(Document $document): self
+    {
+        $this->document = $document;
+        return $this;
+    }
+
+    public function getOriginalName(): string
+    {
+        return $this->originalName;
+    }
+
+    public function setOriginalName(string $originalName): self
+    {
+        $this->originalName = $originalName;
+        return $this;
+    }
+
+    public function getMimeType(): string
+    {
+        return $this->mimeType;
+    }
+
+    public function setMimeType(string $mimeType): self
+    {
+        $this->mimeType = $mimeType;
+        return $this;
+    }
+
+    public function getSize(): int
+    {
+        return $this->size;
+    }
+
+    public function setSize(int $size): self
+    {
+        $this->size = $size;
+        return $this;
+    }
+
+    public function getStoragePath(): string
+    {
+        return $this->storagePath;
+    }
+
+    public function setStoragePath(string $storagePath): self
+    {
+        $this->storagePath = $storagePath;
+        return $this;
+    }
+
+    public function getCreatedBy(): ?User
+    {
+        return $this->createdBy;
+    }
+
+    public function setCreatedBy(?User $createdBy): self
+    {
+        $this->createdBy = $createdBy;
+        return $this;
+    }
+
+    public function getCreatedAt(): DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function setCreatedAt(DateTimeImmutable $ts): self
+    {
+        $this->createdAt = $ts;
+        return $this;
+    }
 }

@@ -49,5 +49,27 @@ class Document
         $this->updatedAt = $now;
     }
 
-    // getters/setters ...
+    public function getId(): ?int { return $this->id; }
+
+    public function getSlug(): string { return $this->slug; }
+    public function setSlug(string $slug): self { $this->slug = $slug; return $this; }
+
+    public function getTitle(): string { return $this->title; }
+    public function setTitle(string $title): self { $this->title = $title; return $this; }
+
+    public function isPublished(): bool { return $this->published; }
+    public function setPublished(bool $p): self { $this->published = $p; return $this; }
+
+    public function getSemVersion(): string { return $this->semVersion; }
+    public function setSemVersion(string $v): self { $this->semVersion = $v; return $this; }
+
+    public function getHeadVersion(): ?DocumentVersion { return $this->headVersion; }
+    public function setHeadVersion(?DocumentVersion $v): self { $this->headVersion = $v; return $this; }
+
+    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
+    public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
+    public function setUpdatedAt(\DateTimeImmutable $d): self { $this->updatedAt = $d; return $this; }
+
+    public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
+    public function setUpdatedBy(?User $u): self { $this->updatedBy = $u; return $this; }
 }

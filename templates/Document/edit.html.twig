@@ -1,0 +1,16 @@
+{# templates/document/edit.html.twig (en new.html.twig) #}
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>{{ document is defined ? 'Bewerken: '~document.title : 'Nieuw document' }}</h1>
+    {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
+    {{ form_row(form.title) }}
+    {{ form_row(form.slug) }}
+    {{ form_row(form.semVersion) }}
+    {{ form_row(form.published) }}
+
+    {# ▼ Nieuwe upload rij #}
+    {{ form_row(form.midiFiles) }}
+
+    <button>Opslaan</button>
+    {{ form_end(form) }}
+{% endblock %}

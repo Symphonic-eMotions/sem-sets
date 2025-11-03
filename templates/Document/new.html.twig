@@ -1,0 +1,8 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+    <h1>{{ document is defined ? 'Bewerken: '~document.title : 'Nieuwe Symphonic eMotions Set' }}</h1>
+    {{ form_start(form) }}
+    {{ form_widget(form) }}
+    <button>Opslaan</button>
+    {{ form_end(form) }}
+{% endblock %}

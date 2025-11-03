@@ -1,16 +1,178 @@
 {% extends 'base.html.twig' %}
+
+{% block title %}Inloggen{% endblock %}
+
 {% block body %}
-    <h1>Inloggen</h1>
-    <form method="post" action="{{ path('app_login') }}">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
-        <div>
-            <label>Email</label>
-            <input type="email" name="email" required autofocus>
-        </div>
-        <div>
-            <label>Pincode (6 cijfers)</label>
-            <input type="password" name="pin" pattern="\d{6}" inputmode="numeric" required>
-        </div>
-        <button type="submit">Inloggen</button>
-    </form>
+    <style>
+        :root {
+            --bg: #0f172a;            /* slate-900 */
+            --card: #0b1224cc;        /* translucent */
+            --accent: #6366f1;        /* indigo-500 */
+            --accent-600: #4f46e5;
+            --muted: #94a3b8;         /* slate-400 */
+            --text: #e2e8f0;          /* slate-200 */
+            --error: #ef4444;         /* red-500 */
+            --ring: #22d3ee55;        /* cyan ring */
+        }
+        body {
+            background: radial-gradient(1200px 600px at 10% 10%, #1e293b 0%, transparent 50%),
+            radial-gradient(900px 500px at 90% 20%, #111827 0%, transparent 40%),
+            linear-gradient(180deg, var(--bg), #020617);
+            min-height: 100dvh;
+            color: var(--text);
+        }
+        .login-wrap {
+            display: grid;
+            place-items: center;
+            min-height: 100dvh;
+            padding: 24px;
+        }
+        .card {
+            width: 100%;
+            max-width: 420px;
+            background: linear-gradient(180deg, #0b1224aa, #0b1224f2);
+            border: 1px solid #1f2937;
+            border-radius: 16px;
+            box-shadow:
+                    0 10px 30px #0008,
+                    inset 0 1px 0 #ffffff0a;
+            backdrop-filter: blur(10px);
+            padding: 28px;
+            animation: rise .4s ease-out;
+        }
+        @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+        .logo {
+            display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+        }
+        .logo-badge {
+            width: 40px; height: 40px; border-radius: 10px;
+            background: conic-gradient(from 120deg, var(--accent), #22d3ee 40%, #06b6d4 60%, var(--accent));
+            box-shadow: 0 0 0 4px #ffffff0f, 0 6px 14px #0008;
+        }
+        h1 { font-size: 20px; margin: 0 0 4px 0; letter-spacing: .2px; }
+        .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
+
+        .field { display: grid; gap: 8px; margin: 14px 0; }
+        label { font-size: 13px; color: #cbd5e1; }
+        .input {
+            background: #0b1224;
+            border: 1px solid #243148;
+            border-radius: 12px;
+            color: var(--text);
+            padding: 12px 14px;
+            outline: none;
+            transition: border-color .15s, box-shadow .15s, background .2s;
+            width: 100%;
+        }
+        .input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--ring);
+            background: #0e162e;
+        }
+        .pin-wrap { position: relative; }
+        .toggle {
+            position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+            font-size: 12px; color: var(--muted); background: transparent; border: 0; cursor: pointer; padding: 8px;
+        }
+        .help { color: var(--muted); font-size: 12px; }
+        .error {
+            background: #7f1d1d; border: 1px solid #ef4444; color: #fee2e2;
+            padding: 10px 12px; border-radius: 12px; font-size: 14px; margin: 10px 0 6px;
+        }
+        .submit {
+            margin-top: 12px; width: 100%;
+            background: linear-gradient(180deg, var(--accent), var(--accent-600));
+            color: white; border: 0; border-radius: 12px; padding: 12px 16px;
+            font-weight: 600; cursor: pointer; box-shadow: 0 6px 16px #4f46e580; transition: transform .05s ease, filter .15s ease;
+        }
+        .submit:hover { filter: brightness(1.05); }
+        .submit:active { transform: translateY(1px); }
+        .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; color: var(--muted); font-size: 12px; }
+        .foot { text-align: center; margin-top: 18px; font-size: 12px; color: var(--muted); }
+        .brand { color: #a5b4fc; font-weight: 600; text-decoration: none; }
+    </style>
+
+    <div class="login-wrap">
+        <form class="card" method="post" action="{{ path('app_login') }}" autocomplete="on" novalidate>
+            <div class="logo">
+                <div class="logo-badge" aria-hidden="true"></div>
+                <div>
+                    <h1>Inloggen</h1>
+                    <div class="subtitle">Toegang tot je sets & versies</div>
+                </div>
+            </div>
+
+            {% if error is defined and error %}
+                <div class="error" role="alert">
+                    {{ error.messageKey|trans(error.messageData, 'security') }}
+                </div>
+            {% endif %}
+
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+            <div class="field">
+                <label for="email">E-mail</label>
+                <input
+                        class="input"
+                        id="email"
+                        type="email"
+                        name="email"
+                        required
+                        autocomplete="username"
+                        spellcheck="false"
+                        value="{{ last_username is defined ? last_username : app.session.get('_security.last_username') }}"
+                        {% if not (last_username is defined ? last_username : app.session.get('_security.last_username')) %}autofocus{% endif %}
+                >
+            </div>
+
+            <div class="field pin-wrap">
+                <label for="pin">Pincode (6 cijfers)</label>
+                <input
+                        class="input"
+                        id="pin"
+                        type="password"
+                        name="pin"
+                        inputmode="numeric"
+                        pattern="\\d{6}"
+                        minlength="6"
+                        maxlength="6"
+                        required
+                        autocomplete="current-password"
+                        aria-describedby="pin-help"
+                        {% if (last_username is defined ? last_username : app.session.get('_security.last_username')) %}autofocus{% endif %}
+                >
+                <button type="button" class="toggle" aria-label="Toon/verberg pincode" data-toggle-pin>Toon</button>
+                <div id="pin-help" class="help">Exact 6 cijfers. Alleen numeriek.</div>
+            </div>
+
+            <button type="submit" class="submit">Inloggen</button>
+
+            <div class="meta">
+                <span>Vertrouwd apparaat?</span>
+                <span>2FA volgt later</span>
+            </div>
+
+            <div class="foot">
+                <a class="brand" href="#" tabindex="-1">Sym-Sets</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            const pin = document.getElementById('pin');
+            const toggle = document.querySelector('[data-toggle-pin]');
+            if (toggle && pin) {
+                toggle.addEventListener('click', function () {
+                    const showing = pin.type === 'text';
+                    pin.type = showing ? 'password' : 'text';
+                    toggle.textContent = showing ? 'Toon' : 'Verberg';
+                });
+            }
+            // Houd input numeriek en max 6
+            pin && pin.addEventListener('input', function () {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+            });
+        })();
+    </script>
 {% endblock %}
