@@ -9,6 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Validator\Constraints as Assert;
+use function in_array;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
@@ -49,7 +50,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRoles(): array
     {
         $roles = $this->roles;
-        if (!\in_array('ROLE_USER', $roles, true)) {
+        if (!in_array('ROLE_USER', $roles, true)) {
             $roles[] = 'ROLE_USER';
         }
         return array_values(array_unique($roles));

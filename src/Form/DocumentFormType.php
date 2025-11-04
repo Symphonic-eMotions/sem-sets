@@ -13,8 +13,6 @@ use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Validator\Constraints as Assert;
-use Symfony\Component\Validator\Constraints\All;
-use Symfony\Component\Validator\Constraints\File;
 
 final class DocumentFormType extends AbstractType
 {

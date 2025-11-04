@@ -11,6 +11,7 @@ use App\Repository\DocumentVersionRepository;
 use App\Service\AssetStorage;
 use App\Service\VersioningService;
 use Doctrine\ORM\EntityManagerInterface;
+use League\Flysystem\FilesystemException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -36,6 +37,9 @@ final class DocumentController extends AbstractController
         ]);
     }
 
+    /**
+     * @throws FilesystemException
+     */
     #[Route('documents/new', name: 'doc_new', methods: ['GET','POST'])]
     public function new(Request $req, VersioningService $vs, AssetStorage $assets): Response
     {
@@ -65,6 +69,9 @@ final class DocumentController extends AbstractController
         return $this->render('document/new.html.twig', ['form' => $form]);
     }
 
+    /**
+     * @throws FilesystemException
+     */
     #[Route('documents/{id}/edit', name: 'doc_edit', methods: ['GET','POST'])]
     public function edit(
         Document $doc,
@@ -192,6 +199,7 @@ final class DocumentController extends AbstractController
 
     /**
      * Bouwt de (MVP) payload en maakt een nieuwe versie-snapshot aan.
+     * @throws FilesystemException
      */
     private function createSnapshot(VersioningService $vs, Document $doc, string $action): void
     {

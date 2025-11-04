@@ -5,6 +5,7 @@ namespace App\Command;
 
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
+use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,8 +22,8 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 class CreateUserCommand extends Command
 {
     public function __construct(
-        private EntityManagerInterface $em,
-        private UserPasswordHasherInterface $hasher
+        private readonly EntityManagerInterface $em,
+        private readonly UserPasswordHasherInterface $hasher
     ) {
         parent::__construct();
     }
@@ -38,7 +39,7 @@ class CreateUserCommand extends Command
         $emailQuestion = new Question('Email adres: ');
         $emailQuestion->setValidator(function ($answer) {
             if (empty($answer) || !filter_var($answer, FILTER_VALIDATE_EMAIL)) {
-                throw new \RuntimeException('Voer een geldig email adres in');
+                throw new RuntimeException('Voer een geldig email adres in');
             }
             return $answer;
         });
@@ -47,7 +48,7 @@ class CreateUserCommand extends Command
         // Check of email al bestaat
         $existing = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
         if ($existing) {
-            $io->error("Gebruiker met email {$email} bestaat al!");
+            $io->error("Gebruiker met email $email bestaat al!");
             return Command::FAILURE;
         }
 
@@ -56,7 +57,7 @@ class CreateUserCommand extends Command
         $pinQuestion->setHidden(true);
         $pinQuestion->setValidator(function ($answer) {
             if (!preg_match('/^\d{6}$/', $answer)) {
-                throw new \RuntimeException('PIN moet exact 6 cijfers zijn');
+                throw new RuntimeException('PIN moet exact 6 cijfers zijn');
             }
             return $answer;
         });
@@ -99,8 +100,8 @@ class CreateUserCommand extends Command
 
         $io->success([
             'Gebruiker succesvol aangemaakt!',
-            "Email: {$email}",
-            "Rol: {$role}"
+            "Email: $email",
+            "Rol: $role"
         ]);
 
         return Command::SUCCESS;

@@ -66,9 +66,11 @@ class Document
     public function getHeadVersion(): ?DocumentVersion { return $this->headVersion; }
     public function setHeadVersion(?DocumentVersion $v): self { $this->headVersion = $v; return $this; }
 
-    public function getCreatedAt(): \DateTimeImmutable { return $this->createdAt; }
-    public function getUpdatedAt(): \DateTimeImmutable { return $this->updatedAt; }
-    public function setUpdatedAt(\DateTimeImmutable $d): self { $this->updatedAt = $d; return $this; }
+    public function getCreatedAt(): DateTimeImmutable
+    { return $this->createdAt; }
+    public function getUpdatedAt(): DateTimeImmutable
+    { return $this->updatedAt; }
+    public function setUpdatedAt(DateTimeImmutable $d): self { $this->updatedAt = $d; return $this; }
 
     public function setCreatedBy(?User $u): self { $this->createdBy = $u; return $this; }
     public function setUpdatedBy(?User $u): self { $this->updatedBy = $u; return $this; }

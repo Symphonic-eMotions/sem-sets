@@ -5,6 +5,8 @@ namespace App\Controller;
 
 use App\Entity\Document;
 use App\Repository\DocumentRepository;
+use DateTimeInterface;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -24,7 +26,7 @@ final class ApiController extends AbstractController
                 'slug'       => $d->getSlug(),
                 'title'      => $d->getTitle(),
                 'semVersion' => $d->getSemVersion(),
-                'updatedAt'  => $d->getUpdatedAt()->format(\DateTimeInterface::ATOM),
+                'updatedAt'  => $d->getUpdatedAt()->format(DateTimeInterface::ATOM),
                 'jsonUrl'    => $this->generateUrl('api_set_json', ['slug' => $d->getSlug()], 0),
                 'assetsBase' => rtrim($this->generateUrl('api_set_asset', ['slug' => $d->getSlug(), 'filename' => ''], 0), '/'),
             ];
@@ -34,7 +36,11 @@ final class ApiController extends AbstractController
         return $this->json(['items' => $items]);
     }
 
-    // LET OP: niet 'json' noemen -> naamconflict met AbstractController::json()
+    // LET OP: niet 'json' noemen → naamconflict met AbstractController::json()
+
+    /**
+     * @throws FilesystemException
+     */
     #[Route('/sets/{slug}.json', name: 'api_set_json', methods: ['GET'])]
     public function getSetJson(DocumentRepository $repo, FilesystemOperator $uploadsStorage, string $slug): StreamedResponse
     {
@@ -59,6 +65,9 @@ final class ApiController extends AbstractController
         return $response;
     }
 
+    /**
+     * @throws FilesystemException
+     */
     #[Route('/sets/{slug}/assets/{filename}', name: 'api_set_asset', requirements: ['filename' => '.+'], methods: ['GET'])]
     public function getAsset(DocumentRepository $repo, FilesystemOperator $uploadsStorage, string $slug, string $filename): StreamedResponse
     {

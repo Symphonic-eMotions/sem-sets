@@ -8,6 +8,8 @@ use App\Entity\DocumentVersion;
 use App\Entity\User;
 use App\Repository\DocumentVersionRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
+use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 
 final class VersioningService
@@ -18,12 +20,15 @@ final class VersioningService
         private readonly FilesystemOperator $uploadsStorage // alias op uploads.storage
     ) {}
 
+    /**
+     * @throws FilesystemException
+     */
     public function createSnapshot(Document $doc, string $json, ?string $changelog, ?User $author): DocumentVersion
     {
-        // naïeve JSON validatie
+        // naïeve JSON-validatie
         json_decode($json);
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new \InvalidArgumentException('JSON is niet geldig: '.json_last_error_msg());
+            throw new InvalidArgumentException('JSON is niet geldig: '.json_last_error_msg());
         }
 
         $verNr = $this->versionRepo->nextVersionNr($doc);

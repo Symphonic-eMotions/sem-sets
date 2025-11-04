@@ -169,7 +169,7 @@
                     toggle.textContent = showing ? 'Toon' : 'Verberg';
                 });
             }
-            // Houd input numeriek en max 6
+            // Houd input numeriek en max. 6
             pin && pin.addEventListener('input', function () {
                 this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
             });
