@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Asset;
 use App\Entity\Document;
-use App\Enum\SemVersion;
 use App\Form\DocumentFormType;
 use App\Form\NewDocumentFormType;
 use App\Repository\AssetRepository;
@@ -14,6 +14,7 @@ use App\Service\AssetStorage;
 use App\Service\VersioningService;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
+use League\Flysystem\FilesystemOperator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -22,6 +23,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Throwable;
 
 #[Route('/')]
@@ -29,6 +31,7 @@ final class DocumentController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly FilesystemOperator $uploadsStorage, // service-id: uploads.storage
     ) {}
 
     #[Route('', name: 'app_dashboard', methods: ['GET'])]
@@ -39,9 +42,6 @@ final class DocumentController extends AbstractController
         ]);
     }
 
-    /**
-     * @throws FilesystemException
-     */
     #[Route('documents/new', name: 'doc_new', methods: ['GET','POST'])]
     public function new(Request $req): Response
     {
@@ -55,7 +55,7 @@ final class DocumentController extends AbstractController
             $doc->setSemVersion($doc->getSemVersion());
             $doc->setGridColumns(2);
             $doc->setGridRows(2);
-            $doc->setLevelDurations([32]);
+            $doc->setLevelDurations([32,32]);
             $doc->setInstrumentsConfig([]);
 
             $doc->setCreatedBy($this->getUser());
@@ -110,6 +110,52 @@ final class DocumentController extends AbstractController
             'document' => $doc,
             'assets'   => $assetList,
         ]);
+    }
+
+    #[Route('/documents/{id}', name: 'doc_delete', methods: ['POST', 'DELETE'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function delete(Document $document, Request $request): Response
+    {
+        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $tokenId = 'delete-doc-' . $document->getId();
+        if (!$this->isCsrfTokenValid($tokenId, $request->request->get('_token'))) {
+            $this->addFlash('error', 'Ongeldige CSRF-token.');
+            return $this->redirectToRoute('app_dashboard');
+        }
+
+        // Verwijder assets op schijf + DB, en document + versies in één transactie
+        $this->em->beginTransaction();
+        try {
+            // 1) Verwijder directory var/uploads/sets/{id}
+            $baseDir = sprintf('sets/%d', $document->getId());
+            if ($this->uploadsStorage->directoryExists($baseDir)) {
+                $this->uploadsStorage->deleteDirectory($baseDir);
+            }
+
+            // 2) Verwijder Asset entities gekoppeld aan dit document (als je ze hebt)
+            $assetRepo = $this->em->getRepository(Asset::class);
+            $assets = $assetRepo->findBy(['document' => $document]);
+            foreach ($assets as $asset) {
+                $this->em->remove($asset);
+            }
+
+            // 3) Verwijder DocumentVersion entities (als cascade niet al staat)
+            // bijv: $versions = $this->em->getRepository(DocumentVersion::class)->findBy(['document' => $document]);
+            // foreach ($versions as $v) { $this->em->remove($v); }
+
+            // 4) Verwijder Document zelf
+            $this->em->remove($document);
+            $this->em->flush();
+            $this->em->commit();
+
+            $this->addFlash('success', 'Set en gekoppelde assets zijn verwijderd.');
+        } catch (\Throwable $e) {
+            $this->em->rollback();
+            $this->addFlash('error', 'Verwijderen mislukt: ' . $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_dashboard');
     }
 
     #[Route('documents/{id}/assets/{assetId}/download', name: 'doc_asset_download', methods: ['GET'])]

@@ -1,16 +1,64 @@
+{# templates/document/index.html.twig #}
 {% extends 'base.html.twig' %}
+{% block title %}Sets{% endblock %}
+
 {% block body %}
-    <h1>Symphonic eMotions Sets</h1>
-    <p><a href="{{ path('doc_new') }}">+ Nieuwe Set</a></p>
-    <ul>
-        {% for d in documents %}
-            <li>
-                <strong>{{ d.title }}</strong> (slug: {{ d.slug }}) —
-                <a href="{{ path('doc_edit',{id:d.id})}}">bewerken</a> |
-                <a href="{{ path('doc_versions',{id:d.id})}}">versies</a>
-            </li>
-        {% else %}
-            <li>Er zijn nog geen sets gemaakt</li>
-        {% endfor %}
-    </ul>
+    <div class="wrap">
+        <div class="page-header">
+            <div>
+                <h1 class="title">Symphonic eMotions Sets</h1>
+                <p class="subtitle">Beheer je sets, assets en versies</p>
+            </div>
+            <a class="btn" href="{{ path('doc_new') }}">+ Nieuwe Set</a>
+        </div>
+
+        <div class="card">
+            {% if documents is empty %}
+                <p class="subtle">Er zijn nog geen sets gemaakt.</p>
+            {% else %}
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th>Slug</th>
+                        <th>SemVer</th>
+                        <th>Status</th>
+                        <th style="width:280px">Acties</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for d in documents %}
+                        <tr>
+                            <td><strong>{{ d.title }}</strong></td>
+                            <td><span class="pill">{{ d.slug }}</span></td>
+                            <td><span class="pill">{{ d.semVersion ? d.semVersion.value : '–' }}</span></td>
+                            <td>
+                                {% if d.published %}
+                                    <span class="pill">Live</span>
+                                {% else %}
+                                    <span class="pill" style="opacity:.7">Concept</span>
+                                {% endif %}
+                            </td>
+                            <td class="actions" style="display:flex; gap:8px; flex-wrap:nowrap; align-items:center">
+                            <a class="btn secondary" href="{{ path('doc_edit', {id: d.id}) }}">Bewerken</a>
+                                <a class="btn secondary" href="{{ path('doc_versions', {id: d.id}) }}">Versies</a>
+
+                                {% if is_granted('ROLE_ADMIN') %}
+                                    <form action="{{ path('doc_delete', {id: d.id}) }}"
+                                          method="post"
+                                          onsubmit="return confirm('Set \"{{ d.title }}\" en alle gekoppelde assets verwijderen? Dit kan niet ongedaan worden gemaakt.');"
+                                                                                        style="display:inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('delete-doc-' ~ d.id) }}">
+                                    <input type="hidden" name="_method" value="DELETE">
+                                    <button class="btn" style="background:#7f1d1d;border:1px solid #ef4444">Verwijder</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </div>
 {% endblock %}

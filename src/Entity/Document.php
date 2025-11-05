@@ -49,7 +49,7 @@ class Document
     #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
-    #[ORM\Column(type: 'json', options: ['comment' => 'Durations per level (ints)', 'default' => '[]'])]
+    #[ORM\Column(type: 'json', options: ['comment' => 'Durations per level (ints)', 'default' => '[0,1]'])]
     private array $levelDurations = [];
 
     #[ORM\Column(type: 'integer', options: ['unsigned' => true, 'default' => 1])]
@@ -59,10 +59,10 @@ class Document
     private int $gridRows = self::MIN_GRID;
 
     // Doctrine decimal = string in PHP
-    #[ORM\Column(type: 'decimal', precision: 5, scale: 2, options: ['unsigned' => true, 'default' => '1.00'])]
-    private string $setBPM = '1.00';
+    #[ORM\Column(type: 'decimal', precision: 5, scale: 2, options: ['unsigned' => true, 'default' => '90.00'])]
+    private string $setBPM = '90.00';
 
-    #[ORM\Column(type: 'json', options: ['comment' => 'Array of InstrumentConfig-like associative arrays', 'default' => '[]'])]
+    #[ORM\Column(type: 'json', options: ['comment' => 'Array of InstrumentConfigs', 'default' => '[]'])]
     private array $instrumentsConfig = [];
 
     public function __construct()
@@ -147,7 +147,10 @@ class Document
     /** decimal as string (precision 5, scale 2) */
     public function getSetBPM(): string { return $this->setBPM; }
 
-    /** @param string|int|float $bpm */
+    /**
+     * @param string|int|float $bpm
+     * @return Document
+     */
     public function setSetBPM(string|int|float $bpm): self
     {
         $num = is_string($bpm) ? (float)str_replace(',', '.', $bpm) : (float)$bpm;

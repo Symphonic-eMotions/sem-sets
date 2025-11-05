@@ -65,24 +65,24 @@ final class DocumentFormType extends AbstractType
                 'help' => '2 decimalen.',
             ])
 
-            ->add('levelDurations', CollectionType::class, [
-                'label' => 'Level durations',
-                'entry_type' => NumberType::class,
-                'entry_options' => [
-                    'html5' => true,
-                    'scale' => 0,
-                    'constraints' => [
-                        new Assert\NotNull(),
-                        new Assert\Type('numeric'),
-                        new Assert\Range(min:1, max: 32767),
-                    ],
-                ],
-                'allow_add' => true,
-                'allow_delete' => true,
-                'by_reference' => false,
-                'prototype' => true,
-                'help' => 'Voeg per level een duur (in steps/maat) toe.',
-            ])
+//            ->add('levelDurations', CollectionType::class, [
+//                'label' => 'Level durations',
+//                'entry_type' => NumberType::class,
+//                'entry_options' => [
+//                    'html5' => true,
+//                    'scale' => 0,
+//                    'constraints' => [
+//                        new Assert\NotNull(),
+//                        new Assert\Type('numeric'),
+//                        new Assert\Range(min:1, max: 32767),
+//                    ],
+//                ],
+//                'allow_add' => true,
+//                'allow_delete' => true,
+//                'by_reference' => false,
+//                'prototype' => true,
+//                'help' => 'Voeg per level een duur (in steps/maat) toe.',
+//            ])
 
             ->add('instrumentsConfig', CollectionType::class, [
                 'entry_type' => InstrumentConfigType::class,

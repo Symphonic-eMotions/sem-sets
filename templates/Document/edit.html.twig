@@ -1,3 +1,4 @@
+{# src/templates/Document/edit.html.twig #}
 {% extends 'base.html.twig' %}
 {% block title %}{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Set' }}{% endblock %}
 
@@ -5,60 +6,136 @@
     <div class="wrap">
         <div class="card">
             <h1 class="title">{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Symphonic eMotions Set' }}</h1>
-            <p class="subtitle">Symphonic eMotion Set bestanden kun je voorzien van midi bestanden die je in een track kan selecteren</p>
+            <p class="subtitle">Symphonic eMotion Set bestanden kun je voorzien van MIDI-bestanden die je in een track kunt selecteren.</p>
 
+            {# 1 formulier voor alles #}
+            {% form_theme form 'forms/_theme.html.twig' %}
             {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
-            {{ form_row(form.title) }}
-            {# slug is hidden in FormType (mapped: false) #}
-            {{ form_row(form.semVersion) }}
-            {{ form_row(form.published) }}
-            {{ form_row(form.midiFiles) }}
 
-            <button class="btn" type="submit">Opslaan</button>
-            <a class="btn secondary" href="{{ path('app_dashboard') }}" style="margin-left:8px">Terug</a>
+            {# --- Set gegevens --- #}
+            <div class="section">
+                <h2 class="section-title">Set</h2>
+                {{ form_row(form.title) }}
+                {{ form_row(form.semVersion) }}
+                {{ form_row(form.published) }}
+
+                {{ form_row(form.gridColumns) }}
+                {{ form_row(form.gridRows) }}
+                {{ form_row(form.setBPM) }}
+{#                {{ form_row(form.levelDurations) }}#}
+            </div>
+
+            {# --- Assets (upload + compact overzicht) --- #}
+            <div class="section">
+                <h2 class="section-title">Assets</h2>
+                {{ form_row(form.midiFiles) }}
+
+                {% if assets is defined and assets|length %}
+                    <div class="chips" style="margin-top:8px">
+                        {% for a in assets %}
+                            <div class="chip">
+                                <span>{{ a.originalName }}</span>
+                                <span class="subtle">({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})</span>
+                                <div class="chip-actions">
+                                    <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
+                                    <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                          method="post"
+                                          onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
+                                          style="display:inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
+                                        <button type="submit" class="btn-mini danger">Verwijder</button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="subtle" style="margin-top:6px">Nog geen assets. Upload één of meer .mid-bestanden.</p>
+                {% endif %}
+            </div>
+
+            {# --- Tracks container (InstrumentSet) --- #}
+            <div class="section">
+                <h2 class="section-title">Tracks</h2>
+
+                <div id="tracks" class="tracks"
+                     data-prototype="{{ form_widget(form.instrumentsConfig.vars.prototype)|e('html_attr') }}"
+                     data-index="{{ form.instrumentsConfig|length }}">
+                    {# bestaande tracks #}
+                    {% for trackForm in form.instrumentsConfig %}
+                        <div class="track-card">
+                            <div class="track-head">
+                                <div class="track-title">Track {{ loop.index }}</div>
+                                <div class="track-actions">
+                                    <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
+                                    <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
+                                </div>
+                            </div>
+                            <div class="grid">
+                                {{ form_widget(trackForm) }}
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
+                    {% endfor %}
+                </div>
+
+                <div class="form-actions" style="margin-top:10px">
+                    <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
+                </div>
+            </div>
+
+            {# --- Acties onderaan --- #}
+            <div class="form-actions">
+                <button class="btn" type="submit">Opslaan</button>
+                <a class="btn secondary" href="{{ path('app_dashboard') }}">Terug</a>
+            </div>
+
             {{ form_end(form) }}
         </div>
     </div>
 
-    {% if assets is defined and assets|length %}
-        <hr>
-        <h2>Assets</h2>
-        <table>
-            <thead>
-            <tr>
-                <th>Bestand</th>
-                <th>Grootte</th>
-                <th>Pad</th>
-                <th>Acties</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for a in assets %}
-                <tr>
-                    <td>{{ a.originalName }}</td>
-                    <td>
-                        {% if a.size is not null %}
-                            {{ (a.size / 1024)|number_format(1, '.', ' ') }} KB
-                        {% else %}
-                            –
-                        {% endif %}
-                    </td>
-                    <td><code>{{ a.storagePath }}</code></td>
-                    <td>
-                        <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}">Download</a>
+    {# Eenvoudige JS voor tracks-collection #}
+    <script>
+        (function() {
+            const container = document.getElementById('tracks');
+            if (!container) return;
 
-                        <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                              method="post"
-                              style="display:inline"
-                              onsubmit="return confirm('Weet je zeker dat je dit bestand wilt verwijderen?');">
-                            <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
-                            <button class="btn btn-link">Verwijder</button>
-                        </form>
-                    </td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-    {% endif %}
+            const addBtn = document.getElementById('add-track');
+            addBtn && addBtn.addEventListener('click', () => addTrack());
 
+            window.addTrack = function() {
+                const index = parseInt(container.dataset.index || '0', 10);
+                const proto = container.dataset.prototype.replace(/__name__/g, index);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'track-card';
+                wrapper.innerHTML = `
+      <div class="track-head">
+        <div class="track-title">Track ${index + 1}</div>
+        <div class="track-actions">
+          <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
+          <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
+        </div>
+      </div>
+      <div class="grid">${proto}</div>`;
+                container.appendChild(wrapper);
+                container.dataset.index = index + 1;
+            };
+
+            window.removeTrack = function(btn) {
+                const card = btn.closest('.track-card');
+                if (card) card.remove();
+            };
+
+            window.duplicateTrack = function(btn) {
+                const card = btn.closest('.track-card');
+                if (!card) return;
+                addTrack();
+                const last = container.lastElementChild;
+                if (!last) return;
+                // Naïeve duplicate: niets kopiëren (om formulier-names correct te houden).
+                // Wil je waarden klonen: lees veldwaarden uit 'card' en zet ze in 'last'.
+            };
+        })();
+    </script>
 {% endblock %}
