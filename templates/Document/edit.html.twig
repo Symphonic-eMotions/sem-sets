@@ -1,11 +1,11 @@
 {# src/templates/Document/edit.html.twig #}
 {% extends 'base.html.twig' %}
-{% block title %}{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Set' }}{% endblock %}
+{% block title %}{{ document.title }}{% endblock %}
 
 {% block body %}
     <div class="wrap">
         <div class="card">
-            <h1 class="title">{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Symphonic eMotions Set' }}</h1>
+            <h1 class="title">Bewerken Set: {{ document.title }}</h1>
             <p class="subtitle">Symphonic eMotion Set bestanden kun je voorzien van MIDI-bestanden die je in een track kunt selecteren.</p>
 
             {# 1 formulier voor alles #}
@@ -14,7 +14,6 @@
 
             {# --- Set gegevens --- #}
             <div class="section">
-                <h2 class="section-title">Set</h2>
                 {{ form_row(form.title) }}
                 {{ form_row(form.semVersion) }}
                 {{ form_row(form.published) }}

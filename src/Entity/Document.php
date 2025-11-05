@@ -49,7 +49,7 @@ class Document
     #[ORM\Column(type: 'datetime_immutable')]
     private DateTimeImmutable $updatedAt;
 
-    #[ORM\Column(type: 'json', options: ['comment' => 'Durations per level (ints)', 'default' => '[0,1]'])]
+    #[ORM\Column(type: 'json', options: ['comment' => 'Durations per level (ints)', 'default' => '[]'])]
     private array $levelDurations = [];
 
     #[ORM\Column(type: 'integer', options: ['unsigned' => true, 'default' => 1])]

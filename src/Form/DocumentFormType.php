@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Enum\SemVersion;
+use NumberFormatter;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -75,6 +76,8 @@ final class DocumentFormType extends AbstractType
                 'label' => 'BPM',
                 'scale' => 2,
                 'html5' => true,
+                'input' => 'string',
+                'rounding_mode' => NumberFormatter::ROUND_HALFUP,
                 'constraints' => [
                     new Assert\NotBlank(),
                     new Assert\Range(min: 0, max: 999.99),
@@ -82,7 +85,8 @@ final class DocumentFormType extends AbstractType
                 'help' => '2 decimalen.',
             ])
 
-//            ->add('levelDurations', CollectionType::class, [
+
+            //            ->add('levelDurations', CollectionType::class, [
 //                'label' => 'Level durations',
 //                'entry_type' => NumberType::class,
 //                'entry_options' => [

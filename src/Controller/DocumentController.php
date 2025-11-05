@@ -101,7 +101,7 @@ final class DocumentController extends AbstractController
                 $doc->setGridColumns($cols);
                 $doc->setGridRows($rows);
             }
-
+            $doc->setSetBPM($form->get('setBPM')->getData());
             $tracks = $doc->getInstrumentsConfig();
             foreach ($tracks as &$t) {
 
