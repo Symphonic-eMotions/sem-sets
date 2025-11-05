@@ -42,4 +42,21 @@ final class DocumentRepository extends ServiceEntityRepository
 
     public function getVersionNr(): int { return $this->versionNr; }
     public function getJsonText(): string { return $this->jsonText; }
+
+    public function findPublishedOrdered(): array
+    {
+        return $this->createQueryBuilder('d')
+            ->andWhere('d.published = 1')
+            ->orderBy('d.updatedAt', 'DESC')
+            ->getQuery()->getResult();
+    }
+
+    public function findByGrid(int $cols, int $rows): array
+    {
+        return $this->createQueryBuilder('d')
+            ->andWhere('d.gridColumns = :c')->setParameter('c', $cols)
+            ->andWhere('d.gridRows = :r')->setParameter('r', $rows)
+            ->orderBy('d.updatedAt', 'DESC')
+            ->getQuery()->getResult();
+    }
 }

@@ -1,8 +1,18 @@
 {% extends 'base.html.twig' %}
+{% block title %}Nieuwe Symphonic eMotions Set{% endblock %}
+
 {% block body %}
-    <h1>{{ document is defined ? 'Bewerken: '~document.title : 'Nieuwe Symphonic eMotions Set' }}</h1>
-    {{ form_start(form) }}
-    {{ form_widget(form) }}
-    <button>Opslaan</button>
-    {{ form_end(form) }}
+<div class="wrap">
+    <div class="card">
+        <h1 class="title">Nieuwe Symphonic eMotions Set</h1>
+        <p class="subtitle">Hoe gaat deze set heten?</p>
+
+        {{ form_start(form) }}
+        {{ form_widget(form) }}
+
+        <button class="btn" type="submit">Opslaan</button>
+        <a class="btn secondary" href="{{ path('app_dashboard') }}" style="margin-left:8px">Terug</a>
+        {{ form_end(form) }}
+    </div>
+</div>
 {% endblock %}

@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Document;
+use App\Enum\SemVersion;
 use App\Form\DocumentFormType;
+use App\Form\NewDocumentFormType;
 use App\Repository\AssetRepository;
 use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
@@ -41,28 +43,27 @@ final class DocumentController extends AbstractController
      * @throws FilesystemException
      */
     #[Route('documents/new', name: 'doc_new', methods: ['GET','POST'])]
-    public function new(Request $req, VersioningService $vs, AssetStorage $assets): Response
+    public function new(Request $req): Response
     {
-        $doc  = new Document();
-        $form = $this->createForm(DocumentFormType::class, $doc);
+        $doc = new Document();
+        $form = $this->createForm(NewDocumentFormType::class, $doc);
         $form->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // 1) Persist voor ID
+            // slugify onder water
+            $doc->setSlug($this->slugify($doc->getTitle()));
+            $doc->setSemVersion($doc->getSemVersion());
+            $doc->setGridColumns(2);
+            $doc->setGridRows(2);
+            $doc->setLevelDurations([32]);
+            $doc->setInstrumentsConfig([]);
+
             $doc->setCreatedBy($this->getUser());
             $doc->setUpdatedBy($this->getUser());
-            $title = $form->get('title')->getData();
-            $slug = $this->slugify($title);
-            $doc->setSlug($slug);
             $this->em->persist($doc);
             $this->em->flush();
 
-            // 2) Snapshot (initial)
-            $this->createSnapshot($vs, $doc, 'initial');
-
-            // 3) MIDI uploads
-            $this->handleMidiUploads($form, $doc, $assets);
-
+            // ga direct naar edit (user vult daar alles verder in)
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
@@ -212,18 +213,30 @@ final class DocumentController extends AbstractController
      */
     private function buildPayloadJson(Document $doc): string
     {
+        // BPM is in Doctrine 'decimal' en dus string in PHP: cast naar float voor JSON
+        $bpm = (float) $doc->getSetBPM();
+
+        // Arrays defensief normaliseren naar ints
+        $levelDurations = array_map('intval', $doc->getLevelDurations());
+        $instrumentsConfig = $doc->getInstrumentsConfig(); // al array (json column)
+
         $payload = [
-            'gridColumns'       => 4,
-            'gridRows'          => 4,
-            'published'         => $doc->isPublished(),
-            'semVersion'        => $doc->getSemVersion(),
-            'setName'           => $doc->getTitle(),
-            'setBPM'            => 118,
-            'instrumentsConfig' => [],
+            'gridColumns'        => $doc->getGridColumns(),
+            'gridRows'           => $doc->getGridRows(),
+            'published'          => $doc->isPublished(),
+            'semVersion'         => $doc->getSemVersion(),
+            'setName'            => $doc->getTitle(),
+            'setBPM'             => $bpm,
+            'levelDurations'     => $levelDurations,
+            'instrumentsConfig'  => $instrumentsConfig,
         ];
 
-        return (string) json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
+        return (string) json_encode(
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
     }
+
 
     /**
      * Verwerkt de MIDI-uploads vanaf het formulier en slaat assets op.

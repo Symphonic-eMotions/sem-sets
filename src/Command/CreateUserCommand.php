@@ -82,9 +82,9 @@ class CreateUserCommand extends Command
         $roleChoice = $helper->ask($input, $output, $roleQuestion);
 
         $roleMap = [
-            'Administrator' => 'ROLE_ADMIN',
-            'Editor' => 'ROLE_EDITOR',
-            'Read-only' => 'ROLE_READONLY'
+            'ADMIN'   => 'ROLE_ADMIN',
+            'EDITOR'  => 'ROLE_EDITOR',
+            'READONLY'=> 'ROLE_READONLY',
         ];
         $role = $roleMap[$roleChoice];
 

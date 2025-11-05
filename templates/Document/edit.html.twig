@@ -5,7 +5,7 @@
     <div class="wrap">
         <div class="card">
             <h1 class="title">{{ document is defined ? 'Bewerken: ' ~ document.title : 'Nieuwe Symphonic eMotions Set' }}</h1>
-            <p class="subtitle">Titel, semver, publicatie en MIDI-assets</p>
+            <p class="subtitle">Symphonic eMotion Set bestanden kun je voorzien van midi bestanden die je in een track kan selecteren</p>
 
             {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
             {{ form_row(form.title) }}
