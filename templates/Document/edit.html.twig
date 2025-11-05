@@ -1,4 +1,4 @@
-{# src/templates/Document/edit.html.twig #}
+{# templates/document/edit.html.twig #}
 {% extends 'base.html.twig' %}
 {% block title %}{{ document.title }}{% endblock %}
 
@@ -6,9 +6,11 @@
     <div class="wrap">
         <div class="card">
             <h1 class="title">Bewerken Set: {{ document.title }}</h1>
-            <p class="subtitle">Symphonic eMotion Set bestanden kun je voorzien van MIDI-bestanden die je in een track kunt selecteren.</p>
+            <p class="subtitle">
+                Symphonic eMotion Set bestanden kun je voorzien van MIDI-bestanden die je in een track kunt selecteren.
+            </p>
 
-            {# 1 formulier voor alles #}
+            {# 1 formulier voor alles (zonder geneste forms) #}
             {% form_theme form 'forms/_theme.html.twig' %}
             {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
 
@@ -19,42 +21,20 @@
                 {{ form_row(form.published) }}
                 {{ form_row(form.gridSize) }}
                 {{ form_row(form.setBPM) }}
-{#                {{ form_row(form.levelDurations) }}#}
+                {# {{ form_row(form.levelDurations) }} #}
             </div>
 
-            {# --- Assets (upload + compact overzicht) --- #}
+            {# --- Upload veld (onderdeel van hoofdformulier) --- #}
             <div class="section">
-                <h2 class="section-title">Assets</h2>
+                <h2 class="section-title">Assets uploaden</h2>
                 {{ form_row(form.midiFiles) }}
-
-                {% if assets is defined and assets|length %}
-                    <div class="chips" style="margin-top:8px">
-                        {% for a in assets %}
-                            <div class="chip">
-                                <span>{{ a.originalName }}</span>
-                                <span class="subtle">({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})</span>
-                                <div class="chip-actions">
-                                    <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
-                                    <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                                          method="post"
-                                          onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
-                                          style="display:inline">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
-                                        <button type="submit" class="btn-mini danger">Verwijder</button>
-                                    </form>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="subtle" style="margin-top:6px">Nog geen assets. Upload één of meer .mid-bestanden.</p>
-                {% endif %}
             </div>
 
             {# --- Tracks container (InstrumentSet) --- #}
             <div class="section">
-                <h2 class="section-title">Tracks</h2>
-
+                <div class="form-actions" style="margin-top:10px">
+                    <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
+                </div>
                 <div id="tracks" class="tracks"
                      data-prototype="{{ form_widget(form.instrumentsConfig.vars.prototype)|e('html_attr') }}"
                      data-index="{{ form.instrumentsConfig|length }}">
@@ -76,10 +56,6 @@
                         <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
                     {% endfor %}
                 </div>
-
-                <div class="form-actions" style="margin-top:10px">
-                    <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
-                </div>
             </div>
 
             {# --- Acties onderaan --- #}
@@ -88,7 +64,45 @@
                 <a class="btn secondary" href="{{ path('app_dashboard') }}">Terug</a>
             </div>
 
+            {# markeer het parent-veld als gerenderd, omdat we de children custom renderen #}
+            {% do form.instrumentsConfig.setRendered %}
+
             {{ form_end(form) }}
+
+            {# =========================
+         Assets-lijst BUITEN het hoofdformulier
+         ========================= #}
+            <div class="section">
+                <h2 class="section-title">Bestanden ge-upload door gebruiker</h2>
+
+                {% if assets is defined and assets|length %}
+                    <div class="chips" style="margin-top:8px">
+                        {% for a in assets %}
+                            <div class="chip">
+                                <span>{{ a.originalName }}</span>
+                                <span class="subtle">
+                  ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
+                </span>
+                                <div class="chip-actions">
+                                    <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}"
+                                       class="btn-mini">Download</a>
+
+                                    {# afzonderlijke (kleine) delete-form per asset, niet genest in het hoofdformulier #}
+                                    <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                          method="post"
+                                          onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
+                                          style="display:inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
+                                        <button type="submit" class="btn-mini danger">Verwijder</button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="subtle" style="margin-top:6px">Nog geen assets. Upload één of meer .mid-bestanden.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -107,14 +121,14 @@
                 const wrapper = document.createElement('div');
                 wrapper.className = 'track-card';
                 wrapper.innerHTML = `
-      <div class="track-head">
-        <div class="track-title">Track ${index + 1}</div>
-        <div class="track-actions">
-          <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
-          <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
-        </div>
-      </div>
-      <div class="grid">${proto}</div>`;
+<div class="track-head">
+  <div class="track-title">Track ${index + 1}</div>
+  <div class="track-actions">
+    <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
+    <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
+  </div>
+</div>
+<div class="grid">${proto}</div>`;
                 container.appendChild(wrapper);
                 container.dataset.index = index + 1;
             };
@@ -128,10 +142,7 @@
                 const card = btn.closest('.track-card');
                 if (!card) return;
                 addTrack();
-                const last = container.lastElementChild;
-                if (!last) return;
-                // Naïeve duplicate: niets kopiëren (om formulier-names correct te houden).
-                // Wil je waarden klonen: lees veldwaarden uit 'card' en zet ze in 'last'.
+                // Naïeve duplicate; wil je waarden kopiëren, lees velden uit 'card' en zet in laatst toegevoegde.
             };
         })();
     </script>

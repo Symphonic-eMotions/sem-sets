@@ -7,7 +7,6 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Enum\SemVersion;
-use NumberFormatter;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -25,8 +24,6 @@ final class DocumentFormType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $range1to4 = fn() => array_combine([1,2,3,4], [1,2,3,4]);
-
         $builder
             ->add('title', TextType::class, [
                 'constraints' => [new Assert\NotBlank(), new Assert\Length(max:200)],
@@ -74,10 +71,11 @@ final class DocumentFormType extends AbstractType
 
             ->add('setBPM', NumberType::class, [
                 'label' => 'BPM',
+                'property_path' => 'setBPM',
                 'scale' => 2,
                 'html5' => true,
                 'input' => 'string',
-                'rounding_mode' => NumberFormatter::ROUND_HALFUP,
+                'rounding_mode' => \NumberFormatter::ROUND_HALFUP, // <- Ook hier: "Multiple definitions exist for class 'NumberFormatter' "
                 'constraints' => [
                     new Assert\NotBlank(),
                     new Assert\Range(min: 0, max: 999.99),

@@ -153,7 +153,8 @@ class Document
      */
     public function setSetBPM(string|int|float $bpm): self
     {
-        $num = is_string($bpm) ? (float)str_replace(',', '.', $bpm) : (float)$bpm;
+        $raw = is_string($bpm) ? strtr(trim($bpm), [',' => '.']) : (float)$bpm;
+        $num = (float)$raw;
         $num = max(self::MIN_BPM, min(self::MAX_BPM, $num));
         $this->setBPM = number_format($num, 2, '.', '');
         return $this;

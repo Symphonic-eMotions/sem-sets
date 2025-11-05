@@ -101,7 +101,6 @@ final class DocumentController extends AbstractController
                 $doc->setGridColumns($cols);
                 $doc->setGridRows($rows);
             }
-            $doc->setSetBPM($form->get('setBPM')->getData());
             $tracks = $doc->getInstrumentsConfig();
             foreach ($tracks as &$t) {
 
@@ -125,6 +124,13 @@ final class DocumentController extends AbstractController
             }
             unset($t);
             $doc->setInstrumentsConfig($tracks);
+
+            $posted = $form->get('setBPM')->getData();
+            $current = $doc->getSetBPM(); // string "xxx.xx"
+            if ((string)$posted !== $current) {
+                // optioneel: forceren, maar zou al goed moeten staan:
+                $doc->setSetBPM($posted);
+            }
 
             // 1) Metadata bijwerken
             $doc->setUpdatedBy($this->getUser());
