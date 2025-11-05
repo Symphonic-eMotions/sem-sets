@@ -24,6 +24,8 @@ final class DocumentFormType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $doc = $builder->getData(); // App\Entity\Document
+
         $builder
             ->add('title', TextType::class, [
                 'constraints' => [new Assert\NotBlank(), new Assert\Length(max:200)],
@@ -105,6 +107,9 @@ final class DocumentFormType extends AbstractType
 
             ->add('instrumentsConfig', CollectionType::class, [
                 'entry_type' => InstrumentConfigType::class,
+                'entry_options' => [
+                    'document' => $doc,
+                ],
                 'allow_add' => true,
                 'allow_delete' => true,
                 'by_reference' => false,

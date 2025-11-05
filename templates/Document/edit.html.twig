@@ -35,10 +35,9 @@
                 <div class="form-actions" style="margin-top:10px">
                     <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
                 </div>
-                <div id="tracks" class="tracks"
-                     data-prototype="{{ form_widget(form.instrumentsConfig.vars.prototype)|e('html_attr') }}"
-                     data-index="{{ form.instrumentsConfig|length }}">
-                    {# bestaande tracks #}
+
+                {# We tonen bestaande tracks met expliciete rendering #}
+                <div id="tracks" class="tracks" data-index="{{ form.instrumentsConfig|length }}">
                     {% for trackForm in form.instrumentsConfig %}
                         <div class="track-card">
                             <div class="track-head">
@@ -48,8 +47,56 @@
                                     <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
                                 </div>
                             </div>
+
+                            {# trackId (hidden) #}
+                            {{ form_widget(trackForm.trackId) }}
+
                             <div class="grid">
-                                {{ form_widget(trackForm) }}
+                                {# Levels: Collection<IntegerType> #}
+                                <div class="subsection">
+                                    <label class="label">Levels</label>
+                                    <div
+                                            id="levels-{{ loop.index0 }}"
+                                            class="collection"
+                                            data-prototype="{{ form_widget(trackForm.levels.vars.prototype)|e('html_attr') }}"
+                                            data-index="{{ trackForm.levels|length }}"
+                                    >
+                                        {% for levelField in trackForm.levels %}
+                                            <div class="collection-item">
+                                                {{ form_widget(levelField) }}
+                                                <button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <button type="button" class="btn-mini" onclick="addCollectionItem('levels-{{ loop.index0 }}')">+ Level</button>
+                                </div>
+
+                                {# MIDI files: Collection<MidiFileRefType> #}
+                                <div class="subsection">
+                                    <label class="label">MIDI files</label>
+                                    <div
+                                            id="midiFiles-{{ loop.index0 }}"
+                                            class="collection"
+                                            data-prototype="{{ form_widget(trackForm.midiFiles.vars.prototype)|e('html_attr') }}"
+                                            data-index="{{ trackForm.midiFiles|length }}"
+                                    >
+                                        {% for mf in trackForm.midiFiles %}
+                                            <div class="collection-item">
+                                                {{ form_widget(mf) }}
+                                                <button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                    <button type="button" class="btn-mini" onclick="addCollectionItem('midiFiles-{{ loop.index0 }}')">+ MIDI file</button>
+
+                                    {# optionele hint bij geen choices #}
+                                    {% set protoField = trackForm.midiFiles.vars.prototype.assetId ?? null %}
+                                    {% if protoField is not null and protoField.vars.choices is defined and protoField.vars.choices|length == 0 %}
+                                        <p class="subtle" style="margin-top:6px">
+                                            Er zijn nog geen MIDI-assets voor deze set. Upload ze bovenaan bij “Assets uploaden”.
+                                        </p>
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
                     {% else %}
@@ -73,8 +120,7 @@
          Assets-lijst BUITEN het hoofdformulier
          ========================= #}
             <div class="section">
-                <h2 class="section-title">Bestanden ge-upload door gebruiker</h2>
-
+                <h2 class="section-title">Bestanden (Assets) {{ document.title }}</h2>
                 {% if assets is defined and assets|length %}
                     <div class="chips" style="margin-top:8px">
                         {% for a in assets %}
@@ -84,10 +130,7 @@
                   ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
                 </span>
                                 <div class="chip-actions">
-                                    <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}"
-                                       class="btn-mini">Download</a>
-
-                                    {# afzonderlijke (kleine) delete-form per asset, niet genest in het hoofdformulier #}
+                                    <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
                                     <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
                                           method="post"
                                           onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
@@ -106,31 +149,131 @@
         </div>
     </div>
 
-    {# Eenvoudige JS voor tracks-collection #}
+    {# ===== Prototype voor nieuwe tracks (volledige HTML van het track-form) ===== #}
+    <template id="track-proto">
+        {{ form_widget(form.instrumentsConfig.vars.prototype)|e('html') }}
+    </template>
+
+    {# ===== JS helpers ===== #}
     <script>
         (function() {
+            // Generic: add/remove item in a collection that has a data-prototype
+            window.addCollectionItem = function(containerId) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                const index = parseInt(container.dataset.index || '0', 10);
+                const proto = container.dataset.prototype.replace(/__name__/g, index);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'collection-item';
+                wrapper.innerHTML = proto + '<button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>';
+                container.appendChild(wrapper);
+                container.dataset.index = index + 1;
+            };
+
+            window.removeCollectionItem = function(btn) {
+                const item = btn.closest('.collection-item');
+                if (item) item.remove();
+            };
+
+            // Seed: ensure each collection has at least one row
+            function seedCollectionIfEmpty(container) {
+                if (!container) return;
+                const currentIndex = parseInt(container.dataset.index || '0', 10);
+                const hasAnyVisible = container.querySelector('.collection-item, input, select, textarea');
+                if (!hasAnyVisible || currentIndex === 0) {
+                    // Force at least one entry
+                    window.addCollectionItem(container.id);
+                }
+            }
+
+            // Add a new track using the prototype HTML
+            function buildTrackCardFromPrototype(trackIndex) {
+                const t = document.getElementById('track-proto');
+                if (!t) return null;
+                const protoHTML = t.innerHTML;
+
+                // Temp container to parse the HTML
+                const temp = document.createElement('div');
+                temp.innerHTML = protoHTML;
+
+                // Find the three parts inside proto: hidden trackId, levels div[data-prototype], midiFiles div[data-prototype]
+                const trackIdInput = temp.querySelector('input[type="hidden"][name*="[trackId]"]') || document.createElement('input');
+
+                // collections are rendered as elements with data-prototype; there should be two
+                const collections = temp.querySelectorAll('[data-prototype]');
+                const levelsDiv = collections[0] || document.createElement('div');
+                const midiDiv   = collections[1] || document.createElement('div');
+
+                // Normalize ids and dataset for our layout
+                levelsDiv.id = 'levels-dyn-' + trackIndex;
+                midiDiv.id   = 'midiFiles-dyn-' + trackIndex;
+
+                if (levelsDiv.dataset.index === undefined) levelsDiv.dataset.index = '0';
+                if (midiDiv.dataset.index   === undefined) midiDiv.dataset.index   = '0';
+
+                // Build final card
+                const card = document.createElement('div');
+                card.className = 'track-card';
+                card.innerHTML = `
+          <div class="track-head">
+            <div class="track-title">Track ${trackIndex + 1}</div>
+            <div class="track-actions">
+              <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
+              <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
+            </div>
+          </div>
+          <div class="grid">
+            <input type="hidden">
+            <div class="subsection">
+              <label class="label">Levels</label>
+              <div class="collection"></div>
+              <button type="button" class="btn-mini">+ Level</button>
+            </div>
+            <div class="subsection">
+              <label class="label">MIDI files</label>
+              <div class="collection"></div>
+              <button type="button" class="btn-mini">+ MIDI file</button>
+            </div>
+          </div>
+        `;
+
+                // Insert the hidden trackId
+                card.querySelector('input[type="hidden"]').replaceWith(trackIdInput);
+
+                // Insert collections into slots
+                const levelsSlot = card.querySelectorAll('.subsection .collection')[0];
+                const midiSlot   = card.querySelectorAll('.subsection .collection')[1];
+                levelsSlot.replaceWith(levelsDiv);
+                midiSlot.replaceWith(midiDiv);
+
+                // Wire the buttons
+                const levelBtn = card.querySelectorAll('.subsection .btn-mini')[0];
+                levelBtn.addEventListener('click', () => addCollectionItem(levelsDiv.id));
+                const midiBtn = card.querySelectorAll('.subsection .btn-mini')[1];
+                midiBtn.addEventListener('click', () => addCollectionItem(midiDiv.id));
+
+                // Seed 1 row for each
+                seedCollectionIfEmpty(levelsDiv);
+                seedCollectionIfEmpty(midiDiv);
+
+                return card;
+            }
+
+            // Tracks container
             const container = document.getElementById('tracks');
             if (!container) return;
 
+            // Add Track button
             const addBtn = document.getElementById('add-track');
             addBtn && addBtn.addEventListener('click', () => addTrack());
 
             window.addTrack = function() {
                 const index = parseInt(container.dataset.index || '0', 10);
-                const proto = container.dataset.prototype.replace(/__name__/g, index);
-                const wrapper = document.createElement('div');
-                wrapper.className = 'track-card';
-                wrapper.innerHTML = `
-<div class="track-head">
-  <div class="track-title">Track ${index + 1}</div>
-  <div class="track-actions">
-    <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
-    <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
-  </div>
-</div>
-<div class="grid">${proto}</div>`;
-                container.appendChild(wrapper);
-                container.dataset.index = index + 1;
+                const card = buildTrackCardFromPrototype(index);
+                if (card) {
+                    container.appendChild(card);
+                    container.dataset.index = index + 1;
+                }
             };
 
             window.removeTrack = function(btn) {
@@ -142,8 +285,32 @@
                 const card = btn.closest('.track-card');
                 if (!card) return;
                 addTrack();
-                // Naïeve duplicate; wil je waarden kopiëren, lees velden uit 'card' en zet in laatst toegevoegde.
+                // Geavanceerde duplicatie kan later: waarden kopiëren van card → laatste card.
             };
+
+            // Seed alle bestaande tracks op initial load
+            document.querySelectorAll('#tracks .track-card').forEach((card) => {
+                const levels = card.querySelector('[id^="levels-"]');
+                const midis  = card.querySelector('[id^="midiFiles-"]');
+                seedCollectionIfEmpty(levels);
+                seedCollectionIfEmpty(midis);
+            });
         })();
     </script>
+
+    <style>
+        .tracks { display: grid; gap: 16px; }
+        .track-card { border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; background: rgba(255,255,255,0.03); }
+        .track-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+        .track-title { font-weight:600; }
+        .grid { display:grid; gap:12px; }
+        .subsection .label { display:block; font-size:0.95rem; margin-bottom:6px; opacity:0.9; }
+        .collection-item { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
+        .btn-mini { font-size:0.85rem; padding:4px 8px; border-radius:8px; }
+        .btn-ghost { background:transparent; border:1px solid rgba(255,255,255,0.15); padding:6px 10px; border-radius:8px; }
+        .btn-ghost.danger { border-color: rgba(255,0,0,0.35); color:#ff8585; }
+        .chip { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid rgba(255,255,255,0.12); border-radius:999px; margin:4px 6px 4px 0; }
+        .chip-actions { display:inline-flex; gap:6px; margin-left:6px; }
+        .subtle { opacity:0.8; }
+    </style>
 {% endblock %}
