@@ -46,11 +46,11 @@
                                 {% if is_granted('ROLE_ADMIN') %}
                                     <form action="{{ path('doc_delete', {id: d.id}) }}"
                                           method="post"
-                                          onsubmit="return confirm('Set \"{{ d.title }}\" en alle gekoppelde assets verwijderen? Dit kan niet ongedaan worden gemaakt.');"
+                                          onsubmit="return confirm('Set \'{{ d.title }}\' en alle gekoppelde assets verwijderen? Dit kan niet ongedaan worden gemaakt.');"
                                                                                         style="display:inline">
                                     <input type="hidden" name="_token" value="{{ csrf_token('delete-doc-' ~ d.id) }}">
                                     <input type="hidden" name="_method" value="DELETE">
-                                    <button class="btn" style="background:#7f1d1d;border:1px solid #ef4444">Verwijder</button>
+                                    <button class="btn btn-danger">Verwijder</button>
                                     </form>
                                 {% endif %}
                             </td>

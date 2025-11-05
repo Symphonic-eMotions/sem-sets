@@ -54,4 +54,20 @@ final class VersioningService
 
         return $v;
     }
+
+    public function promoteToHead(Document $doc, DocumentVersion $version): void
+    {
+        $doc->setHeadVersion($version);
+        $this->em->flush();
+
+        // Schrijf ook de HEAD JSON naar latest/document.json
+        $path = sprintf('sets/%d/latest/document.json', $doc->getId());
+        $json = $version->getJsonText();
+
+        // ensure dir exists (Flysystem maakt dirs implicit aan bij write)
+        if ($this->uploadsStorage->fileExists($path)) {
+            $this->uploadsStorage->delete($path);
+        }
+        $this->uploadsStorage->write($path, $json);
+    }
 }

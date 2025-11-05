@@ -18,6 +18,11 @@ class DocumentVersion
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Document $document;
 
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
+
     #[ORM\Column(type: 'integer')]
     private int $versionNr;
 
@@ -44,6 +49,9 @@ class DocumentVersion
     public function setAuthor(?User $u): self { $this->author = $u; return $this; }
     public function setChangelog(?string $c): self { $this->changelog = $c; return $this; }
 
+    public function getCreatedAt(): DateTimeImmutable { return $this->createdAt; }
+    public function getChangelog(): ?string { return $this->changelog; }
+    public function getAuthor(): ?User { return $this->author; }
     public function getVersionNr(): int { return $this->versionNr; }
     public function getJsonText(): string { return $this->jsonText; }
 }

@@ -19,4 +19,12 @@ final class DocumentVersionRepository extends ServiceEntityRepository
             ->getQuery()->getSingleScalarResult();
         return $max + 1;
     }
+
+    public function findOneByDocumentAndNumber(Document $doc, int $versionNr): ?DocumentVersion
+    {
+        return $this->createQueryBuilder('v')
+            ->andWhere('v.document = :doc')->setParameter('doc', $doc)
+            ->andWhere('v.versionNr = :nr')->setParameter('nr', $versionNr)
+            ->getQuery()->getOneOrNullResult();
+    }
 }

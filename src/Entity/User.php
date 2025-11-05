@@ -40,7 +40,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $lastFailedAt = null;
 
-    public function getId(): ?int { return $id ?? null; }
+    public function getId(): ?int { return $this->id; }
 
     public function getUserIdentifier(): string { return $this->email; }
     public function getEmail(): string { return $this->email; }

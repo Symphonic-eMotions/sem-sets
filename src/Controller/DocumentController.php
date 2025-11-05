@@ -24,6 +24,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Uid\Ulid;
 use Throwable;
 
 #[Route('/')]
@@ -89,6 +90,41 @@ final class DocumentController extends AbstractController
             $title = $form->get('title')->getData();
             $slug = $this->slugify($title);
             $doc->setSlug($slug);
+
+            $gridSize = $form->get('gridSize')->getData(); // bijv. "3x2"
+            if (is_string($gridSize) && preg_match('/^(\d+)x(\d+)$/', $gridSize, $m)) {
+                $cols = (int)$m[1];
+                $rows = (int)$m[2];
+                // houd binnen 1..3, voor de zekerheid:
+                $cols = max(1, min(3, $cols));
+                $rows = max(1, min(3, $rows));
+                $doc->setGridColumns($cols);
+                $doc->setGridRows($rows);
+            }
+
+            $tracks = $doc->getInstrumentsConfig();
+            foreach ($tracks as &$t) {
+
+                $t['trackId'] = $t['trackId'] ?? $this->newTrackId();
+
+                if (!empty($t['midiFiles']) && is_array($t['midiFiles'])) {
+                    foreach ($t['midiFiles'] as &$mf) {
+                        if (!empty($mf['assetId']) && $mf['assetId'] instanceof Asset) {
+                            $asset = $mf['assetId'];
+                            $name  = $asset->getOriginalName();
+                            $dot   = strrpos($name, '.');
+                            $mf['midiFileExt']  = $dot !== false ? substr($name, $dot+1) : '';
+                            $mf['midiFileName'] = $dot !== false ? substr($name, 0, $dot) : $name;
+
+                            // vervang asset object door ID voor opslag (of laat ’m staan als je dat prettiger vindt)
+                            $mf['assetId'] = $asset->getId();
+                        }
+                    }
+                    unset($mf);
+                }
+            }
+            unset($t);
+            $doc->setInstrumentsConfig($tracks);
 
             // 1) Metadata bijwerken
             $doc->setUpdatedBy($this->getUser());
@@ -233,7 +269,61 @@ final class DocumentController extends AbstractController
         return $this->render('document/versions.html.twig', [
             'document' => $doc,
             'versions' => $versions,
+            'canDownload' => true,
         ]);
+    }
+
+    #[Route('documents/{id}/versions/{version}/restore', name: 'doc_restore_version', methods: ['POST'])]
+    public function restoreVersion(
+        Document $document,
+        int $version,
+        Request $request,
+        DocumentVersionRepository $versions,
+        VersioningService $vs
+    ): Response {
+        // CSRF check (token komt uit je form in de template)
+        $token = $request->request->get('_token');
+        if (!$this->isCsrfTokenValid('restore_version_'.$document->getId().'_'.$version, $token)) {
+            throw $this->createAccessDeniedException('Ongeldig CSRF token.');
+        }
+
+        $v = $versions->findOneByDocumentAndNumber($document, $version);
+        if (!$v) {
+            throw $this->createNotFoundException('Versie niet gevonden.');
+        }
+
+        $vs->promoteToHead($document, $v);
+        $this->addFlash('success', sprintf('v%d is nu de nieuwe HEAD.', $version));
+
+        return $this->redirectToRoute('doc_versions', ['id' => $document->getId()]);
+    }
+
+    #[Route('documents/{id}/versions/{version}/download', name: 'doc_version_download', methods: ['GET'])]
+    public function downloadVersion(
+        Document $document,
+        int $version,
+        DocumentVersionRepository $versions
+    ): StreamedResponse {
+        $v = $versions->findOneByDocumentAndNumber($document, $version);
+        if (!$v) {
+            throw $this->createNotFoundException('Versie niet gevonden.');
+        }
+
+        $json = $v->getJsonText();
+        $filename = sprintf('%s-v%d.json', $document->getSlug(), $version);
+
+        $response = new StreamedResponse(static function () use ($json) {
+            echo $json;
+        });
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'"');
+
+        return $response;
+    }
+
+    private function newTrackId(): string
+    {
+        return 'trk_'.(new Ulid())->toBase32();
     }
 
     private function slugify(string $text): string
@@ -282,7 +372,6 @@ final class DocumentController extends AbstractController
             JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
         );
     }
-
 
     /**
      * Verwerkt de MIDI-uploads vanaf het formulier en slaat assets op.

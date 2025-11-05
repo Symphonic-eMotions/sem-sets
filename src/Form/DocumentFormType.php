@@ -16,6 +16,8 @@ use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\Validator\Constraints as Assert;
 
 final class DocumentFormType extends AbstractType
@@ -42,17 +44,32 @@ final class DocumentFormType extends AbstractType
             ])
             ->add('published', CheckboxType::class, ['required' => false])
 
-            ->add('gridColumns', ChoiceType::class, [
-                'choices' => $range1to4(),
-                'label' => 'Grid columns',
-                'constraints' => [new Assert\NotBlank(), new Assert\Range(min:1, max:4)],
+             // Eén select voor vierkante grids (unmapped)
+            ->add('gridSize', ChoiceType::class, [
+                'mapped' => false,
+                'label' => 'Grid',
+                'choices' => $this->squareGridChoices(),
+                'placeholder' => 'Kies een grid',
+                'required' => true,
             ])
+            // Preselecteer huidig grid bij edit
+            ->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $e) {
+                $doc = $e->getData(); // App\Entity\Document|null
+                if (!$doc) {
+                    return;
+                }
 
-            ->add('gridRows', ChoiceType::class, [
-                'choices' => $range1to4(),
-                'label' => 'Grid rows',
-                'constraints' => [new Assert\NotBlank(), new Assert\Range(min:1, max:4)],
-            ])
+                $cols = method_exists($doc, 'getGridColumns') ? $doc->getGridColumns() : null;
+                $rows = method_exists($doc, 'getGridRows') ? $doc->getGridRows() : null;
+
+                // selecteer alleen als het exact 1x1, 2x2 of 3x3 is
+                if (is_int($cols) && is_int($rows) && $cols === $rows && $cols >= 1 && $cols <= 3) {
+                    $e->getForm()->get('gridSize')->setData(sprintf('%dx%d', $cols, $rows));
+                } else {
+                    // Buiten bereik of niet-vierkant → laat placeholder staan
+                    $e->getForm()->get('gridSize')->setData(null);
+                }
+            })
 
             ->add('setBPM', NumberType::class, [
                 'label' => 'BPM',
@@ -122,4 +139,15 @@ final class DocumentFormType extends AbstractType
             ])
         ;
     }
+
+    private function squareGridChoices(): array
+    {
+        // Label => Value
+        return [
+            '1 × 1' => '1x1',
+            '2 × 2' => '2x2',
+            '3 × 3' => '3x3',
+        ];
+    }
+
 }

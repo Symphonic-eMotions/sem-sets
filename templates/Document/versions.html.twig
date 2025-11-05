@@ -1,0 +1,115 @@
+{# templates/document/versions.html.twig #}
+{% extends 'base.html.twig' %}
+
+{% block title %}Versies – {{ document.title }}{% endblock %}
+
+{% block body %}
+
+{# Gebruik je aangeleverde UI-styles partial #}
+{% include '_partials/ui_styles.html.twig' %}
+
+<div class="wrap">
+
+    <div class="page-header">
+        <div>
+            <h1 class="title">Versies – {{ document.title }}</h1>
+            <p class="subtitle">
+                Slug: <code>{{ document.slug }}</code>
+                • Totaal: {{ versions|length }}
+                {% if document.headVersion is defined and document.headVersion %}
+                • Huidige HEAD: v{{ document.headVersion.versionNr }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="actions">
+            <a class="btn secondary" href="{{ path('doc_edit', {id: document.id}) }}">← Terug naar bewerken</a>
+        </div>
+    </div>
+
+    <div class="card">
+        {% if versions is empty %}
+        <p class="lead">Er zijn nog geen versies voor deze set.</p>
+        {% else %}
+        <div class="section">
+            <h2 class="section-title">Versiehistorie</h2>
+            <p class="subtle">Onderstaande lijst toont de meest recente versies bovenaan. Je kunt een eerdere versie als <strong>HEAD</strong> markeren.</p>
+        </div>
+
+        <table class="table" aria-label="Versiehistorie">
+            <thead>
+            <tr>
+                <th>#</th>
+                <th>Auteur</th>
+                <th>Aangemaakt</th>
+                <th>Changelog</th>
+                <th>Status</th>
+                <th style="width:1%;">Acties</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% set headNr = document.headVersion ? document.headVersion.versionNr : null %}
+            {% for v in versions %}
+            <tr>
+                <td>
+                    <code>v{{ v.versionNr }}</code>
+                </td>
+                <td>
+                    {% if v.author %}
+                    {{ v.author.email ?? 'onbekend' }}
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ v.createdAt|date('Y-m-d H:i') }}</td>
+                <td>
+                    {% if v.changelog %}
+                    {{ v.changelog|u.truncate(120, '…') }}
+                    {% else %}
+                    <span class="muted">geen opmerking</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if headNr is not null and v.versionNr == headNr %}
+                    <span class="pill">HEAD</span>
+                    {% else %}
+                    <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="actions-inline">
+
+                        {# Optional download if route exists #}
+                        {% set canDownload = canDownload is defined ? canDownload : false %}
+                        {% if canDownload %}
+                            <a class="btn secondary btn-sm"
+                               href="{{ path('doc_version_download', {id: document.id, version: v.versionNr}) }}">
+                                Download
+                            </a>
+                        {% endif %}
+
+                        {# Restore naar HEAD #}
+                        {% set canRestore = canRestore is defined ? canRestore : true %}
+                        {% if canRestore and (headNr is null or v.versionNr != headNr) %}
+                            <form method="post"
+                                  action="{{ path('doc_restore_version', {id: document.id, version: v.versionNr}) }}"
+                                  onsubmit="return confirm('Maak v{{ v.versionNr }} de nieuwe HEAD?');"
+                                  style="display:inline;">
+                                <input type="hidden" name="_token"
+                                       value="{{ csrf_token('restore_version_' ~ document.id ~ '_' ~ v.versionNr) }}">
+                                <button type="submit" class="btn btn-sm">Maak HEAD</button>
+                            </form>
+                        {% else %}
+                            <span class="pill">HEAD</span>
+                        {% endif %}
+
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
