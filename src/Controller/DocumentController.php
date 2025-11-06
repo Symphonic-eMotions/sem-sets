@@ -87,68 +87,124 @@ final class DocumentController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
 
-            $title = $form->get('title')->getData();
-            $slug = $this->slugify($title);
+            // Slug bijwerken op basis van titel
+            $title = (string) $form->get('title')->getData();
+            $slug  = $this->slugify($title);
             $doc->setSlug($slug);
 
-            $gridSize = $form->get('gridSize')->getData(); // bijv. "3x2"
+            // Grid "NxM" → kolommen/rijen (begrenst 1..3 zoals je comment aangeeft)
+            $gridSize = $form->get('gridSize')->getData(); // bv. "3x2"
             if (is_string($gridSize) && preg_match('/^(\d+)x(\d+)$/', $gridSize, $m)) {
-                $cols = (int)$m[1];
-                $rows = (int)$m[2];
-                // houd binnen 1..3, voor de zekerheid:
-                $cols = max(1, min(3, $cols));
-                $rows = max(1, min(3, $rows));
+                $cols = max(1, min(3, (int) $m[1]));
+                $rows = max(1, min(3, (int) $m[2]));
                 $doc->setGridColumns($cols);
                 $doc->setGridRows($rows);
             }
-            $tracks = $doc->getInstrumentsConfig();
-            foreach ($tracks as &$t) {
 
+            // InstrumentsConfig normaliseren
+            $tracks = $doc->getInstrumentsConfig();
+            if (!is_array($tracks)) {
+                $tracks = [];
+            }
+
+            foreach ($tracks as $i => &$t) {
+                if (!is_array($t)) {
+                    $t = [];
+                }
+
+                // Zorg dat elke track een stabiel id heeft
                 $t['trackId'] = $t['trackId'] ?? $this->newTrackId();
 
-                if (!empty($t['midiFiles']) && is_array($t['midiFiles'])) {
-                    foreach ($t['midiFiles'] as &$mf) {
-                        if (!empty($mf['assetId']) && $mf['assetId'] instanceof Asset) {
-                            $asset = $mf['assetId'];
-                            $name  = $asset->getOriginalName();
-                            $dot   = strrpos($name, '.');
-                            $mf['midiFileExt']  = $dot !== false ? substr($name, $dot+1) : '';
-                            $mf['midiFileName'] = $dot !== false ? substr($name, 0, $dot) : $name;
+                // Levels: maak zeker dat het ints zijn
+                if (isset($t['levels']) && is_array($t['levels'])) {
+                    $t['levels'] = array_values(array_filter(
+                        array_map(static fn($v) => is_numeric($v) ? (int) $v : null, $t['levels']),
+                        static fn($v) => $v !== null
+                    ));
+                }
 
-                            // vervang asset object door ID voor opslag (of laat ’m staan als je dat prettiger vindt)
-                            $mf['assetId'] = $asset->getId();
+                // MIDI files: transformeer asset → naam/ext en filter lege regels
+                if (!empty($t['midiFiles']) && is_array($t['midiFiles'])) {
+                    $normalized = [];
+                    foreach ($t['midiFiles'] as $mf) {
+                        if (!is_array($mf)) {
+                            continue;
                         }
+
+                        // Haal asset uit veld (kan Entity of int zijn, afhankelijk van Form binding)
+                        $assetRef = $mf['assetId'] ?? null;
+                        $asset    = null;
+
+                        if ($assetRef instanceof Asset) {
+                            $asset = $assetRef;
+                        } elseif (is_numeric($assetRef)) {
+                            $asset = $assetRepo->find((int) $assetRef);
+                        }
+
+                        // Als geen asset is gekozen en er is verder niets, sla dit item over
+                        if (!$asset) {
+                            // only keep if er expliciet andere bruikbare velden staan
+                            // (nu niet nodig → skip)
+                            continue;
+                        }
+
+                        $original = (string) $asset->getOriginalName();
+                        $dotPos   = strrpos($original, '.');
+                        $name     = $dotPos !== false ? substr($original, 0, $dotPos) : $original;
+                        $ext      = $dotPos !== false ? substr($original, $dotPos + 1) : 'mid';
+
+                        // Loop length schoonmaken naar ints
+                        $loop = $mf['loopLength'] ?? [];
+                        if (!is_array($loop)) {
+                            $loop = [];
+                        }
+                        $loop = array_values(array_filter(
+                            array_map(static fn($v) => is_numeric($v) ? (int) $v : null, $loop),
+                            static fn($v) => $v !== null
+                        ));
+
+                        $normalized[] = [
+                            'midiFileName' => $name,
+                            'midiFileExt'  => strtolower($ext),
+                            'loopLength'   => $loop,
+                            // optioneel bewaren voor interne referentie/debug:
+                            // 'assetId'      => $asset->getId(),
+                        ];
                     }
-                    unset($mf);
+
+                    $t['midiFiles'] = $normalized;
                 }
             }
             unset($t);
+
             $doc->setInstrumentsConfig($tracks);
 
-            $posted = $form->get('setBPM')->getData();
-            $current = $doc->getSetBPM(); // string "xxx.xx"
-            if ((string)$posted !== $current) {
-                // optioneel: forceren, maar zou al goed moeten staan:
+            // BPM bijwerken (string met twee decimalen in jouw model)
+            $posted  = $form->get('setBPM')->getData();
+            $current = $doc->getSetBPM();
+            if ((string) $posted !== (string) $current) {
                 $doc->setSetBPM($posted);
             }
 
-            // 1) Metadata bijwerken
+            // Metadata en opslag
             $doc->setUpdatedBy($this->getUser());
             $this->em->flush();
 
-            // 2) Snapshot (update)
+            // Snapshot na update
             $this->createSnapshot($vs, $doc, 'update');
 
-            // 3) MIDI uploads
+            // Afhandelen van nieuwe uploads (multi-file)
             $this->handleMidiUploads($form, $doc, $assets);
 
+            $this->addFlash('success', 'Document opgeslagen.');
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
+        // Assetlijst voor de pagina
         $assetList = $assetRepo->findBy(['document' => $doc], ['id' => 'DESC']);
 
         return $this->render('document/edit.html.twig', [
-            'form' => $form,
+            'form'     => $form,
             'document' => $doc,
             'assets'   => $assetList,
         ]);
