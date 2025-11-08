@@ -17,8 +17,7 @@
             {# --- Set gegevens --- #}
             <div class="section">
                 {{ form_row(form.title) }}
-                {{ form_row(form.semVersion) }}
-                {{ form_row(form.published) }}
+{#                {{ form_row(form.semVersion) }}#}
                 {{ form_row(form.gridSize) }}
                 {{ form_row(form.setBPM) }}
                 {# {{ form_row(form.levelDurations) }} #}
@@ -30,15 +29,15 @@
                 {{ form_row(form.midiFiles) }}
             </div>
 
-            {# --- Tracks container (InstrumentSet) --- #}
+            {# --- Tracks container (NU: DocumentTrack) --- #}
             <div class="section">
                 <div class="form-actions" style="margin-top:10px">
                     <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
                 </div>
 
                 {# We tonen bestaande tracks met expliciete rendering #}
-                <div id="tracks" class="tracks" data-index="{{ form.instrumentsConfig|length }}">
-                    {% for trackForm in form.instrumentsConfig %}
+                <div id="tracks" class="tracks" data-index="{{ form.tracks|length }}">
+                    {% for trackForm in form.tracks %}
                         <div class="track-card">
                             <div class="track-head">
                                 <div class="track-title">Track {{ loop.index }}</div>
@@ -71,27 +70,11 @@
                                     <button type="button" class="btn-mini" onclick="addCollectionItem('levels-{{ loop.index0 }}')">+ Level</button>
                                 </div>
 
-                                {# MIDI files: Collection<MidiFileRefType> #}
+                                {# MIDI asset: enkele EntityType-select #}
                                 <div class="subsection">
-                                    <label class="label">MIDI files</label>
-                                    <div
-                                            id="midiFiles-{{ loop.index0 }}"
-                                            class="collection"
-                                            data-prototype="{{ form_widget(trackForm.midiFiles.vars.prototype)|e('html_attr') }}"
-                                            data-index="{{ trackForm.midiFiles|length }}"
-                                    >
-                                        {% for mf in trackForm.midiFiles %}
-                                            <div class="collection-item">
-                                                {{ form_widget(mf) }}
-                                                <button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>
-                                            </div>
-                                        {% endfor %}
-                                    </div>
-                                    <button type="button" class="btn-mini" onclick="addCollectionItem('midiFiles-{{ loop.index0 }}')">+ MIDI file</button>
-
-                                    {# optionele hint bij geen choices #}
-                                    {% set protoField = trackForm.midiFiles.vars.prototype.assetId ?? null %}
-                                    {% if protoField is not null and protoField.vars.choices is defined and protoField.vars.choices|length == 0 %}
+                                    <label class="label">MIDI bestand</label>
+                                    {{ form_widget(trackForm.midiAsset) }}
+                                    {% if trackForm.midiAsset.vars.choices is defined and trackForm.midiAsset.vars.choices|length == 0 %}
                                         <p class="subtle" style="margin-top:6px">
                                             Er zijn nog geen MIDI-assets voor deze set. Upload ze bovenaan bij “Assets uploaden”.
                                         </p>
@@ -105,6 +88,8 @@
                 </div>
             </div>
 
+            {{ form_row(form.published) }}
+
             {# --- Acties onderaan --- #}
             <div class="form-actions">
                 <button class="btn" type="submit">Opslaan</button>
@@ -112,13 +97,15 @@
             </div>
 
             {# markeer het parent-veld als gerenderd, omdat we de children custom renderen #}
-            {% do form.instrumentsConfig.setRendered %}
+            {% do form.tracks.setRendered %}
+
+
 
             {{ form_end(form) }}
 
             {# =========================
-         Assets-lijst BUITEN het hoofdformulier
-         ========================= #}
+               Assets-lijst BUITEN het hoofdformulier
+               ========================= #}
             <div class="section">
                 <h2 class="section-title">Bestanden (Assets) {{ document.title }}</h2>
                 {% if assets is defined and assets|length %}
@@ -127,8 +114,8 @@
                             <div class="chip">
                                 <span>{{ a.originalName }}</span>
                                 <span class="subtle">
-                  ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
-                </span>
+                                  ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
+                                </span>
                                 <div class="chip-actions">
                                     <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
                                     <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
@@ -151,7 +138,7 @@
 
     {# ===== Prototype voor nieuwe tracks (volledige HTML van het track-form) ===== #}
     <template id="track-proto">
-        {{ form_widget(form.instrumentsConfig.vars.prototype)|e('html') }}
+        {{ form_widget(form.tracks.vars.prototype)|e('html') }}
     </template>
 
     {# ===== JS helpers ===== #}
@@ -175,86 +162,76 @@
                 if (item) item.remove();
             };
 
-            // Seed: ensure each collection has at least one row
             function seedCollectionIfEmpty(container) {
                 if (!container) return;
                 const currentIndex = parseInt(container.dataset.index || '0', 10);
-                const hasAnyVisible = container.querySelector('.collection-item, input, select, textarea');
-                if (!hasAnyVisible || currentIndex === 0) {
-                    // Force at least one entry
+                const hasAny = container.querySelector('.collection-item, input, select, textarea');
+                if (!hasAny || currentIndex === 0) {
                     window.addCollectionItem(container.id);
                 }
             }
 
-            // Add a new track using the prototype HTML
+            // Bouw een kaart vanuit het track-prototype
             function buildTrackCardFromPrototype(trackIndex) {
                 const t = document.getElementById('track-proto');
                 if (!t) return null;
                 const protoHTML = t.innerHTML;
 
-                // Temp container to parse the HTML
+                // We parsen het prototype om de relevante velden eruit te halen (trackId, levels-collection, midiAsset-select)
                 const temp = document.createElement('div');
                 temp.innerHTML = protoHTML;
 
-                // Find the three parts inside proto: hidden trackId, levels div[data-prototype], midiFiles div[data-prototype]
                 const trackIdInput = temp.querySelector('input[type="hidden"][name*="[trackId]"]') || document.createElement('input');
+                const levelsDiv = temp.querySelector('[data-prototype]'); // levels-collection
+                const midiSelect = temp.querySelector('select[name*="[midiAsset]"]') || temp.querySelector('input[name*="[midiAsset]"]');
 
-                // collections are rendered as elements with data-prototype; there should be two
-                const collections = temp.querySelectorAll('[data-prototype]');
-                const levelsDiv = collections[0] || document.createElement('div');
-                const midiDiv   = collections[1] || document.createElement('div');
+                // Normaliseer ids/dataset
+                if (levelsDiv) {
+                    levelsDiv.id = 'levels-dyn-' + trackIndex;
+                    if (levelsDiv.dataset.index === undefined) levelsDiv.dataset.index = '0';
+                }
 
-                // Normalize ids and dataset for our layout
-                levelsDiv.id = 'levels-dyn-' + trackIndex;
-                midiDiv.id   = 'midiFiles-dyn-' + trackIndex;
-
-                if (levelsDiv.dataset.index === undefined) levelsDiv.dataset.index = '0';
-                if (midiDiv.dataset.index   === undefined) midiDiv.dataset.index   = '0';
-
-                // Build final card
                 const card = document.createElement('div');
                 card.className = 'track-card';
                 card.innerHTML = `
-          <div class="track-head">
-            <div class="track-title">Track ${trackIndex + 1}</div>
-            <div class="track-actions">
-              <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
-              <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
-            </div>
-          </div>
-          <div class="grid">
-            <input type="hidden">
-            <div class="subsection">
-              <label class="label">Levels</label>
-              <div class="collection"></div>
-              <button type="button" class="btn-mini">+ Level</button>
-            </div>
-            <div class="subsection">
-              <label class="label">MIDI files</label>
-              <div class="collection"></div>
-              <button type="button" class="btn-mini">+ MIDI file</button>
-            </div>
-          </div>
-        `;
+                    <div class="track-head">
+                        <div class="track-title">Track ${trackIndex + 1}</div>
+                        <div class="track-actions">
+<!--                            <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>-->
+                            <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <input type="hidden">
+                        <div class="subsection">
+                            <label class="label">Levels</label>
+                            <div class="collection"></div>
+                            <button type="button" class="btn-mini">+ Level</button>
+                        </div>
+                        <div class="subsection">
+                            <label class="label">MIDI bestand</label>
+                            <div class="midi-slot"></div>
+                        </div>
+                    </div>
+                `;
 
-                // Insert the hidden trackId
+                // Hidden trackId invullen
                 card.querySelector('input[type="hidden"]').replaceWith(trackIdInput);
 
-                // Insert collections into slots
+                // Levels collection in de juiste plek
                 const levelsSlot = card.querySelectorAll('.subsection .collection')[0];
-                const midiSlot   = card.querySelectorAll('.subsection .collection')[1];
-                levelsSlot.replaceWith(levelsDiv);
-                midiSlot.replaceWith(midiDiv);
+                if (levelsDiv) levelsSlot.replaceWith(levelsDiv);
 
-                // Wire the buttons
+                // MIDI select in de juiste plek
+                const midiSlot = card.querySelector('.midi-slot');
+                if (midiSelect) midiSlot.replaceWith(midiSelect);
+
+                // Wire de +Level knop
                 const levelBtn = card.querySelectorAll('.subsection .btn-mini')[0];
-                levelBtn.addEventListener('click', () => addCollectionItem(levelsDiv.id));
-                const midiBtn = card.querySelectorAll('.subsection .btn-mini')[1];
-                midiBtn.addEventListener('click', () => addCollectionItem(midiDiv.id));
+                if (levelBtn && levelsDiv) levelBtn.addEventListener('click', () => addCollectionItem(levelsDiv.id));
 
-                // Seed 1 row for each
+                // 1 initiële level-rij
                 seedCollectionIfEmpty(levelsDiv);
-                seedCollectionIfEmpty(midiDiv);
 
                 return card;
             }
@@ -281,19 +258,17 @@
                 if (card) card.remove();
             };
 
-            window.duplicateTrack = function(btn) {
-                const card = btn.closest('.track-card');
-                if (!card) return;
-                addTrack();
-                // Geavanceerde duplicatie kan later: waarden kopiëren van card → laatste card.
-            };
+            // window.duplicateTrack = function(btn) {
+            //     const card = btn.closest('.track-card');
+            //     if (!card) return;
+            //     addTrack();
+            //     // (optioneel) waarden kopiëren van card → laatste card.
+            // };
 
-            // Seed alle bestaande tracks op initial load
+            // Seed: bestaande tracks op initial load (alleen levels seeden)
             document.querySelectorAll('#tracks .track-card').forEach((card) => {
                 const levels = card.querySelector('[id^="levels-"]');
-                const midis  = card.querySelector('[id^="midiFiles-"]');
                 seedCollectionIfEmpty(levels);
-                seedCollectionIfEmpty(midis);
             });
         })();
     </script>

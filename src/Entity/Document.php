@@ -6,7 +6,10 @@ namespace App\Entity;
 use App\Enum\SemVersion;
 use App\Repository\DocumentRepository;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use JetBrains\PhpStorm\Deprecated;
 
 #[ORM\Entity(repositoryClass: DocumentRepository::class)]
 #[ORM\Table(name: 'documents')]
@@ -62,6 +65,15 @@ class Document
     #[ORM\Column(type: 'decimal', precision: 5, scale: 2, options: ['unsigned' => true, 'default' => '90.00'])]
     private string $setBPM = '90.00';
 
+    #[ORM\OneToMany(
+        targetEntity: DocumentTrack::class,
+        mappedBy: 'document',
+        cascade: ['persist','remove'],
+        orphanRemoval: true
+    )]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    private Collection $tracks;
+
     #[ORM\Column(type: 'json', options: ['comment' => 'Array of InstrumentConfigs', 'default' => '[]'])]
     private array $instrumentsConfig = [];
 
@@ -70,6 +82,8 @@ class Document
         $now = new DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
+
+        $this->tracks = new ArrayCollection();
     }
 
     #[ORM\PrePersist]
@@ -160,9 +174,32 @@ class Document
         return $this;
     }
 
+    public function getTracks(): Collection { return $this->tracks;}
+
+    public function addTrack(DocumentTrack $t): self
+    {
+        if (!$this->tracks->contains($t)) {
+            $this->tracks->add($t);
+            $t->setDocument($this);
+        }
+        return $this;
+    }
+
+    public function removeTrack(DocumentTrack $t): self
+    {
+        if ($this->tracks->removeElement($t)) {
+            if ($t->getDocument() === $this) {
+                $t->setDocument(null);
+            }
+        }
+        return $this;
+    }
+
+    #[Deprecated("use getTracks() instead")]
     // Instruments config (array of assoc arrays for CollectionType entry forms)
     public function getInstrumentsConfig(): array { return $this->instrumentsConfig; }
 
+    #[Deprecated()]
     public function setInstrumentsConfig(array $cfg): self
     {
         // Zorg dat we een nette array van arrays opslaan en reindexen
@@ -181,13 +218,14 @@ class Document
         return $this;
     }
 
-    /** Handige helpers voor UI-acties op de collectie */
+    #[Deprecated("use addTrack() instead")]
     public function addInstrumentConfig(array $item): self
     {
         $this->instrumentsConfig[] = $item;
         return $this;
     }
 
+    #[Deprecated("use removeTrack() instead")]
     public function removeInstrumentConfigAt(int $index): self
     {
         if (array_key_exists($index, $this->instrumentsConfig)) {

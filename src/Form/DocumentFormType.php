@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace App\Form;
 
+use App\Entity\Document;
 use App\Enum\SemVersion;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -24,7 +25,8 @@ final class DocumentFormType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
-        $doc = $builder->getData(); // App\Entity\Document
+        /** @var Document $doc */
+        $doc = $options['data']; // je huidige document
 
         $builder
             ->add('title', TextType::class, [
@@ -105,16 +107,12 @@ final class DocumentFormType extends AbstractType
 //                'help' => 'Voeg per level een duur (in steps/maat) toe.',
 //            ])
 
-            ->add('instrumentsConfig', CollectionType::class, [
-                'entry_type' => InstrumentConfigType::class,
-                'entry_options' => [
-                    'document' => $doc,
-                ],
-                'allow_add' => true,
-                'allow_delete' => true,
-                'by_reference' => false,
-                'label' => 'Tracks',
-                'required' => false,
+            ->add('tracks', CollectionType::class, [
+                'entry_type'    => DocumentTrackType::class,
+                'entry_options' => ['document' => $doc],
+                'allow_add'     => true,
+                'allow_delete'  => true,
+                'by_reference'  => false,
             ])
 
             ->add('midiFiles', FileType::class, [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Entity\Document;
+use JetBrains\PhpStorm\Deprecated;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
@@ -12,6 +13,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
 
+#[Deprecated("use DocumentTrack() instead")]
 final class InstrumentConfigType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
