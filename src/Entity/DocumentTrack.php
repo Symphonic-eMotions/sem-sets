@@ -19,9 +19,8 @@ class DocumentTrack
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Document $document;
 
-    // Stabiel technisch id (bv. trk_xxx) voor je front-end/JSON compat
-    #[ORM\Column(type: 'string', length: 50, unique: false)]
-    private string $trackId;
+    #[ORM\Column(type: 'string', length: 50, unique: false, nullable: true)]
+    private ?string $trackId = null;
 
     // Levels vanuit je JSON: ints >= 0
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
@@ -54,8 +53,11 @@ class DocumentTrack
     public function getDocument(): ?Document { return $this->document ?? null; }
     public function setDocument(?Document $d): self { $this->document = $d; return $this; }
 
-    public function getTrackId(): string { return $this->trackId; }
-    public function setTrackId(string $id): self { $this->trackId = $id; return $this; }
+    public function getTrackId(): ?string { return $this->trackId; }
+    public function setTrackId(?string $id): self {
+        $this->trackId = $id;
+        return $this;
+    }
 
     /** @return int[] */
     public function getLevels(): array { return $this->levels; }

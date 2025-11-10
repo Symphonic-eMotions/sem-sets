@@ -106,8 +106,8 @@ final class DocumentController extends AbstractController
                     $t->setDocument($doc);
                 }
 
-                // stabiel id indien leeg
-                if (!$t->getTrackId()) {
+                // stabiel id indien leeg OF null
+                if (!$t->getTrackId()) {  // covers null, '', etc.
                     $t->setTrackId($this->newTrackId());
                 }
 
