@@ -30,6 +30,7 @@ final class DocumentFormType extends AbstractType
 
         $builder
             ->add('title', TextType::class, [
+                'label' => 'Titel',
                 'constraints' => [new Assert\NotBlank(), new Assert\Length(max:200)],
             ])
             ->add('slug', HiddenType::class, [
@@ -47,13 +48,13 @@ final class DocumentFormType extends AbstractType
             ->add('published', CheckboxType::class, ['required' => false])
 
              // Eén select voor vierkante grids (unmapped)
-            ->add('gridSize', ChoiceType::class, [
-                'mapped' => false,
-                'label' => 'Grid',
-                'choices' => $this->squareGridChoices(),
-                'placeholder' => 'Kies een grid',
-                'required' => true,
-            ])
+             ->add('gridSize', ChoiceType::class, [
+                 'mapped' => false,
+                 'label' => 'Grid',
+                 'choices' => $this->squareGridChoices(),
+                 'placeholder' => 'Kies een grid',
+                 'required' => true,
+             ])
             // Preselecteer huidig grid bij edit
             ->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $e) {
                 $doc = $e->getData(); // App\Entity\Document|null
@@ -79,7 +80,7 @@ final class DocumentFormType extends AbstractType
                 'scale' => 2,
                 'html5' => true,
                 'input' => 'string',
-                'rounding_mode' => \NumberFormatter::ROUND_HALFUP, // <- Ook hier: "Multiple definitions exist for class 'NumberFormatter' "
+                'rounding_mode' => \NumberFormatter::ROUND_HALFUP,
                 'constraints' => [
                     new Assert\NotBlank(),
                     new Assert\Range(min: 0, max: 999.99),
@@ -88,24 +89,26 @@ final class DocumentFormType extends AbstractType
             ])
 
 
-            //            ->add('levelDurations', CollectionType::class, [
-//                'label' => 'Level durations',
-//                'entry_type' => NumberType::class,
-//                'entry_options' => [
-//                    'html5' => true,
-//                    'scale' => 0,
-//                    'constraints' => [
-//                        new Assert\NotNull(),
-//                        new Assert\Type('numeric'),
-//                        new Assert\Range(min:1, max: 32767),
-//                    ],
-//                ],
-//                'allow_add' => true,
-//                'allow_delete' => true,
-//                'by_reference' => false,
-//                'prototype' => true,
-//                'help' => 'Voeg per level een duur (in steps/maat) toe.',
-//            ])
+            ->add('levelDurations', CollectionType::class, [
+                'label' => 'Level durations',
+                'entry_type' => NumberType::class,
+                'entry_options' => [
+                    'html5' => true,
+                    'scale' => 0,
+                    'attr' => ['class' => 'ld-input', 'min' => 0, 'max' => 1, 'step' => 1, 'inputmode' => 'numeric'],
+                    'constraints' => [
+                        new Assert\NotNull(),
+                        new Assert\Type('numeric'),
+                        new Assert\Range(min: 0, max: 1), // ⬅️ alleen 0/1 toegestaan
+                    ],
+                ],
+                'allow_add' => true,
+                'allow_delete' => true,
+                'by_reference' => false,
+                'prototype' => true,
+                'attr' => ['class' => 'level-durations'], // ⬅️ hook voor de UI
+                'help' => 'Klik op de vierkante knoppen om 0/1 te togglen, voeg rijen toe of verwijder ze.',
+            ])
 
             ->add('tracks', CollectionType::class, [
                 'entry_type'    => DocumentTrackType::class,

@@ -3,6 +3,9 @@
 {% block title %}{{ document.title }}{% endblock %}
 
 {% block body %}
+    {# Eventueel globale UI styles #}
+    {# {% include '_partials/ui_styles.html.twig' %} #}
+
     <div class="wrap">
         <div class="card">
             <h1 class="title">Bewerken Set: {{ document.title }}</h1>
@@ -11,19 +14,85 @@
             {% form_theme form 'forms/_theme.html.twig' %}
             {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
 
-            {# --- Set gegevens --- #}
+            {# --- Set gegevens (Titel / Published · Grid / BPM) --- #}
             <div class="section">
-                {{ form_row(form.title) }}
-{#                {{ form_row(form.semVersion) }}#}
-
-                {{ form_row(form.gridSize) }}
-                {{ form_row(form.setBPM) }}
+                <div class="grid grid-2">
+                    <div class="grid">
+                        {{ form_row(form.title) }}
+                        {{ form_row(form.published) }}
+                    </div>
+                    <div class="grid">
+                        {{ form_row(form.gridSize) }}
+                        {{ form_row(form.setBPM) }}
+                    </div>
+                </div>
             </div>
 
-            {# --- Upload veld --- #}
+            {# --- Upload + Assets naast elkaar --- #}
             <div class="section">
-                <h2 class="section-title">Assets uploaden</h2>
-                {{ form_row(form.midiFiles) }}
+                <h2 class="section-title">Assets</h2>
+                <div class="grid grid-2">
+                    <div>
+                        <h3 class="label" style="margin:0 0 6px">Upload MIDI-bestanden</h3>
+                        {{ form_row(form.midiFiles) }}
+                    </div>
+
+                    <div>
+                        <h3 class="label" style="margin:0 0 6px">Bestaande assets</h3>
+                        {% if assets is defined and assets|length %}
+                            <div class="chips" style="margin-top:8px">
+                                {% for a in assets %}
+                                    <div class="chip">
+                                        <span>{{ a.originalName }}</span>
+                                        <span class="subtle">
+                                          ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
+                                        </span>
+                                        <div class="chip-actions">
+                                            <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
+                                            <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                                  method="post"
+                                                  onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
+                                                  style="display:inline">
+                                                <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
+                                                <button type="submit" class="btn-mini danger">Verwijder</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="subtle" style="margin-top:6px">Nog geen assets. Upload één of meer .mid-bestanden.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# --- LevelDurations custom UI (vierkante knoppen 0/1) --- #}
+            <div class="section">
+                <h2 class="section-title">LevelDurations</h2>
+
+                {# 1) Visuele tegel-UI #}
+                <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
+
+                {# 2) Verborgen inputs die Symfony leest #}
+                <div id="ld-hidden-inputs"
+                     class="ld-hidden"
+                     data-prototype="{{ form_widget(form.levelDurations.vars.prototype)|e('html_attr') }}"
+                     data-index="{{ form.levelDurations|length }}">
+                    {% for field in form.levelDurations %}
+                        <div class="ld-item">
+                            {{ form_widget(field) }}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="actions" style="margin-top:10px">
+                    <button type="button" class="btn btn-sm" id="ld-add">+ Voeg toe</button>
+                    <button type="button" class="btn btn-sm secondary" id="ld-remove">Verwijder laatste</button>
+                </div>
+
+                {# We doen custom rendering, dus markeer als rendered #}
+                {% do form.levelDurations.setRendered %}
             </div>
 
             {# --- Tracks (DocumentTrack) --- #}
@@ -32,8 +101,7 @@
                     <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
                 </div>
 
-                {# Container met data-prototype = VOLLEDIGE track-kaart #}
-                {# 1) Bouw EERST het volledige prototype als HTML #}
+                {# 1) Bouw volledig prototype van track-kaart #}
                 {% set track_proto %}
                     <div class='track-card'>
                         <div class='track-head'>
@@ -64,13 +132,13 @@
                     </div>
                 {% endset %}
 
-                {# 2) Stop de ge-escape-te HTML in het data-prototype attribuut #}
+                {# 2) Container met volledige kaart als data-prototype #}
                 <div id="tracks"
                      class="tracks"
                      data-index="{{ form.tracks|length }}"
                      data-prototype="{{ track_proto|e('html_attr') }}">
 
-                    {# Bestaande tracks renderen #}
+                    {# Bestaande tracks #}
                     {% for trackForm in form.tracks %}
                         <div class="track-card">
                             <div class="track-head">
@@ -113,10 +181,7 @@
                         <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
                     {% endfor %}
                 </div>
-
             </div>
-
-            {{ form_row(form.published) }}
 
             {# --- Acties onderaan --- #}
             <div class="form-actions">
@@ -124,45 +189,17 @@
                 <a class="btn secondary" href="{{ path('app_dashboard') }}">Terug</a>
             </div>
 
-            {# markeer parent-veld als gerenderd, we doen custom rendering #}
+            {# Markeer custom gerenderde velden #}
             {% do form.tracks.setRendered %}
 
             {{ form_end(form) }}
-
-            {# --- Assets-lijst (optioneel) --- #}
-            <div class="section">
-                <h2 class="section-title">Bestanden (Assets) {{ document.title }}</h2>
-                {% if assets is defined and assets|length %}
-                    <div class="chips" style="margin-top:8px">
-                        {% for a in assets %}
-                            <div class="chip">
-                                <span>{{ a.originalName }}</span>
-                                <span class="subtle">({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})</span>
-                                <div class="chip-actions">
-                                    <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
-                                    <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                                          method="post"
-                                          onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
-                                          style="display:inline">
-                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
-                                        <button type="submit" class="btn-mini danger">Verwijder</button>
-                                    </form>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
-                {% else %}
-                    <p class="subtle" style="margin-top:6px">Nog geen assets. Upload één of meer .mid-bestanden.</p>
-                {% endif %}
-            </div>
-
         </div>
     </div>
 
     {# ===== JS helpers ===== #}
     <script>
         (function() {
-            // Voeg item toe aan een levels-collection (met eigen data-prototype)
+            // ====== Generic helpers (collections) ======
             window.addCollectionItem = function(containerId) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
@@ -172,19 +209,18 @@
                 wrapper.className = 'collection-item';
                 wrapper.innerHTML = proto + '<button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>';
                 container.appendChild(wrapper);
-                container.dataset.index = index + 1;
+                container.dataset.index = String(index + 1);
             };
             window.removeCollectionItem = function(btn) {
                 const item = btn.closest('.collection-item');
                 if (item) item.remove();
             };
 
+            // ====== Tracks prototype add/duplicate/remove ======
             const tracks = document.getElementById('tracks');
-            if (!tracks) return;
-
             function addTrackFromPrototype() {
+                if (!tracks) return;
                 const index = parseInt(tracks.dataset.index || '0', 10);
-                // volledige kaart als prototype, met __name__ en een weergave teller __num__
                 let html = tracks.dataset.prototype
                     .replace(/__name__/g, index)
                     .replace(/__num__/g, index + 1);
@@ -193,11 +229,10 @@
                 wrapper.innerHTML = html;
                 const card = wrapper.firstElementChild;
 
-                // Hook de +Level knop in de nieuwe kaart
+                // Hook de +Level knop in de nieuwe kaart en seed 1 level
                 const collectionDiv = card.querySelector('.collection[data-prototype]');
                 const addLevelBtn   = card.querySelector('.add-level');
                 if (collectionDiv && addLevelBtn) {
-                    // seed 1 level
                     if ((parseInt(collectionDiv.dataset.index||'0',10)) === 0) {
                         const seedProto = collectionDiv.dataset.prototype.replace(/__name__/g, 0);
                         const item = document.createElement('div');
@@ -209,26 +244,25 @@
                     addLevelBtn.addEventListener('click', () => {
                         const cid = 'levels-auto-' + index;
                         collectionDiv.id = cid;
-                        addCollectionItem(cid);
+                        window.addCollectionItem(cid);
                     });
                 }
 
                 tracks.appendChild(card);
-                tracks.dataset.index = index + 1;
+                tracks.dataset.index = String(index + 1);
             }
 
             document.getElementById('add-track')?.addEventListener('click', addTrackFromPrototype);
 
-            window.removeTrack = function(btn) {
-                btn.closest('.track-card')?.remove();
-            };
+            window.removeTrack = function(btn) { btn.closest('.track-card')?.remove(); };
             window.duplicateTrack = function(btn) {
+                // Simpele duplicate: voeg lege nieuwe track toe
                 addTrackFromPrototype();
-                // (optioneel) copy values van huidige kaart naar laatste kaart
+                // TODO: eventueel waarden kopiëren van bronkaart naar nieuw
             };
 
             // Seed voor bestaande kaarten: zorg dat levels-collection minstens 1 rij heeft
-            document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
+            document.querySelectorAll('#tracks .track-card').forEach((card) => {
                 const coll = card.querySelector('.collection[data-prototype]');
                 if (coll && parseInt(coll.dataset.index || '0', 10) === 0) {
                     const seedProto = coll.dataset.prototype.replace(/__name__/g, 0);
@@ -239,22 +273,81 @@
                     coll.dataset.index = '1';
                 }
             });
+
+            // ====== LevelDurations: tegel-UI 0/1 ======
+            const $ = (sel, root=document) => root.querySelector(sel);
+            const hidden = $('#ld-hidden-inputs');
+            const tiles  = $('#ld-tiles');
+
+            function rebuildTiles() {
+                if (!hidden || !tiles) return;
+                tiles.innerHTML = '';
+                const inputs = hidden.querySelectorAll('.ld-item input');
+                inputs.forEach((input, idx) => {
+                    const v = String(input.value || '0') === '1' ? 1 : 0;
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ld-square' + (v ? ' on' : '');
+                    btn.setAttribute('data-index', String(idx));
+                    btn.setAttribute('aria-pressed', v ? 'true' : 'false');
+                    btn.textContent = v ? '1' : '0';
+                    btn.addEventListener('click', () => {
+                        const now = btn.classList.contains('on') ? 0 : 1;
+                        btn.classList.toggle('on', !!now);
+                        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
+                        btn.textContent = String(now);
+                        input.value = String(now);
+                    });
+                    tiles.appendChild(btn);
+                });
+            }
+
+            function addLDItem() {
+                if (!hidden) return;
+                const idx  = parseInt(hidden.dataset.index || '0', 10);
+                const html = hidden.dataset.prototype.replace(/__name__/g, idx);
+                const wrap = document.createElement('div');
+                wrap.className = 'ld-item';
+                wrap.innerHTML = html;
+                const input = wrap.querySelector('input');
+                if (input) input.value = '0'; // default uit
+                hidden.appendChild(wrap);
+                hidden.dataset.index = String(idx + 1);
+                rebuildTiles();
+            }
+
+            function removeLastLDItem() {
+                if (!hidden) return;
+                const items = hidden.querySelectorAll('.ld-item');
+                if (items.length === 0) return;
+                items[items.length - 1].remove();
+                hidden.dataset.index = String(items.length - 1);
+                rebuildTiles();
+            }
+
+            document.getElementById('ld-add')?.addEventListener('click', addLDItem);
+            document.getElementById('ld-remove')?.addEventListener('click', removeLastLDItem);
+
+            rebuildTiles();
         })();
     </script>
 
+    {# ===== Styles specifiek voor LevelDurations (vult jouw bestaande styles aan) ===== #}
     <style>
-        .tracks { display: grid; gap: 16px; }
-        .track-card { border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; background: rgba(255,255,255,0.03); }
-        .track-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
-        .track-title { font-weight:600; }
-        .grid { display:grid; gap:12px; }
-        .subsection .label { display:block; font-size:0.95rem; margin-bottom:6px; opacity:0.9; }
-        .collection-item { display:flex; gap:8px; align-items:flex-start; margin-bottom:8px; }
-        .btn-mini { font-size:0.85rem; padding:4px 8px; border-radius:8px; }
-        .btn-ghost { background:transparent; border:1px solid rgba(255,255,255,0.15); padding:6px 10px; border-radius:8px; }
-        .btn-ghost.danger { border-color: rgba(255,0,0,0.35); color:#ff8585; }
-        .chip { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border:1px solid rgba(255,255,255,0.12); border-radius:999px; margin:4px 6px 4px 0; }
-        .chip-actions { display:inline-flex; gap:6px; margin-left:6px; }
-        .subtle { opacity:0.8; }
+        /* LevelDurations tegel-UI */
+        .ld-tiles { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px }
+        .ld-square{
+            width:36px; height:36px; border-radius:8px;
+            border:1px solid #243148; background:#0b1224; color:var(--text);
+            font-weight:600; display:inline-flex; align-items:center; justify-content:center;
+            cursor:pointer; user-select:none;
+        }
+        .ld-square.on{
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--ring);
+            background: linear-gradient(180deg,var(--accent),var(--accent-600));
+            color:#fff;
+        }
+        .ld-hidden{ display:none }
     </style>
 {% endblock %}
