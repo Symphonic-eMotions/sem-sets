@@ -11,28 +11,41 @@ use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
+use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Validator\Constraints as Assert;
 
 final class DocumentTrackType extends AbstractType
 {
-    public function buildForm(FormBuilderInterface $b, array $opt): void
+    public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         /** @var Document|null $doc */
-        $doc = $opt['document'] ?? null;
+        $doc = $options['document'] ?? null;
 
-        $b->add('trackId', HiddenType::class, [
+        $builder->add('trackId', HiddenType::class, [
             'required' => false,
             'empty_data' => '',
         ])
         // Levels als collection<int>
         ->add('levels', CollectionType::class, [
-            'entry_type' => IntegerType::class,
+            'label' => 'Levels',
+            'entry_type' => NumberType::class,
+            'entry_options' => [
+                'html5' => true,
+                'scale' => 0,
+                'required' => false,
+                'attr' => ['class' => 'ld-input', 'min' => 0, 'max' => 1, 'step' => 1, 'inputmode' => 'numeric'],
+                'constraints' => [
+                    new Assert\NotNull(),
+                    new Assert\Type('numeric'),
+                    new Assert\Range(min: 0, max: 1),
+                ],
+            ],
             'allow_add' => true,
             'allow_delete' => true,
             'by_reference' => false,
-            'required' => false,
+            'prototype' => true,
         ])
         // ENKELE midiAsset (EntityType)
         ->add('midiAsset', EntityType::class, [
@@ -53,12 +66,12 @@ final class DocumentTrackType extends AbstractType
         ]);
     }
 
-    public function configureOptions(OptionsResolver $r): void
+    public function configureOptions(OptionsResolver $resolver): void
     {
-        $r->setDefaults([
+        $resolver->setDefaults([
             'data_class' => DocumentTrack::class,
-            'document' => null,  // <- belangrijk
+            'document' => null,
         ]);
-        $r->setAllowedTypes('document', [Document::class, 'null']);
+        $resolver->setAllowedTypes('document', [Document::class, 'null']);
     }
 }
