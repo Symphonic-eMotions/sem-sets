@@ -95,18 +95,19 @@ final class DocumentFormType extends AbstractType
                 'entry_options' => [
                     'html5' => true,
                     'scale' => 0,
+                    'required' => false,
                     'attr' => ['class' => 'ld-input', 'min' => 0, 'max' => 1, 'step' => 1, 'inputmode' => 'numeric'],
                     'constraints' => [
                         new Assert\NotNull(),
                         new Assert\Type('numeric'),
-                        new Assert\Range(min: 0, max: 1), // ⬅️ alleen 0/1 toegestaan
+                        new Assert\Range(min: 0, max: 1),
                     ],
                 ],
                 'allow_add' => true,
-                'allow_delete' => true,
+                'allow_delete' => false,
                 'by_reference' => false,
                 'prototype' => true,
-                'attr' => ['class' => 'level-durations'], // ⬅️ hook voor de UI
+                'attr' => ['class' => 'level-durations'],
                 'help' => 'Klik op de vierkante knoppen om 0/1 te togglen, voeg rijen toe of verwijder ze.',
             ])
 

@@ -137,7 +137,7 @@ class Document
         $clean = array_values(array_filter(array_map(
             fn($v) => is_numeric($v) ? (int)$v : null,
             $arr
-        ), fn($v) => is_int($v) && $v > 0));
+        ), fn($v) => is_int($v) && $v >= 0));
 
         $this->levelDurations = $clean;
         return $this;

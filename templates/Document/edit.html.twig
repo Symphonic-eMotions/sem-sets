@@ -49,13 +49,13 @@
                                         </span>
                                         <div class="chip-actions">
                                             <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
-                                            <form action="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                                                  method="post"
-                                                  onsubmit="return confirm('Weet je zeker dat je {{ a.originalName }} wilt verwijderen?');"
-                                                  style="display:inline">
-                                                <input type="hidden" name="_token" value="{{ csrf_token('delete-asset-' ~ a.id) }}">
-                                                <button type="submit" class="btn-mini danger">Verwijder</button>
-                                            </form>
+                                            <button
+                                                    type="button"
+                                                    class="btn-mini danger"
+                                                    onclick="deleteAsset('{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}', '{{ csrf_token('delete-asset-' ~ a.id) }}', '{{ a.originalName }}')"
+                                            >
+                                                Verwijder
+                                            </button>
                                         </div>
                                     </div>
                                 {% endfor %}
@@ -216,8 +216,28 @@
                 if (item) item.remove();
             };
 
+            // ===== Asset verwijderen zonder genest form =====
+            window.deleteAsset = function (url, token, filename) {
+                if (!confirm(`Weet je zeker dat je ${filename} wilt verwijderen?`)) return;
+
+                /** @type {HTMLFormElement} */
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = url;
+
+                const tokenInput = document.createElement('input');
+                tokenInput.type = 'hidden';
+                tokenInput.name = '_token';
+                tokenInput.value = token;
+
+                form.appendChild(tokenInput);
+                document.body.appendChild(form);
+                form.submit();
+            };
+
             // ====== Tracks prototype add/duplicate/remove ======
             const tracks = document.getElementById('tracks');
+
             function addTrackFromPrototype() {
                 if (!tracks) return;
                 const index = parseInt(tracks.dataset.index || '0', 10);
@@ -279,12 +299,39 @@
             const hidden = $('#ld-hidden-inputs');
             const tiles  = $('#ld-tiles');
 
+            function removeRequiredFromHiddenInputs() {
+                if (!hidden) return;
+                hidden.querySelectorAll('input').forEach(inp => {
+                    inp.removeAttribute('required');
+                    // Zet ook constraints die validatie triggeren uit
+                    inp.setAttribute('novalidate', 'novalidate');
+                });
+            }
+
             function rebuildTiles() {
                 if (!hidden || !tiles) return;
                 tiles.innerHTML = '';
                 const inputs = hidden.querySelectorAll('.ld-item input');
+
+                // Verwijder required van alle inputs (dit was al goed)
+                inputs.forEach(input => {
+                    input.removeAttribute('required');
+                    input.setAttribute('novalidate', 'novalidate');
+                });
+
                 inputs.forEach((input, idx) => {
+                    // 1. Lees de waarde en saneer deze naar 0 or 1
                     const v = String(input.value || '0') === '1' ? 1 : 0;
+
+                    // 2. ========== DE FIX ==========
+                    // Als de originele waarde (bv. "32") niet gelijk is aan de
+                    // gesaneerde waarde (0), update dan het input-veld.
+                    if (String(input.value) !== String(v)) {
+                        input.value = String(v);
+                    }
+                    // ==============================
+
+                    // 3. Bouw de tegel-knop (dit was al goed)
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'ld-square' + (v ? ' on' : '');
@@ -304,13 +351,18 @@
 
             function addLDItem() {
                 if (!hidden) return;
-                const idx  = parseInt(hidden.dataset.index || '0', 10);
+                const idx = parseInt(hidden.dataset.index || '0', 10);
                 const html = hidden.dataset.prototype.replace(/__name__/g, idx);
                 const wrap = document.createElement('div');
                 wrap.className = 'ld-item';
                 wrap.innerHTML = html;
                 const input = wrap.querySelector('input');
-                if (input) input.value = '0'; // default uit
+                if (input) {
+                    input.value = '0';
+                    // Verwijder required direct bij aanmaken
+                    input.removeAttribute('required');
+                    input.setAttribute('novalidate', 'novalidate');
+                }
                 hidden.appendChild(wrap);
                 hidden.dataset.index = String(idx + 1);
                 rebuildTiles();
@@ -328,7 +380,17 @@
             document.getElementById('ld-add')?.addEventListener('click', addLDItem);
             document.getElementById('ld-remove')?.addEventListener('click', removeLastLDItem);
 
+            removeRequiredFromHiddenInputs();
             rebuildTiles();
+
+            // Extra vangnet: zorg ervoor dat bij submit alle verborgen LD inputs geen required hebben
+            const form = document.querySelector('form');
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    removeRequiredFromHiddenInputs();
+                }, false); // gebruik bubbling phase (false), niet capture
+            }
+
         })();
     </script>
 
