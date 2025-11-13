@@ -132,7 +132,7 @@
     .btn-danger {
         background: #7f1d1d;
         border: 1px solid #ef4444;
-        color: white;
+        color: #ffb4b4;
     }
     .btn-danger:hover { filter: brightness(1.05); }
     .btn-danger:active { transform: translateY(1px); }
@@ -241,7 +241,6 @@
         border-radius: 8px;
         border: 0;
         background: #18243c;
-        color: #e8edf5;
         cursor: pointer;
     }
     .chip .btn-mini.danger { background: #7f1d1d; border: 1px solid #ef4444; }
@@ -262,6 +261,21 @@
     }
     .track-title { font-weight: 600; }
     .track-actions { display: flex; gap: 8px; }
+    .track-actions .btn-mini {
+        font-size: 12px;
+        padding: 6px 8px;
+        border-radius: 8px;
+        border: 0;
+        background: #18243c;
+        color: #e8edf5;
+        cursor: pointer;
+        line-height: 1.1;
+    }
+    .track-actions .btn-mini.danger {
+        background: #7f1d1d;
+        border: 1px solid #ef4444;
+        color: #ffb4b4;
+    }
     .subsection .label { display: block; font-size: 0.95rem; margin-bottom: 6px; opacity: 0.9; }
     .collection-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
 

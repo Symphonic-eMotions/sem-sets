@@ -6,7 +6,7 @@
     <div class="wrap">
         <div class="card">
             <h1 class="title">Bewerken Set: {{ document.title }}</h1>
-            <p class="subtitle">Koppel MIDI-bestanden aan tracks.</p>
+            <p class="subtitle">Publiceer Symphnic eMotions muziek sets.</p>
 
             {% form_theme form 'forms/_theme.html.twig' %}
             {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
@@ -113,7 +113,6 @@
                         <div class='track-head'>
                             <div class='track-title'>Track __num__</div>
                             <div class='track-actions'>
-                                <button type='button' class='btn-ghost' onclick='duplicateTrack(this)'>Dupliceren</button>
                                 <button type='button' class='btn-ghost danger' onclick='removeTrack(this)'>Verwijderen</button>
                             </div>
                         </div>
@@ -156,8 +155,7 @@
                             <div class="track-head">
                                 <div class="track-title">Track {{ loop.index }}</div>
                                 <div class="track-actions">
-                                    <button type="button" class="btn-ghost" onclick="duplicateTrack(this)">Dupliceren</button>
-                                    <button type="button" class="btn-ghost danger" onclick="removeTrack(this)">Verwijderen</button>
+                                    <button type="button" class="btn-mini danger" onclick="removeTrack(this)">Verwijder</button>
                                 </div>
                             </div>
 
@@ -420,9 +418,6 @@
             document.getElementById('add-track')?.addEventListener('click', addTrackFromPrototype);
 
             window.removeTrack = function(btn) { btn.closest('.track-card')?.remove(); };
-            window.duplicateTrack = function(btn) {
-                addTrackFromPrototype();
-            };
 
             document.querySelectorAll('#tracks .track-card').forEach((card, i) => wireNewTrackCard(card, i));
 

@@ -52,7 +52,7 @@ final class DocumentFormType extends AbstractType
         });
 
         /** @var Document $doc */
-        $doc = $options['data']; // je huidige document
+        $doc = $options['data'];
 
         $builder
             ->add('title', TextType::class, [
@@ -111,7 +111,6 @@ final class DocumentFormType extends AbstractType
                     new Assert\NotBlank(),
                     new Assert\Range(min: 0, max: 999.99),
                 ],
-                'help' => '2 decimalen.',
             ])
 
 
