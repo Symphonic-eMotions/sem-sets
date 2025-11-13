@@ -218,10 +218,7 @@
         (function() {
 
             /* ==========================================================================
-               1) GENERIC COLLECTION HELPERS  (BEWAREN / ONGEWIJZIGD GEBRUIK)
-               --------------------------------------------------------------------------
-               - addCollectionItem(containerId)
-               - removeCollectionItem(button)
+               1) GENERIC COLLECTION HELPERS  (BEWAREN)
                ========================================================================== */
             window.addCollectionItem = function(containerId) {
                 const container = document.getElementById(containerId);
@@ -244,9 +241,7 @@
 
 
             /* ==========================================================================
-               2) ASSET DELETE HELPER  (BEWAREN / ONGEWIJZIGD GEBRUIK)
-               --------------------------------------------------------------------------
-               - deleteAsset(url, csrfToken, filename)
+               2) ASSET DELETE HELPER  (BEWAREN)
                ========================================================================== */
             window.deleteAsset = function (url, token, filename) {
                 if (!confirm(`Weet je zeker dat je ${filename} wilt verwijderen?`)) return;
@@ -268,19 +263,7 @@
 
 
             /* ==========================================================================
-               3) LD (LevelDurations/Levels) TEGEL-UI MODULE  (NIEUW / HERGEBRUIK)
-               --------------------------------------------------------------------------
-               Gebruik:
-                 - LD.seedIfEmpty('#hiddenSel', '#tilesSel')  // initialiseren en 1 item seeden indien leeg
-                 - LD.add('#hiddenSel', '#tilesSel')          // item toevoegen
-                 - LD.removeLast('#hiddenSel', '#tilesSel')   // laatste item verwijderen
-               Vereisten:
-                 - "hidden"-container met:
-                     class="ld-hidden"
-                     data-prototype="..." (Symfony prototype)
-                     data-index="n"
-                     met child divs .ld-item die <input> bevatten
-                 - "tiles"-container met class="ld-tiles" en data-target="#hiddenSel"
+               3) LD TEGEL-UI MODULE  (HERGEBRUIK + UITGEBREID MET RESIZE)
                ========================================================================== */
             window.LD = {
                 _stripRequired(hidden) {
@@ -362,38 +345,150 @@
                     const items = hidden.querySelectorAll('.ld-item');
                     if (!items.length) this.add(hiddenSel, tilesSel);
                     else this._rebuild(hiddenSel, tilesSel);
+                },
+
+                /** Nieuw: resize hidden+tiles naar exact targetLen (pad met 0 of truncate) */
+                resizeTo(hiddenSel, tilesSel, targetLen) {
+                    const hidden = document.querySelector(hiddenSel);
+                    if (!hidden) return;
+
+                    let idx = parseInt(hidden.dataset.index || '0', 10);
+                    const items = hidden.querySelectorAll('.ld-item');
+
+                    // Truncate
+                    if (items.length > targetLen) {
+                        for (let i = items.length - 1; i >= targetLen; i--) {
+                            items[i].remove();
+                        }
+                        idx = Math.min(idx, targetLen);
+                    }
+
+                    // Pad met 0
+                    while (hidden.querySelectorAll('.ld-item').length < targetLen) {
+                        const i = parseInt(hidden.dataset.index || '0', 10);
+                        const proto = hidden.dataset.prototype?.replace(/__name__/g, i);
+                        if (!proto) break;
+                        const wrap = document.createElement('div');
+                        wrap.className = 'ld-item';
+                        wrap.innerHTML = proto;
+
+                        const inp = wrap.querySelector('input');
+                        if (inp) {
+                            inp.value = '0';
+                            inp.removeAttribute('required');
+                            inp.setAttribute('novalidate', 'novalidate');
+                        }
+
+                        hidden.appendChild(wrap);
+                        hidden.dataset.index = String(i + 1);
+                    }
+
+                    // Zet index op huidig aantal (veilig)
+                    const finalCount = hidden.querySelectorAll('.ld-item').length;
+                    hidden.dataset.index = String(finalCount);
+
+                    // Tegels updaten
+                    if (tilesSel) this._rebuild(hiddenSel, tilesSel);
                 }
             };
 
 
             /* ==========================================================================
-               4) TRACKS: TOEVOEGEN / DUPLICEREN / VERWIJDEREN + LEVELS INITIALISEREN
-               --------------------------------------------------------------------------
-               - addTrackFromPrototype(): voegt kaart toe uit data-prototype
-               - wireNewTrackCard(card, idx): initialiseert LD of fallback-collection in nieuwe kaart
-               - removeTrack(button) / duplicateTrack(button): globale handlers (bewaren)
+               4) SYNC-MECHANISME: Track-levels koppelen aan set-levels
+               ========================================================================== */
+            const SET_HIDDEN = '#ld-hidden-inputs';
+            const SET_TILES  = '#ld-tiles';
+
+            function getSetLevelCount() {
+                const hidden = document.querySelector(SET_HIDDEN);
+                return hidden ? hidden.querySelectorAll('.ld-item').length : 0;
+            }
+
+            function syncAllTracksToSetCount() {
+                const targetLen = getSetLevelCount();
+                // elke track-kaart: zoek LD hidden/tiles of fallback
+                document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
+                    const hidden = card.querySelector(`#trk-hidden-${i}`);
+                    const tiles  = card.querySelector(`#trk-tiles-${i}`);
+                    if (hidden && tiles) {
+                        LD.resizeTo(`#${hidden.id}`, `#${tiles.id}`, targetLen);
+                    } else {
+                        // Fallback: oude collection zonder tegels
+                        const coll = card.querySelector('.collection[data-prototype]');
+                        if (coll) {
+                            // Resize door add/removeCollectionItem te simuleren
+                            const count = coll.querySelectorAll('.collection-item').length;
+                            if (count > targetLen) {
+                                for (let k = count - 1; k >= targetLen; k--) {
+                                    const it = coll.querySelectorAll('.collection-item')[k];
+                                    it?.remove();
+                                }
+                                coll.dataset.index = String(Math.min(parseInt(coll.dataset.index||'0',10), targetLen));
+                            } else if (count < targetLen) {
+                                // id nodig om addCollectionItem te kunnen gebruiken
+                                if (!coll.id) {
+                                    coll.id = `levels-fallback-${i}`;
+                                }
+                                while (coll.querySelectorAll('.collection-item').length < targetLen) {
+                                    window.addCollectionItem(coll.id);
+                                    // de nieuwe input staat default op '0' via prototype-attr? anders forceren:
+                                    const lastInput = coll.querySelector('.collection-item:last-child input');
+                                    if (lastInput) lastInput.value = '0';
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+
+            /* ==========================================================================
+               5) TRACKS: toevoegen/dupliceren/verwijderen + initialisatie
                ========================================================================== */
             const tracks = document.getElementById('tracks');
 
             function wireNewTrackCard(card, idx) {
-                // 4A) Nieuwe LD-structuur (tiles + hidden) — voorkeur
+                // A) LD-structuur
                 const hidden = card.querySelector(`#trk-hidden-${idx}`);
                 const tiles  = card.querySelector(`#trk-tiles-${idx}`);
                 if (hidden && tiles) {
+                    // seed (minstens 1), daarna syncen naar set-lengte
                     LD.seedIfEmpty(`#${hidden.id}`, `#${tiles.id}`);
+                    LD.resizeTo(`#${hidden.id}`, `#${tiles.id}`, getSetLevelCount());
                     return;
                 }
 
-                // 4B) Fallback: oude collection-markup (zonder LD)
+                // B) Fallback-collection
                 const coll = card.querySelector('.collection[data-prototype]');
-                if (coll && parseInt(coll.dataset.index || '0', 10) === 0) {
-                    const seedProto = coll.dataset.prototype?.replace(/__name__/g, 0);
-                    if (seedProto) {
-                        const item = document.createElement('div');
-                        item.className = 'collection-item';
-                        item.innerHTML = seedProto + '<button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>';
-                        coll.appendChild(item);
-                        coll.dataset.index = '1';
+                if (coll) {
+                    // Seed 1 item indien leeg
+                    if (parseInt(coll.dataset.index || '0', 10) === 0) {
+                        const seedProto = coll.dataset.prototype?.replace(/__name__/g, 0);
+                        if (seedProto) {
+                            const item = document.createElement('div');
+                            item.className = 'collection-item';
+                            item.innerHTML = seedProto + '<button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>';
+                            coll.appendChild(item);
+                            coll.dataset.index = '1';
+                        }
+                    }
+                    // Daarna sync naar set-lengte
+                    // id nodig voor addCollectionItem
+                    if (!coll.id) coll.id = `levels-fallback-${idx}`;
+                    const targetLen = getSetLevelCount();
+                    let count = coll.querySelectorAll('.collection-item').length;
+                    while (count < targetLen) {
+                        window.addCollectionItem(coll.id);
+                        const lastInput = coll.querySelector('.collection-item:last-child input');
+                        if (lastInput) lastInput.value = '0';
+                        count++;
+                    }
+                    if (count > targetLen) {
+                        for (let k = count - 1; k >= targetLen; k--) {
+                            const it = coll.querySelectorAll('.collection-item')[k];
+                            it?.remove();
+                        }
+                        coll.dataset.index = String(Math.min(parseInt(coll.dataset.index||'0',10), targetLen));
                     }
                 }
             }
@@ -415,18 +510,16 @@
                 tracks.appendChild(card);
                 tracks.dataset.index = String(index + 1);
 
-                // initialise level-UI in deze kaart
+                // initialiseer + sync nieuwe kaart
                 wireNewTrackCard(card, index);
             }
 
             document.getElementById('add-track')?.addEventListener('click', addTrackFromPrototype);
 
-            // Globale handlers (bewaren)
             window.removeTrack = function(btn) { btn.closest('.track-card')?.remove(); };
             window.duplicateTrack = function(btn) {
-                // simpele duplicate: lege nieuwe track toevoegen
                 addTrackFromPrototype();
-                // (optioneel) hier kun je bronwaarden kopiëren naar nieuw
+                // (optioneel) kopieer waarden hier
             };
 
             // Init voor bestaande kaarten bij pageload
@@ -434,20 +527,32 @@
 
 
             /* ==========================================================================
-               5) DOCUMENT-NIVEAU LevelDurations INITIALISEREN
-               --------------------------------------------------------------------------
-               - Koppelt #ld-hidden-inputs aan #ld-tiles (jouw bestaande IDs)
-               - Houdt knoppen + en Verwijder in sync met LD-module
+               6) KOPPELING SET-LEVELS → ALLE TRACKS (directe sync bij wijziging)
                ========================================================================== */
-            LD.seedIfEmpty('#ld-hidden-inputs', '#ld-tiles');
-            document.getElementById('ld-add')?.addEventListener('click', () => LD.add('#ld-hidden-inputs', '#ld-tiles'));
-            document.getElementById('ld-remove')?.addEventListener('click', () => LD.removeLast('#ld-hidden-inputs', '#ld-tiles'));
+            // Init/laden
+            LD.seedIfEmpty(SET_HIDDEN, SET_TILES);
+            syncAllTracksToSetCount();
+
+            // Knoppen op set-niveau: overschrijf/voeg handlers toe zodat sync volgt
+            const ldAddBtn    = document.getElementById('ld-add');
+            const ldRemoveBtn = document.getElementById('ld-remove');
+
+            if (ldAddBtn) {
+                ldAddBtn.addEventListener('click', () => {
+                    LD.add(SET_HIDDEN, SET_TILES);
+                    syncAllTracksToSetCount();
+                });
+            }
+            if (ldRemoveBtn) {
+                ldRemoveBtn.addEventListener('click', () => {
+                    LD.removeLast(SET_HIDDEN, SET_TILES);
+                    syncAllTracksToSetCount();
+                });
+            }
 
 
             /* ==========================================================================
-               6) SUBMIT-VANGNET: verwijder "required" van ALLE verborgen LD-inputs
-               --------------------------------------------------------------------------
-               - voorkomt "invalid form control is not focusable"
+               7) SUBMIT-VANGNET: required strippen
                ========================================================================== */
             const form = document.querySelector('form');
             if (form) {

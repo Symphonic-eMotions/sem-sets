@@ -25,6 +25,32 @@ final class DocumentFormType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $builder->addEventListener(FormEvents::POST_SET_DATA, function (FormEvent $e) {
+            /** @var Document|null $doc */
+            $doc = $e->getData();
+            if (!$doc) return;
+
+            $setLen = count((array) $doc->getLevelDurations());
+
+            foreach ($doc->getTracks() as $t) {
+                $levels = array_values((array) $t->getLevels());
+                // resize: truncate of pad met 0
+                if ($setLen <= 0) {
+                    $t->setLevels([]); // of 1 item '0' als je dat wil
+                    continue;
+                }
+                if (count($levels) > $setLen) {
+                    $levels = array_slice($levels, 0, $setLen);
+                } elseif (count($levels) < $setLen) {
+                    $levels = array_merge($levels, array_fill(0, $setLen - count($levels), 0));
+                }
+                // sanitise naar 0/1
+                $levels = array_map(static fn($v) => (int)((int)$v === 1), $levels);
+
+                $t->setLevels($levels);
+            }
+        });
+
         /** @var Document $doc */
         $doc = $options['data']; // je huidige document
 
