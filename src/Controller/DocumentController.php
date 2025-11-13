@@ -22,7 +22,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Ulid;
 use Throwable;
@@ -39,7 +39,7 @@ final class DocumentController extends AbstractController
     #[Route('', name: 'app_dashboard', methods: ['GET'])]
     public function index(DocumentRepository $repo): Response
     {
-        return $this->render('document/index.html.twig', [
+        return $this->render('Document/index.html.twig', [
             'documents' => $repo->findBy([], ['updatedAt'=>'DESC']),
         ]);
     }
@@ -68,7 +68,7 @@ final class DocumentController extends AbstractController
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
-        return $this->render('document/new.html.twig', ['form' => $form]);
+        return $this->render('Document/new.html.twig', ['form' => $form]);
     }
 
     /**
@@ -159,7 +159,7 @@ final class DocumentController extends AbstractController
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
-        return $this->render('document/edit.html.twig', [
+        return $this->render('Document/edit.html.twig', [
             'document' => $doc,
             'form'     => $form->createView(),
             'assets'   => $this->assetRepo->findForDocument($doc),
@@ -168,7 +168,7 @@ final class DocumentController extends AbstractController
 
     private function syncTrackLevelsToSet(Document $doc): void
     {
-        $set = array_values((array) $doc->getLevelDurations());
+        $set = array_values($doc->getLevelDurations());
         $setLen = count($set);
 
         foreach ($doc->getTracks() as $t) {
@@ -310,7 +310,7 @@ final class DocumentController extends AbstractController
     public function versions(Document $doc, DocumentVersionRepository $vr): Response
     {
         $versions = $vr->findBy(['document' => $doc], ['versionNr' => 'DESC']);
-        return $this->render('document/versions.html.twig', [
+        return $this->render('Document/versions.html.twig', [
             'document' => $doc,
             'versions' => $versions,
             'canDownload' => true,
