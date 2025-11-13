@@ -3,9 +3,6 @@
 {% block title %}{{ document.title }}{% endblock %}
 
 {% block body %}
-    {# Eventueel globale UI styles #}
-    {# {% include '_partials/ui_styles.html.twig' %} #}
-
     <div class="wrap">
         <div class="card">
             <h1 class="title">Bewerken Set: {{ document.title }}</h1>
@@ -71,10 +68,24 @@
             <div class="section">
                 <h2 class="section-title">LevelDurations</h2>
 
-                {# 1) Visuele tegel-UI #}
-                <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
+                <div class="ld-row">
+                    {# 1. Tegels #}
+                    <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
 
-                {# 2) Verborgen inputs die Symfony leest #}
+                    {# 2. Knoppen rechts naast de tegels #}
+                    <div class="ld-actions">
+                        <button type="button" class="btn-mini" id="ld-add">+ Toevoegen</button>
+                        <button
+                                type="button"
+                                class="btn-mini secondary"
+                                id="ld-remove"
+                        >
+                            – Verwijder laatste
+                        </button>
+                    </div>
+                </div>
+
+                {# 3. Verborgen inputs die Symfony leest #}
                 <div id="ld-hidden-inputs"
                      class="ld-hidden"
                      data-prototype="{{ form_widget(form.levelDurations.vars.prototype)|e('html_attr') }}"
@@ -86,14 +97,9 @@
                     {% endfor %}
                 </div>
 
-                <div class="actions" style="margin-top:10px">
-                    <button type="button" class="btn btn-sm" id="ld-add">+ Voeg toe</button>
-                    <button type="button" class="btn btn-sm secondary" id="ld-remove">Verwijder laatste</button>
-                </div>
-
-                {# We doen custom rendering, dus markeer als rendered #}
                 {% do form.levelDurations.setRendered %}
             </div>
+
 
             {# --- Tracks (DocumentTrack) --- #}
             <div class="section">
@@ -118,18 +124,14 @@
                             <div class='subsection'>
                                 <label class='label'>Levels</label>
 
-                                <div id='trk-tiles-__num__' class='ld-tiles' data-target='#trk-hidden-__num__'></div>
+                                {# Let op: IDs gebaseerd op __name__ #}
+                                <div id='trk-tiles-__name__' class='ld-tiles' data-target='#trk-hidden-__name__'></div>
 
-                                <div id='trk-hidden-__num__'
+                                <div id='trk-hidden-__name__'
                                      class='ld-hidden'
                                      data-prototype='{{ form_widget(form.tracks.vars.prototype.levels.vars.prototype)|e('html_attr') }}'
                                      data-index='0'>
                                     {# wordt geseed in JS #}
-                                </div>
-
-                                <div class='actions' style='margin-top:8px'>
-                                    <button type='button' class='btn-mini' onclick="LD.add('#trk-hidden-__num__','#trk-tiles-__num__')">+ Level</button>
-                                    <button type='button' class='btn-mini secondary' onclick="LD.removeLast('#trk-hidden-__num__','#trk-tiles-__num__')">Verwijder laatste</button>
                                 </div>
                             </div>
 
@@ -140,6 +142,7 @@
                         </div>
                     </div>
                 {% endset %}
+
 
                 {# 2) Container met volledige kaart als data-prototype #}
                 <div id="tracks"
@@ -176,11 +179,6 @@
                                             <div class="ld-item">{{ form_widget(levelField) }}</div>
                                         {% endfor %}
                                     </div>
-
-                                    <div class="actions" style="margin-top:8px">
-                                        <button type="button" class="btn-mini" onclick="LD.add('#trk-hidden-{{ loop.index0 }}','#trk-tiles-{{ loop.index0 }}')">+ Level</button>
-                                        <button type="button" class="btn-mini secondary" onclick="LD.removeLast('#trk-hidden-{{ loop.index0 }}','#trk-tiles-{{ loop.index0 }}')">Verwijder laatste</button>
-                                    </div>
                                 </div>
 
                                 <div class="subsection">
@@ -211,15 +209,11 @@
         </div>
     </div>
 
+    {# ===== JS: helpers + LD sync ===== #}
     <script>
-        /* ==========================================================================
-           0) BOOTSTRAP IIFE
-           ========================================================================== */
         (function() {
 
-            /* ==========================================================================
-               1) GENERIC COLLECTION HELPERS  (BEWAREN)
-               ========================================================================== */
+            /* 1) GENERIC COLLECTION HELPERS (bewaren) */
             window.addCollectionItem = function(containerId) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
@@ -239,14 +233,10 @@
                 if (item) item.remove();
             };
 
-
-            /* ==========================================================================
-               2) ASSET DELETE HELPER  (BEWAREN)
-               ========================================================================== */
+            /* 2) ASSET DELETE HELPER (bewaren) */
             window.deleteAsset = function (url, token, filename) {
                 if (!confirm(`Weet je zeker dat je ${filename} wilt verwijderen?`)) return;
 
-                /** @type {HTMLFormElement} */
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = url;
@@ -261,10 +251,7 @@
                 form.submit();
             };
 
-
-            /* ==========================================================================
-               3) LD TEGEL-UI MODULE  (HERGEBRUIK + UITGEBREID MET RESIZE)
-               ========================================================================== */
+            /* 3) LD MODULE (LevelDurations/Levels tegel-UI + resize) */
             window.LD = {
                 _stripRequired(hidden) {
                     hidden.querySelectorAll('input').forEach(inp => {
@@ -272,7 +259,6 @@
                         inp.setAttribute('novalidate', 'novalidate');
                     });
                 },
-
                 _rebuild(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     const tiles  = document.querySelector(tilesSel);
@@ -283,7 +269,6 @@
 
                     const inputs = hidden.querySelectorAll('.ld-item input');
                     inputs.forEach((input, idx) => {
-                        // forceer 0/1
                         const v = String(input.value || '0') === '1' ? 1 : 0;
                         if (String(input.value) !== String(v)) input.value = String(v);
 
@@ -303,11 +288,9 @@
                         tiles.appendChild(btn);
                     });
                 },
-
                 add(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
-
                     const idx = parseInt(hidden.dataset.index || '0', 10);
                     const proto = hidden.dataset.prototype?.replace(/__name__/g, idx);
                     if (!proto) return;
@@ -327,18 +310,15 @@
                     hidden.dataset.index = String(idx + 1);
                     this._rebuild(hiddenSel, tilesSel);
                 },
-
                 removeLast(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
                     const items = hidden.querySelectorAll('.ld-item');
                     if (!items.length) return;
-
                     items[items.length - 1].remove();
                     hidden.dataset.index = String(items.length - 1);
                     this._rebuild(hiddenSel, tilesSel);
                 },
-
                 seedIfEmpty(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
@@ -346,16 +326,13 @@
                     if (!items.length) this.add(hiddenSel, tilesSel);
                     else this._rebuild(hiddenSel, tilesSel);
                 },
-
-                /** Nieuw: resize hidden+tiles naar exact targetLen (pad met 0 of truncate) */
                 resizeTo(hiddenSel, tilesSel, targetLen) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
                     let idx = parseInt(hidden.dataset.index || '0', 10);
-                    const items = hidden.querySelectorAll('.ld-item');
+                    let items = hidden.querySelectorAll('.ld-item');
 
-                    // Truncate
                     if (items.length > targetLen) {
                         for (let i = items.length - 1; i >= targetLen; i--) {
                             items[i].remove();
@@ -363,7 +340,6 @@
                         idx = Math.min(idx, targetLen);
                     }
 
-                    // Pad met 0
                     while (hidden.querySelectorAll('.ld-item').length < targetLen) {
                         const i = parseInt(hidden.dataset.index || '0', 10);
                         const proto = hidden.dataset.prototype?.replace(/__name__/g, i);
@@ -383,19 +359,14 @@
                         hidden.dataset.index = String(i + 1);
                     }
 
-                    // Zet index op huidig aantal (veilig)
                     const finalCount = hidden.querySelectorAll('.ld-item').length;
                     hidden.dataset.index = String(finalCount);
 
-                    // Tegels updaten
                     if (tilesSel) this._rebuild(hiddenSel, tilesSel);
                 }
             };
 
-
-            /* ==========================================================================
-               4) SYNC-MECHANISME: Track-levels koppelen aan set-levels
-               ========================================================================== */
+            /* 4) SYNC: tracks koppelen aan set-levels */
             const SET_HIDDEN = '#ld-hidden-inputs';
             const SET_TILES  = '#ld-tiles';
 
@@ -406,96 +377,29 @@
 
             function syncAllTracksToSetCount() {
                 const targetLen = getSetLevelCount();
-                // elke track-kaart: zoek LD hidden/tiles of fallback
                 document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
-                    const hidden = card.querySelector(`#trk-hidden-${i}`);
-                    const tiles  = card.querySelector(`#trk-tiles-${i}`);
+                    const hidden = card.querySelector('#trk-hidden-' + i);
+                    const tiles  = card.querySelector('#trk-tiles-' + i);
                     if (hidden && tiles) {
-                        LD.resizeTo(`#${hidden.id}`, `#${tiles.id}`, targetLen);
-                    } else {
-                        // Fallback: oude collection zonder tegels
-                        const coll = card.querySelector('.collection[data-prototype]');
-                        if (coll) {
-                            // Resize door add/removeCollectionItem te simuleren
-                            const count = coll.querySelectorAll('.collection-item').length;
-                            if (count > targetLen) {
-                                for (let k = count - 1; k >= targetLen; k--) {
-                                    const it = coll.querySelectorAll('.collection-item')[k];
-                                    it?.remove();
-                                }
-                                coll.dataset.index = String(Math.min(parseInt(coll.dataset.index||'0',10), targetLen));
-                            } else if (count < targetLen) {
-                                // id nodig om addCollectionItem te kunnen gebruiken
-                                if (!coll.id) {
-                                    coll.id = `levels-fallback-${i}`;
-                                }
-                                while (coll.querySelectorAll('.collection-item').length < targetLen) {
-                                    window.addCollectionItem(coll.id);
-                                    // de nieuwe input staat default op '0' via prototype-attr? anders forceren:
-                                    const lastInput = coll.querySelector('.collection-item:last-child input');
-                                    if (lastInput) lastInput.value = '0';
-                                }
-                            }
-                        }
+                        LD.resizeTo('#' + hidden.id, '#' + tiles.id, targetLen);
                     }
                 });
             }
 
-
-            /* ==========================================================================
-               5) TRACKS: toevoegen/dupliceren/verwijderen + initialisatie
-               ========================================================================== */
+            /* 5) Tracks toevoegen/dupliceren/verwijderen + init */
             const tracks = document.getElementById('tracks');
 
             function wireNewTrackCard(card, idx) {
-                // A) LD-structuur
-                const hidden = card.querySelector(`#trk-hidden-${idx}`);
-                const tiles  = card.querySelector(`#trk-tiles-${idx}`);
+                const hidden = card.querySelector('#trk-hidden-' + idx);
+                const tiles  = card.querySelector('#trk-tiles-' + idx);
                 if (hidden && tiles) {
-                    // seed (minstens 1), daarna syncen naar set-lengte
-                    LD.seedIfEmpty(`#${hidden.id}`, `#${tiles.id}`);
-                    LD.resizeTo(`#${hidden.id}`, `#${tiles.id}`, getSetLevelCount());
-                    return;
-                }
-
-                // B) Fallback-collection
-                const coll = card.querySelector('.collection[data-prototype]');
-                if (coll) {
-                    // Seed 1 item indien leeg
-                    if (parseInt(coll.dataset.index || '0', 10) === 0) {
-                        const seedProto = coll.dataset.prototype?.replace(/__name__/g, 0);
-                        if (seedProto) {
-                            const item = document.createElement('div');
-                            item.className = 'collection-item';
-                            item.innerHTML = seedProto + '<button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>';
-                            coll.appendChild(item);
-                            coll.dataset.index = '1';
-                        }
-                    }
-                    // Daarna sync naar set-lengte
-                    // id nodig voor addCollectionItem
-                    if (!coll.id) coll.id = `levels-fallback-${idx}`;
-                    const targetLen = getSetLevelCount();
-                    let count = coll.querySelectorAll('.collection-item').length;
-                    while (count < targetLen) {
-                        window.addCollectionItem(coll.id);
-                        const lastInput = coll.querySelector('.collection-item:last-child input');
-                        if (lastInput) lastInput.value = '0';
-                        count++;
-                    }
-                    if (count > targetLen) {
-                        for (let k = count - 1; k >= targetLen; k--) {
-                            const it = coll.querySelectorAll('.collection-item')[k];
-                            it?.remove();
-                        }
-                        coll.dataset.index = String(Math.min(parseInt(coll.dataset.index||'0',10), targetLen));
-                    }
+                    LD.seedIfEmpty('#' + hidden.id, '#' + tiles.id);
+                    LD.resizeTo('#' + hidden.id, '#' + tiles.id, getSetLevelCount());
                 }
             }
 
             function addTrackFromPrototype() {
                 if (!tracks) return;
-
                 const index = parseInt(tracks.dataset.index || '0', 10);
                 let html = String(tracks.dataset.prototype || '')
                     .replace(/__name__/g, index)
@@ -510,7 +414,6 @@
                 tracks.appendChild(card);
                 tracks.dataset.index = String(index + 1);
 
-                // initialiseer + sync nieuwe kaart
                 wireNewTrackCard(card, index);
             }
 
@@ -519,21 +422,14 @@
             window.removeTrack = function(btn) { btn.closest('.track-card')?.remove(); };
             window.duplicateTrack = function(btn) {
                 addTrackFromPrototype();
-                // (optioneel) kopieer waarden hier
             };
 
-            // Init voor bestaande kaarten bij pageload
             document.querySelectorAll('#tracks .track-card').forEach((card, i) => wireNewTrackCard(card, i));
 
-
-            /* ==========================================================================
-               6) KOPPELING SET-LEVELS → ALLE TRACKS (directe sync bij wijziging)
-               ========================================================================== */
-            // Init/laden
+            /* 6) Set-levels initialiseren + sync koppelen aan knoppen */
             LD.seedIfEmpty(SET_HIDDEN, SET_TILES);
             syncAllTracksToSetCount();
 
-            // Knoppen op set-niveau: overschrijf/voeg handlers toe zodat sync volgt
             const ldAddBtn    = document.getElementById('ld-add');
             const ldRemoveBtn = document.getElementById('ld-remove');
 
@@ -550,10 +446,7 @@
                 });
             }
 
-
-            /* ==========================================================================
-               7) SUBMIT-VANGNET: required strippen
-               ========================================================================== */
+            /* 7) Submit-vangnet: required strippen */
             const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', () => {
@@ -561,25 +454,6 @@
                 });
             }
 
-        })(); // einde IIFE
+        })();
     </script>
-
-    {# ===== Styles specifiek voor LevelDurations (vult jouw bestaande styles aan) ===== #}
-    <style>
-        /* LevelDurations tegel-UI */
-        .ld-tiles { display:flex; flex-wrap:wrap; gap:8px; margin:8px 0 6px }
-        .ld-square{
-            width:36px; height:36px; border-radius:8px;
-            border:1px solid #243148; background:#0b1224; color:var(--text);
-            font-weight:600; display:inline-flex; align-items:center; justify-content:center;
-            cursor:pointer; user-select:none;
-        }
-        .ld-square.on{
-            border-color: var(--accent);
-            box-shadow: 0 0 0 4px var(--ring);
-            background: linear-gradient(180deg,var(--accent),var(--accent-600));
-            color:#fff;
-        }
-        .ld-hidden{ display:none }
-    </style>
 {% endblock %}

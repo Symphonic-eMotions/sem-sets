@@ -2,14 +2,23 @@
     @import url('https://rsms.me/inter/inter.css');
 
     :root {
-        --font-base: 'Inter', system-ui, -apple-system, sans-serif;
+        --font-base:
+                'Inter',
+                -apple-system,
+                BlinkMacSystemFont,
+                "SF Pro Text",
+                "Segoe UI",
+                Roboto,
+                Helvetica,
+                Arial,
+                sans-serif;
 
-        --bg: #1b263a;            /* iets lichter slate/navy */
-        --card: #0f182bdb;        /* iets lichter & cleaner */
-        --accent: #5865f2;        /* moderner indigo */
+        --bg: #1b263a;
+        --card: #0f182bdb;
+        --accent: #5865f2;
         --accent-600: #4752c4;
-        --muted: #a9b5c9;         /* lichtere slate tone */
-        --text: #e8edf5;          /* iets helderder */
+        --muted: #a9b5c9;
+        --text: #e8edf5;
         --error: #ef4444;
         --ring: #3bcdf7aa;
     }
@@ -27,6 +36,25 @@
         min-height: 100dvh;
         font-family: var(--font-base), sans-serif;
         color: var(--text);
+    }
+    body {
+        background:
+                radial-gradient(1200px 600px at 10% 10%, #24324b 0%, transparent 50%),
+                radial-gradient(900px 500px at 90% 20%, #161f32 0%, transparent 40%),
+                linear-gradient(180deg, var(--bg), #0b1321);
+        min-height: 100dvh;
+        font-family: var(--font-base), serif;
+        color: var(--text);
+    }
+
+    /* 🔹 Belangrijk: alles, vooral knoppen en inputs, dezelfde font-family laten erven */
+    button,
+    input,
+    select,
+    textarea {
+        font-family: inherit;
+        font-size: 100%;
+        line-height: 1.2;
     }
 
     /* ======== Layout en containers ======== */
@@ -116,11 +144,30 @@
         border-radius: 8px;
     }
 
+    /* 🔹 Eén consistente mini-knop stijl */
     .btn-mini {
-        font-size: 0.85rem;
-        padding: 4px 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px 10px;
+        font-size: 13px;
+        line-height: 1.1;
         border-radius: 8px;
+        border: 1px solid #243148;
+        background: #0b1224;
+        color: var(--text);
+        cursor: pointer;
     }
+    .btn-mini.secondary {
+        background: #0b1224;
+        border-color: #243148;
+    }
+    .btn-mini.danger {
+        background: #7f1d1d;
+        border-color: #ef4444;
+        color: #ffb4b4;
+    }
+
     .btn-ghost {
         background: #0b1224;
         border: 1px solid #243148;
@@ -254,6 +301,18 @@
         gap: 8px;
         margin: 8px 0 6px;
     }
+    .ld-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 6px;
+    }
+    .ld-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
     .ld-square {
         width: 36px;
         height: 36px;
