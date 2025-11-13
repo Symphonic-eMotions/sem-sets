@@ -85,6 +85,10 @@ final class DocumentController extends AbstractController
         $form->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
+
+//            dump($form);
+//            dd($req);
+
             // 1) Slug bijwerken op basis van titel
             $title = (string) $form->get('title')->getData();
             $doc->setSlug($this->slugify($title));
@@ -144,6 +148,10 @@ final class DocumentController extends AbstractController
 
             // 7) Nieuwe uploads verwerken (maakt Asset entities aan)
             $this->handleMidiUploads($form, $doc, $assets);
+
+            // 8) Level lengten
+            $this->syncTrackLevelsToSet($doc);
+
             $this->em->flush();
 
             // 8) PRG: redirect zodat midiAsset-keuzes zijn ververst
@@ -158,6 +166,31 @@ final class DocumentController extends AbstractController
         ]);
     }
 
+    private function syncTrackLevelsToSet(Document $doc): void
+    {
+        $set = array_values((array) $doc->getLevelDurations());
+        $setLen = count($set);
+
+        foreach ($doc->getTracks() as $t) {
+            $levels = array_values((array) $t->getLevels());
+
+            if ($setLen <= 0) {
+                $t->setLevels([]);
+                continue;
+            }
+
+            if (count($levels) > $setLen) {
+                $levels = array_slice($levels, 0, $setLen);
+            } elseif (count($levels) < $setLen) {
+                $levels = array_merge($levels, array_fill(0, $setLen - count($levels), 0));
+            }
+
+            // extra: forceer strikt 0/1
+            $levels = array_map(static fn($v) => (int)((int)$v === 1), $levels);
+
+            $t->setLevels($levels);
+        }
+    }
 
     #[Route('/documents/{id}', name: 'doc_delete', methods: ['POST', 'DELETE'])]
     #[IsGranted('ROLE_ADMIN')]
