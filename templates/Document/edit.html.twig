@@ -155,21 +155,34 @@
         </div>
     </div>
 
-    {# ===== JS: helpers + LD sync ===== #}
     <script>
         (function() {
+            // ============================================================
+            // 0. CONFIG / CONSTANTS
+            // ============================================================
 
-            /* 1) GENERIC COLLECTION HELPERS (bewaren) */
+            const SET_HIDDEN = '#ld-hidden-inputs';
+            const SET_TILES  = '#ld-tiles';
+            const TRACKS_CONTAINER_ID = 'tracks';
+
+            // ============================================================
+            // 1. GENERIC COLLECTION HELPERS
+            //    (bewust generiek gehouden, evt. later herbruikbaar)
+            // ============================================================
+
             window.addCollectionItem = function(containerId) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
+
                 const index = parseInt(container.dataset.index || '0', 10);
                 const proto = container.dataset.prototype?.replace(/__name__/g, index);
+
                 if (!proto) return;
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'collection-item';
                 wrapper.innerHTML = proto + '<button type="button" class="btn-mini danger" onclick="removeCollectionItem(this)">×</button>';
+
                 container.appendChild(wrapper);
                 container.dataset.index = String(index + 1);
             };
@@ -179,7 +192,10 @@
                 if (item) item.remove();
             };
 
-            /* 2) ASSET DELETE HELPER (bewaren) */
+            // ============================================================
+            // 2. ASSET DELETE HELPER
+            // ============================================================
+
             window.deleteAsset = function (url, token, filename) {
                 if (!confirm(`Weet je zeker dat je ${filename} wilt verwijderen?`)) return;
 
@@ -197,14 +213,52 @@
                 form.submit();
             };
 
-            /* 3) LD MODULE (LevelDurations/Levels tegel-UI + resize) */
-            window.LD = {
+            // ============================================================
+            // 3. LEVELDURATIONS MODULE (LD)
+            //    - Houdt de tegel-UI en de verborgen inputs in sync
+            // ============================================================
+
+            const LD = {
+                /**
+                 * Zorgt dat verborgen inputs geen HTML5 "required" errors geven.
+                 */
                 _stripRequired(hidden) {
                     hidden.querySelectorAll('input').forEach(inp => {
                         inp.removeAttribute('required');
                         inp.setAttribute('novalidate', 'novalidate');
                     });
                 },
+
+                /**
+                 * Maakt één tegel (button) voor een gegeven input.
+                 */
+                _createTile(input, idx) {
+                    const v = String(input.value || '0') === '1' ? 1 : 0;
+                    if (String(input.value) !== String(v)) {
+                        input.value = String(v);
+                    }
+
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ld-square' + (v ? ' on' : '');
+                    btn.dataset.index = String(idx);
+                    btn.setAttribute('aria-pressed', v ? 'true' : 'false');
+                    btn.textContent = v ? '1' : '0';
+
+                    btn.addEventListener('click', () => {
+                        const now = btn.classList.contains('on') ? 0 : 1;
+                        btn.classList.toggle('on', !!now);
+                        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
+                        btn.textContent = String(now);
+                        input.value = String(now);
+                    });
+
+                    return btn;
+                },
+
+                /**
+                 * (Re)buildt de tegel-UI op basis van de huidige hidden inputs.
+                 */
                 _rebuild(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     const tiles  = document.querySelector(tilesSel);
@@ -215,28 +269,18 @@
 
                     const inputs = hidden.querySelectorAll('.ld-item input');
                     inputs.forEach((input, idx) => {
-                        const v = String(input.value || '0') === '1' ? 1 : 0;
-                        if (String(input.value) !== String(v)) input.value = String(v);
-
-                        const btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'ld-square' + (v ? ' on' : '');
-                        btn.dataset.index = String(idx);
-                        btn.setAttribute('aria-pressed', v ? 'true' : 'false');
-                        btn.textContent = v ? '1' : '0';
-                        btn.addEventListener('click', () => {
-                            const now = btn.classList.contains('on') ? 0 : 1;
-                            btn.classList.toggle('on', !!now);
-                            btn.setAttribute('aria-pressed', now ? 'true' : 'false');
-                            btn.textContent = String(now);
-                            input.value = String(now);
-                        });
+                        const btn = this._createTile(input, idx);
                         tiles.appendChild(btn);
                     });
                 },
+
+                /**
+                 * Voegt één level toe (hidden input + tegel).
+                 */
                 add(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
+
                     const idx = parseInt(hidden.dataset.index || '0', 10);
                     const proto = hidden.dataset.prototype?.replace(/__name__/g, idx);
                     if (!proto) return;
@@ -254,42 +298,64 @@
 
                     hidden.appendChild(wrap);
                     hidden.dataset.index = String(idx + 1);
+
                     this._rebuild(hiddenSel, tilesSel);
                 },
+
+                /**
+                 * Verwijdert het laatste level.
+                 */
                 removeLast(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
+
                     const items = hidden.querySelectorAll('.ld-item');
                     if (!items.length) return;
+
                     items[items.length - 1].remove();
                     hidden.dataset.index = String(items.length - 1);
+
                     this._rebuild(hiddenSel, tilesSel);
                 },
+
+                /**
+                 * Zorgt dat er minimaal 1 item is, en bouwt daarna de tegels.
+                 */
                 seedIfEmpty(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
+
                     const items = hidden.querySelectorAll('.ld-item');
-                    if (!items.length) this.add(hiddenSel, tilesSel);
-                    else this._rebuild(hiddenSel, tilesSel);
+                    if (!items.length) {
+                        this.add(hiddenSel, tilesSel);
+                    } else {
+                        this._rebuild(hiddenSel, tilesSel);
+                    }
                 },
+
+                /**
+                 * Past de lengte van de collection aan naar targetLen (truncate/pad met 0),
+                 * en rebuildt de tegel-UI.
+                 */
                 resizeTo(hiddenSel, tilesSel, targetLen) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
-                    let idx = parseInt(hidden.dataset.index || '0', 10);
                     let items = hidden.querySelectorAll('.ld-item');
 
+                    // 1) Trunceren als er teveel zijn
                     if (items.length > targetLen) {
                         for (let i = items.length - 1; i >= targetLen; i--) {
                             items[i].remove();
                         }
-                        idx = Math.min(idx, targetLen);
                     }
 
+                    // 2) Aanvullen als er te weinig zijn
                     while (hidden.querySelectorAll('.ld-item').length < targetLen) {
                         const i = parseInt(hidden.dataset.index || '0', 10);
                         const proto = hidden.dataset.prototype?.replace(/__name__/g, i);
                         if (!proto) break;
+
                         const wrap = document.createElement('div');
                         wrap.className = 'ld-item';
                         wrap.innerHTML = proto;
@@ -308,13 +374,22 @@
                     const finalCount = hidden.querySelectorAll('.ld-item').length;
                     hidden.dataset.index = String(finalCount);
 
-                    if (tilesSel) this._rebuild(hiddenSel, tilesSel);
+                    if (tilesSel) {
+                        this._rebuild(hiddenSel, tilesSel);
+                    }
                 }
             };
 
-            /* 4) SYNC: tracks koppelen aan set-levels */
-            const SET_HIDDEN = '#ld-hidden-inputs';
-            const SET_TILES  = '#ld-tiles';
+            // Publiek maken (zodat submit-handler etc. het kan gebruiken)
+            window.LD = LD;
+
+            // ============================================================
+            // 4. TRACKS MODULE
+            //    - Tracks toevoegen / initialiseren
+            //    - Levels per track syncen met set-levels
+            // ============================================================
+
+            const tracksContainer = document.getElementById(TRACKS_CONTAINER_ID);
 
             function getSetLevelCount() {
                 const hidden = document.querySelector(SET_HIDDEN);
@@ -323,6 +398,8 @@
 
             function syncAllTracksToSetCount() {
                 const targetLen = getSetLevelCount();
+                if (!tracksContainer) return;
+
                 document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
                     const hidden = card.querySelector('#trk-hidden-' + i);
                     const tiles  = card.querySelector('#trk-tiles-' + i);
@@ -332,12 +409,10 @@
                 });
             }
 
-            /* 5) Tracks toevoegen/dupliceren/verwijderen + init */
-            const tracks = document.getElementById('tracks');
-
             function wireNewTrackCard(card, idx) {
                 const hidden = card.querySelector('#trk-hidden-' + idx);
                 const tiles  = card.querySelector('#trk-tiles-' + idx);
+
                 if (hidden && tiles) {
                     LD.seedIfEmpty('#' + hidden.id, '#' + tiles.id);
                     LD.resizeTo('#' + hidden.id, '#' + tiles.id, getSetLevelCount());
@@ -345,9 +420,10 @@
             }
 
             function addTrackFromPrototype() {
-                if (!tracks) return;
-                const index = parseInt(tracks.dataset.index || '0', 10);
-                let html = String(tracks.dataset.prototype || '')
+                if (!tracksContainer) return;
+
+                const index = parseInt(tracksContainer.dataset.index || '0', 10);
+                let html = String(tracksContainer.dataset.prototype || '')
                     .replace(/__name__/g, index)
                     .replace(/__num__/g, index + 1);
 
@@ -357,22 +433,33 @@
                 wrapper.innerHTML = html;
                 const card = wrapper.firstElementChild;
 
-                tracks.appendChild(card);
-                tracks.dataset.index = String(index + 1);
+                tracksContainer.appendChild(card);
+                tracksContainer.dataset.index = String(index + 1);
 
                 wireNewTrackCard(card, index);
             }
 
-            document.getElementById('add-track')?.addEventListener('click', addTrackFromPrototype);
+            // Globale remove-functie (gebruik je in de template als onclick="removeTrack(this)")
+            window.removeTrack = function(btn) {
+                btn.closest('.track-card')?.remove();
+            };
 
-            window.removeTrack = function(btn) { btn.closest('.track-card')?.remove(); };
+            // ============================================================
+            // 5. INIT: bestaande tracks + LevelDurations + knoppen
+            // ============================================================
 
-            document.querySelectorAll('#tracks .track-card').forEach((card, i) => wireNewTrackCard(card, i));
+            // a) Bestaande tracks initialiseren
+            if (tracksContainer) {
+                document
+                    .querySelectorAll('#tracks .track-card')
+                    .forEach((card, i) => wireNewTrackCard(card, i));
+            }
 
-            /* 6) Set-levels initialiseren + sync koppelen aan knoppen */
+            // b) Set-levels initialiseren
             LD.seedIfEmpty(SET_HIDDEN, SET_TILES);
             syncAllTracksToSetCount();
 
+            // c) Knoppen voor set-levels (toevoegen / verwijderen)
             const ldAddBtn    = document.getElementById('ld-add');
             const ldRemoveBtn = document.getElementById('ld-remove');
 
@@ -382,6 +469,7 @@
                     syncAllTracksToSetCount();
                 });
             }
+
             if (ldRemoveBtn) {
                 ldRemoveBtn.addEventListener('click', () => {
                     LD.removeLast(SET_HIDDEN, SET_TILES);
@@ -389,11 +477,21 @@
                 });
             }
 
-            /* 7) Submit-vangnet: required strippen */
+            // d) Track toevoegen-button
+            document.getElementById('add-track')
+                ?.addEventListener('click', addTrackFromPrototype);
+
+            // ============================================================
+            // 6. FORM SUBMIT SAFETY: HTML5 validation shush
+            // ============================================================
+
             const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', () => {
-                    document.querySelectorAll('.ld-hidden').forEach(h => LD._stripRequired(h));
+                    // Zorg dat verborgen inputs nooit "required" errors geven
+                    document
+                        .querySelectorAll('.ld-hidden')
+                        .forEach(h => LD._stripRequired(h));
                 });
             }
 
