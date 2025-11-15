@@ -129,7 +129,7 @@ final class DocumentFormType extends AbstractType
                     ],
                 ],
                 'allow_add' => true,
-                'allow_delete' => false,
+                'allow_delete' => true,
                 'by_reference' => false,
                 'prototype' => true,
                 'attr' => ['class' => 'level-durations'],
