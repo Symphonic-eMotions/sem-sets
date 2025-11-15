@@ -111,39 +111,13 @@
 
                 {# 1) Bouw volledig prototype van track-kaart #}
                 {% set track_proto %}
-                    <div class='track-card'>
-                        <div class='track-head'>
-                            <div class='track-title'>Track __num__</div>
-                            <div class='track-actions'>
-                                <button type='button' class='btn-mini danger' onclick='removeTrack(this)'>Verwijder</button>
-                            </div>
-                        </div>
-
-                        {{ form_widget(form.tracks.vars.prototype.trackId) }}
-
-                        <div class='grid'>
-                            <div class='subsection'>
-                                <label class='label'>Levels</label>
-
-                                {# Let op: IDs gebaseerd op __name__ #}
-                                <div id='trk-tiles-__name__' class='ld-tiles' data-target='#trk-hidden-__name__'></div>
-
-                                <div id='trk-hidden-__name__'
-                                     class='ld-hidden'
-                                     data-prototype='{{ form_widget(form.tracks.vars.prototype.levels.vars.prototype)|e('html_attr') }}'
-                                     data-index='0'>
-                                    {# wordt geseed in JS #}
-                                </div>
-                            </div>
-
-                            <div class='subsection'>
-                                <label class='label'>MIDI bestand</label>
-                                {{ form_widget(form.tracks.vars.prototype.midiAsset) }}
-                            </div>
-                        </div>
-                    </div>
+                    {% include 'Document/_track_card.html.twig' with {
+                        trackForm:   form.tracks.vars.prototype,
+                        index:       '__name__',
+                        num:         '__num__',
+                        isPrototype: true
+                    } only %}
                 {% endset %}
-
 
                 {# 2) Container met bestaande tracks #}
                 <div id="tracks"
@@ -153,47 +127,17 @@
 
                     {# Bestaande tracks #}
                     {% for trackForm in form.tracks %}
-                        <div class="track-card">
-                            <div class="track-head">
-                                <div class="track-title">Track {{ loop.index }}</div>
-                                <div class="track-actions">
-                                    <button type="button" class="btn-mini danger" onclick="removeTrack(this)">Verwijder</button>
-                                </div>
-                            </div>
-
-                            {{ form_widget(trackForm.trackId) }}
-
-                            <div class="grid">
-                                <div class="subsection">
-                                    <label class="label">Levels</label>
-
-                                    {# A) Tegelcontainer (visueel) #}
-                                    <div id="trk-tiles-{{ loop.index0 }}" class="ld-tiles" data-target="#trk-hidden-{{ loop.index0 }}"></div>
-
-                                    {# B) Verborgen inputs die Symfony leest #}
-                                    <div id="trk-hidden-{{ loop.index0 }}"
-                                         class="ld-hidden"
-                                         data-prototype="{{ form_widget(trackForm.levels.vars.prototype)|e('html_attr') }}"
-                                         data-index="{{ trackForm.levels|length }}">
-                                        {% for levelField in trackForm.levels %}
-                                            <div class="ld-item">{{ form_widget(levelField) }}</div>
-                                        {% endfor %}
-                                    </div>
-                                </div>
-
-                                <div class="subsection">
-                                    <label class="label">MIDI bestand</label>
-                                    {{ form_widget(trackForm.midiAsset) }}
-                                    {% if trackForm.midiAsset.vars.choices is defined and trackForm.midiAsset.vars.choices|length == 0 %}
-                                        <p class="subtle" style="margin-top:6px">Nog geen MIDI-assets. Upload ze bovenaan.</p>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                        {% include 'Document/_track_card.html.twig' with {
+                            trackForm:   trackForm,
+                            index:       loop.index0,
+                            num:         loop.index,
+                            isPrototype: false
+                        } only %}
                     {% else %}
                         <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
                     {% endfor %}
                 </div>
+
             </div>
 
             {{ form_row(form.published) }}

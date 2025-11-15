@@ -1,0 +1,58 @@
+{# templates/Document/_track_card.html.twig #}
+{# Verwacht:
+   - trackForm : het (sub)form (kan prototype of echte zijn)
+   - index     : index voor IDs (bijv. 0, 1, 2 of "__name__")
+   - num       : menselijk nummer (1, 2, 3 of "__num__")
+   - isPrototype : bool
+#}
+
+<div class="track-card">
+    <div class="track-head">
+        <div class="track-title">Track {{ num }}</div>
+        <div class="track-actions">
+            <button type="button" class="btn-mini danger" onclick="removeTrack(this)">Verwijder</button>
+        </div>
+    </div>
+
+    {# Hidden trackId #}
+    {{ form_widget(trackForm.trackId) }}
+
+    <div class="grid">
+        <div class="subsection">
+            <label class="label">Levels</label>
+
+            {# A) Tegelcontainer (visueel) #}
+            <div id="trk-tiles-{{ index }}"
+                 class="ld-tiles"
+                 data-target="#trk-hidden-{{ index }}"></div>
+
+            {# B) Verborgen inputs die Symfony leest #}
+            <div id="trk-hidden-{{ index }}"
+                 class="ld-hidden"
+                 data-prototype="{{ form_widget(trackForm.levels.vars.prototype)|e('html_attr') }}"
+                 data-index="{{ (trackForm.levels|length)|default(0) }}">
+
+                {# Bij echt form: bestaande level-inputs renderen.
+                   Bij prototype: leeg laten, JS seedt ze. #}
+                {% if not isPrototype %}
+                    {% for levelField in trackForm.levels %}
+                        <div class="ld-item">{{ form_widget(levelField) }}</div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="subsection">
+            <label class="label">MIDI bestand</label>
+            {{ form_widget(trackForm.midiAsset) }}
+
+            {% if not isPrototype
+                and trackForm.midiAsset.vars.choices is defined
+                and trackForm.midiAsset.vars.choices|length == 0 %}
+                <p class="subtle" style="margin-top:6px">
+                    Nog geen MIDI-assets. Upload ze bovenaan.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
