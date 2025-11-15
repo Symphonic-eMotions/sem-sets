@@ -16,7 +16,6 @@
                 <div class="grid grid-2">
                     <div class="grid">
                         {{ form_row(form.title) }}
-                        {{ form_row(form.published) }}
                     </div>
                     <div class="grid">
                         {{ form_row(form.gridSize) }}
@@ -30,20 +29,22 @@
                 <h2 class="section-title">Assets</h2>
                 <div class="grid grid-2">
                     <div>
-                        <h3 class="label" style="margin:0 0 6px">Upload MIDI-bestanden</h3>
                         {{ form_row(form.midiFiles) }}
                     </div>
 
                     <div>
-                        <h3 class="label" style="margin:0 0 6px">Bestaande assets</h3>
+                        <label class="label">MIDI bestanden op server</label>
                         {% if assets is defined and assets|length %}
                             <div class="chips" style="margin-top:8px">
                                 {% for a in assets %}
                                     <div class="chip">
-                                        <span>{{ a.originalName }}</span>
-                                        <span class="subtle">
-                                          ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
-                                        </span>
+                                        <div class="chip-main">
+                                            <span class="chip-name">{{ a.originalName }}</span>
+                                            <span class="chip-meta subtle">
+                                              ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
+                                            </span>
+                                        </div>
+
                                         <div class="chip-actions">
                                             <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
                                             <button
@@ -55,6 +56,7 @@
                                             </button>
                                         </div>
                                     </div>
+
                                 {% endfor %}
                             </div>
                         {% else %}
@@ -113,7 +115,7 @@
                         <div class='track-head'>
                             <div class='track-title'>Track __num__</div>
                             <div class='track-actions'>
-                                <button type='button' class='btn-ghost danger' onclick='removeTrack(this)'>Verwijderen</button>
+                                <button type='button' class='btn-mini danger' onclick='removeTrack(this)'>Verwijder</button>
                             </div>
                         </div>
 
@@ -143,7 +145,7 @@
                 {% endset %}
 
 
-                {# 2) Container met volledige kaart als data-prototype #}
+                {# 2) Container met bestaande tracks #}
                 <div id="tracks"
                      class="tracks"
                      data-index="{{ form.tracks|length }}"
@@ -193,6 +195,8 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {{ form_row(form.published) }}
 
             {# --- Acties onderaan --- #}
             <div class="form-actions">

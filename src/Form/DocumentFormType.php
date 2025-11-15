@@ -63,14 +63,14 @@ final class DocumentFormType extends AbstractType
                 'mapped' => false,
                 'required' => false,
             ])
-            ->add('semVersion', ChoiceType::class, [
-                'choices' => array_combine(
-                    array_map(fn($c)=>$c->value, SemVersion::cases()),
-                    SemVersion::cases()
-                ),
-                'choice_label' => fn(SemVersion $v) => $v->value,
-                'choice_value' => fn(?SemVersion $v) => $v?->value,
-            ])
+//            ->add('semVersion', ChoiceType::class, [
+//                'choices' => array_combine(
+//                    array_map(fn($c)=>$c->value, SemVersion::cases()),
+//                    SemVersion::cases()
+//                ),
+//                'choice_label' => fn(SemVersion $v) => $v->value,
+//                'choice_value' => fn(?SemVersion $v) => $v?->value,
+//            ])
             ->add('published', CheckboxType::class, ['required' => false])
 
              // Eén select voor vierkante grids (unmapped)
@@ -115,7 +115,7 @@ final class DocumentFormType extends AbstractType
 
 
             ->add('levelDurations', CollectionType::class, [
-                'label' => 'Level durations',
+                'label' => 'Aantal levels',
                 'entry_type' => NumberType::class,
                 'entry_options' => [
                     'html5' => true,
@@ -145,7 +145,7 @@ final class DocumentFormType extends AbstractType
             ])
 
             ->add('midiFiles', FileType::class, [
-                'label' => 'MIDI-bestanden (.mid)',
+                'label' => 'Upload MIDI-bestanden (.mid)',
                 'mapped' => false,
                 'required' => false,
                 'multiple' => true,
@@ -169,7 +169,7 @@ final class DocumentFormType extends AbstractType
                         ],
                     ]),
                 ],
-                'help' => 'Je kunt meerdere .mid/.midi files selecteren (max 10 MB per bestand).',
+//                'help' => 'Je kunt meerdere .mid/.midi files selecteren (max 10 MB per bestand).',
             ])
         ;
     }
