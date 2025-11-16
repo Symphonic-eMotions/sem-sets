@@ -19,12 +19,15 @@
 
     <div class="grid">
         <div class="subsection">
-            <label class="label">Levels</label>
 
-            {# A) Tegelcontainer (visueel) #}
-            <div id="trk-tiles-{{ index }}"
-                 class="ld-tiles"
-                 data-target="#trk-hidden-{{ index }}"></div>
+            {# Label + tegels op één regel #}
+            <div class="label-with-tiles">
+                <label class="label">Levels</label>
+                {# A) Tegelcontainer (visueel) #}
+                <div id="trk-tiles-{{ index }}"
+                     class="ld-tiles"
+                     data-target="#trk-hidden-{{ index }}"></div>
+            </div>
 
             {# B) Verborgen inputs die Symfony leest #}
             <div id="trk-hidden-{{ index }}"
