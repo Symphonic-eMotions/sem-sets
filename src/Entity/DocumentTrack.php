@@ -31,6 +31,9 @@ class DocumentTrack
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Asset $midiAsset = null;
 
+    #[ORM\Column(type: 'string', length: 100, nullable: true)]
+    private ?string $exsPreset = null;
+
     // UI-volgorde voor netjes ordenen in formulieren
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
@@ -64,6 +67,15 @@ class DocumentTrack
     /** @param int[] $levels */
     public function setLevels(array $levels): self {
         $this->levels = array_values(array_map(static fn($v)=> (int)$v, $levels));
+        return $this;
+    }
+    public function getExsPreset(): ?string
+    {
+        return $this->exsPreset;
+    }
+    public function setExsPreset(?string $exsPreset): self
+    {
+        $this->exsPreset = $exsPreset;
         return $this;
     }
 

@@ -9,6 +9,7 @@ use App\Entity\DocumentTrack;
 use App\Repository\AssetRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
+use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
@@ -63,7 +64,17 @@ final class DocumentTrackType extends AbstractType
                     ->andWhere('a.document = :doc')->setParameter('doc', $doc)
                     ->orderBy('a.id', 'DESC');
             },
+        ])
+
+        ->add('exsPreset', ChoiceType::class, [
+            'label'       => 'EXS preset',
+            'required'    => false,
+            'placeholder' => '— Geen preset —',
+            'choices'     => array_combine(self::exsPresets(), self::exsPresets()),
+            // label == value (AdvancedFM etc.)
         ]);
+
+
     }
 
     public function configureOptions(OptionsResolver $resolver): void
@@ -74,4 +85,55 @@ final class DocumentTrackType extends AbstractType
         ]);
         $resolver->setAllowedTypes('document', [Document::class, 'null']);
     }
+
+    private static function exsPresets(): array
+    {
+        return [
+            'AdvancedFM',
+            'AfricanMarimba',
+            'BassGuitarSmall',
+            'BassoonSoloLegato',
+            'BassoonSolo',
+            'BoerenOrgel',
+            'BrassyLead',
+            'Celesta',
+            'CellosLegato',
+            'CellosLegatoSlowAttack',
+            'CellosPizzicato',
+            'ClarinetsLegato',
+            'CowBellAgogo',
+            'ElectricBass',
+            'EXS808',
+            'FatFilt',
+            'FrenchHorns',
+            'FrenchHornsLegato',
+            'FullStringsPizzicato',
+            'FluteSolo2',
+            'GlassMarimba',
+            'Glockenspiel',
+            'harp',
+            'JazzBassWav',
+            'JP8Unifix',
+            'JP8UnifixEuroPaPa',
+            'JvRhodesMkV',
+            'MellotronFlutes',
+            'orchestralKitSmall',
+            'PiccoloLegato',
+            'PinchHarmonics',
+            'smallYamahaPiano',
+            'StandardKitSmall',
+            'SuitcaseElectricPiano',
+            'SynthPads',
+            'TekkbrassNatuur',
+            'TrancyHook',
+            'TrumpetsSmall',
+            'TubaSolo',
+            'TubularBells',
+            'TubularStation',
+            'vibraphone',
+            'ViolinsLegatoLongRelease',
+            'Xylophone',
+        ];
+    }
+
 }
