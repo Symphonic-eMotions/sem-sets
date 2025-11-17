@@ -20,18 +20,41 @@
                     <thead>
                     <tr>
                         <th>Titel</th>
-                        <th>Slug</th>
-                        <th>SemVer</th>
+                        <th>Tracks</th>
+                        <th>Download</th>
                         <th>Status</th>
                         <th style="width:280px">Acties</th>
-                    </tr>
+                    </tr>JSON
                     </thead>
                     <tbody>
                     {% for d in documents %}
+                        {% set exsCount = 0 %}
+                        {% for t in d.tracks %}
+                            {% if t.exsPreset is not null %}
+                                {% set exsCount = exsCount + 1 %}
+                            {% endif %}
+                        {% endfor %}
+
                         <tr>
                             <td><strong>{{ d.title }}</strong></td>
-                            <td><span class="pill">{{ d.slug }}</span></td>
-                            <td><span class="pill">{{ d.semVersion ? d.semVersion.value : '–' }}</span></td>
+
+                            <td>
+                                <span class="pill">
+                                    {{ exsCount }}
+                                </span>
+                            </td>
+
+                            {# Link naar JSON API voor deze set, als knop met slug-tekst #}
+                            <td>
+                                <a
+                                        class="btn secondary"
+                                        href="{{ path('doc_api_json', { id: d.id }) }}"
+                                        title="Download JSON voor deze set"
+                                >
+                                    {{ d.slug ?: 'download-json' }}
+                                </a>
+                            </td>
+
                             <td>
                                 {% if d.published %}
                                     <span class="pill">Live</span>
@@ -39,18 +62,19 @@
                                     <span class="pill" style="opacity:.7">Concept</span>
                                 {% endif %}
                             </td>
+
                             <td class="actions" style="display:flex; gap:8px; flex-wrap:nowrap; align-items:center">
-                            <a class="btn secondary" href="{{ path('doc_edit', {id: d.id}) }}">Bewerken</a>
+                                <a class="btn secondary" href="{{ path('doc_edit', {id: d.id}) }}">Bewerken</a>
                                 <a class="btn secondary" href="{{ path('doc_versions', {id: d.id}) }}">Versies</a>
 
                                 {% if is_granted('ROLE_ADMIN') %}
                                     <form action="{{ path('doc_delete', {id: d.id}) }}"
                                           method="post"
                                           onsubmit="return confirm('Set \'{{ d.title }}\' en alle gekoppelde assets verwijderen? Dit kan niet ongedaan worden gemaakt.');"
-                                                                                        style="display:inline">
-                                    <input type="hidden" name="_token" value="{{ csrf_token('delete-doc-' ~ d.id) }}">
-                                    <input type="hidden" name="_method" value="DELETE">
-                                    <button class="btn btn-danger">Verwijder</button>
+                                          style="display:inline">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('delete-doc-' ~ d.id) }}">
+                                        <input type="hidden" name="_method" value="DELETE">
+                                        <button class="btn btn-danger">Verwijder</button>
                                     </form>
                                 {% endif %}
                             </td>

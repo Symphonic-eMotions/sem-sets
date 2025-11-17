@@ -306,6 +306,27 @@ final class DocumentController extends AbstractController
         return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
     }
 
+    #[Route('documents/{id}/api.json', name: 'doc_api_json', methods: ['GET'])]
+    public function apiJson(Document $doc): Response
+    {
+        $json = $this->buildPayloadJson($doc);
+
+        $filenameBase = $doc->getSlug() ?: ('set-' . $doc->getId());
+        $filename = sprintf('%s.json', $filenameBase);
+
+        $response = new StreamedResponse(static function () use ($json) {
+            echo $json;
+        });
+
+        $response->headers->set('Content-Type', 'application/json');
+        $response->headers->set(
+            'Content-Disposition',
+            sprintf('attachment; filename="%s"', $filename)
+        );
+
+        return $response;
+    }
+
     #[Route('documents/{id}/versions', name: 'doc_versions', methods: ['GET'])]
     public function versions(Document $doc, DocumentVersionRepository $vr): Response
     {
