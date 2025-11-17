@@ -418,25 +418,32 @@ final class DocumentController extends AbstractController
         $levelDurations = array_map('intval', $doc->getLevelDurations());
 
         $instrumentsConfig = [];
+
         foreach ($doc->getTracks() as $t) {
-            // 1) MIDI-bestanden (zoals je al had)
-            $midi = [];
+            // 1) MIDI-bestanden
+            $midi      = [];
+            $midiLabel = null;
+
             if ($t->getMidiAsset()) {
                 $orig = $t->getMidiAsset()->getOriginalName();
                 $name = pathinfo($orig, PATHINFO_FILENAME) ?: $orig;
                 $ext  = strtolower(pathinfo($orig, PATHINFO_EXTENSION) ?: 'mid');
 
+                // Mooie naam op basis van midi file
+                $midiLabel = $this->humanizeLabel($name);
+
                 $midi[] = [
                     'midiFileName' => $name,
                     'midiFileExt'  => $ext,
-                    'loopLength'   => [],   // kun je later vullen
+                    'loopLength'   => [],   // later te vullen
                 ];
             }
 
-            // 2) EXS preset → exsFiles-blok in "origineel" format
-            $exsPreset      = method_exists($t, 'getExsPreset') ? $t->getExsPreset() : null;
-            $exsFiles       = null;
-            $instrumentType = null;
+            // 2) EXS preset → exsFiles-blok + label
+            $exsPreset       = method_exists($t, 'getExsPreset') ? $t->getExsPreset() : null;
+            $exsFiles        = null;
+            $instrumentType  = null;
+            $exsLabel        = null;
 
             if ($exsPreset) {
                 $exsFiles = [[
@@ -444,15 +451,34 @@ final class DocumentController extends AbstractController
                     'exsFileName' => $exsPreset,
                 ]];
                 $instrumentType = 'exsSampler';
+                $exsLabel       = $this->humanizeLabel($exsPreset); // "Cellos Legato", "Advanced FM", etc.
             }
 
-            // 3) Instrument-config entry
+            // 3) Track / instrument naam opbouwen
+            //    - Alleen MIDI: "Moon Left"
+            //    - Alleen EXS: "Cellos Legato"
+            //    - Beide    : "Moon Left – Cellos Legato"
+            $instrumentName = null;
+
+            if ($midiLabel && $exsLabel) {
+                $instrumentName = sprintf('%s – %s', $midiLabel, $exsLabel);
+            } elseif ($midiLabel) {
+                $instrumentName = $midiLabel;
+            } elseif ($exsLabel) {
+                $instrumentName = $exsLabel;
+            } else {
+                // fallback: trackId humanizen
+                $instrumentName = $this->humanizeLabel($t->getTrackId() ?? '') ?? $t->getTrackId();
+            }
+
+            // 4) Instrument-config entry
             $instrumentsConfig[] = [
                 'trackId'        => $t->getTrackId(),
                 'levels'         => array_values(array_map('intval', $t->getLevels())),
                 'midiFiles'      => $midi,
-                'instrumentType' => $instrumentType, // null of 'exsSampler'
-                'exsFiles'       => $exsFiles,       // null of array met 1 object
+                'instrumentType' => $instrumentType,   // null of 'exsSampler'
+                'exsFiles'       => $exsFiles,         // null of array
+                'instrumentName' => $instrumentName,   // nieuwe veld
             ];
         }
 
@@ -469,7 +495,7 @@ final class DocumentController extends AbstractController
 
         return (string) json_encode(
             $payload,
-            JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+            JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_PRETTY_PRINT
         );
     }
 
@@ -554,5 +580,32 @@ final class DocumentController extends AbstractController
         if ($fail > 0) {
             $this->addFlash('warning', sprintf('%d bestand(en) overgeslagen of mislukt.', $fail));
         }
+    }
+
+    private function humanizeLabel(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        // 1) extensie weghalen (voor het geval er toch nog .mid of zo inzit)
+        $base = pathinfo($value, PATHINFO_FILENAME) ?: $value;
+
+        // 2) vervang scheidingstekens door spaties
+        $base = str_replace(['-', '_', '.'], ' ', $base);
+
+        // 3) camelCase naar spaties: "moonLeftHand" -> "moon Left Hand"
+        $base = preg_replace('/(?<!^)([A-Z])/', ' $1', $base);
+
+        // 4) meerdere spaties normaliseren
+        $base = preg_replace('/\s+/', ' ', $base);
+
+        // 5) trim + eerste letter hoofdletter, rest laten zoals is
+        $base = trim($base);
+        if ($base === '') {
+            return null;
+        }
+
+        return ucfirst($base);
     }
 }
