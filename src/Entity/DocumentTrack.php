@@ -17,7 +17,7 @@ class DocumentTrack
     // Elke track hoort bij precies één Document
     #[ORM\ManyToOne(targetEntity: Document::class, inversedBy: 'tracks')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private Document $document;
+    private ?Document $document = null;
 
     #[ORM\Column(type: 'string', length: 50, unique: false, nullable: true)]
     private ?string $trackId = null;

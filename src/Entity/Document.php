@@ -74,9 +74,6 @@ class Document
     #[ORM\OrderBy(['position' => 'ASC'])]
     private Collection $tracks;
 
-    #[ORM\Column(type: 'json', options: ['comment' => 'Array of InstrumentConfigs', 'default' => '[]'])]
-    private array $instrumentsConfig = [];
-
     public function __construct()
     {
         $now = new DateTimeImmutable();
@@ -191,46 +188,6 @@ class Document
             if ($t->getDocument() === $this) {
                 $t->setDocument(null);
             }
-        }
-        return $this;
-    }
-
-    #[Deprecated("use getTracks() instead")]
-    // Instruments config (array of assoc arrays for CollectionType entry forms)
-    public function getInstrumentsConfig(): array { return $this->instrumentsConfig; }
-
-    #[Deprecated()]
-    public function setInstrumentsConfig(array $cfg): self
-    {
-        // Zorg dat we een nette array van arrays opslaan en reindexen
-        $normalized = array_values(array_map(
-            function ($item) {
-                // Sta alleen arrays toe; scalars/null worden genegeerd
-                return is_array($item) ? $item : [];
-            },
-            $cfg
-        ));
-
-        // Filter lege placeholders uit als je dat wilt:
-        $normalized = array_values(array_filter($normalized, fn($it) => $it !== []));
-
-        $this->instrumentsConfig = $normalized;
-        return $this;
-    }
-
-    #[Deprecated("use addTrack() instead")]
-    public function addInstrumentConfig(array $item): self
-    {
-        $this->instrumentsConfig[] = $item;
-        return $this;
-    }
-
-    #[Deprecated("use removeTrack() instead")]
-    public function removeInstrumentConfigAt(int $index): self
-    {
-        if (array_key_exists($index, $this->instrumentsConfig)) {
-            unset($this->instrumentsConfig[$index]);
-            $this->instrumentsConfig = array_values($this->instrumentsConfig);
         }
         return $this;
     }
