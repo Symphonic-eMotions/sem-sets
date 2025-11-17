@@ -414,22 +414,45 @@ final class DocumentController extends AbstractController
      */
     private function buildPayloadJson(Document $doc): string
     {
-        $bpm = (float) $doc->getSetBPM();
+        $bpm            = (float) $doc->getSetBPM();
         $levelDurations = array_map('intval', $doc->getLevelDurations());
 
         $instrumentsConfig = [];
         foreach ($doc->getTracks() as $t) {
+            // 1) MIDI-bestanden (zoals je al had)
             $midi = [];
             if ($t->getMidiAsset()) {
                 $orig = $t->getMidiAsset()->getOriginalName();
                 $name = pathinfo($orig, PATHINFO_FILENAME) ?: $orig;
                 $ext  = strtolower(pathinfo($orig, PATHINFO_EXTENSION) ?: 'mid');
-                $midi[] = ['midiFileName' => $name, 'midiFileExt' => $ext, 'loopLength' => []];
+
+                $midi[] = [
+                    'midiFileName' => $name,
+                    'midiFileExt'  => $ext,
+                    'loopLength'   => [],   // kun je later vullen
+                ];
             }
+
+            // 2) EXS preset → exsFiles-blok in "origineel" format
+            $exsPreset      = method_exists($t, 'getExsPreset') ? $t->getExsPreset() : null;
+            $exsFiles       = null;
+            $instrumentType = null;
+
+            if ($exsPreset) {
+                $exsFiles = [[
+                    'exsFileExt'  => 'exs',
+                    'exsFileName' => $exsPreset,
+                ]];
+                $instrumentType = 'exsSampler';
+            }
+
+            // 3) Instrument-config entry
             $instrumentsConfig[] = [
-                'trackId'   => $t->getTrackId(),
-                'levels'    => array_values(array_map('intval', $t->getLevels())),
-                'midiFiles' => $midi, // BC: lijst met max. 1 item
+                'trackId'        => $t->getTrackId(),
+                'levels'         => array_values(array_map('intval', $t->getLevels())),
+                'midiFiles'      => $midi,
+                'instrumentType' => $instrumentType, // null of 'exsSampler'
+                'exsFiles'       => $exsFiles,       // null of array met 1 object
             ];
         }
 
@@ -444,7 +467,10 @@ final class DocumentController extends AbstractController
             'instrumentsConfig' => $instrumentsConfig,
         ];
 
-        return (string) json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION);
+        return (string) json_encode(
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION
+        );
     }
 
     /**
