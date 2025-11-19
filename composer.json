@@ -44,6 +44,7 @@
         "symfony/validator": "6.4.*",
         "symfony/web-link": "6.4.*",
         "symfony/yaml": "6.4.*",
+        "symphonic-emotions/php-midi": "dev-master",
         "twig/extra-bundle": "^2.12|^3.0",
         "twig/string-extra": "^3.22",
         "twig/twig": "^2.12|^3.0"
@@ -106,5 +107,11 @@
         "symfony/maker-bundle": "^1.64",
         "symfony/stopwatch": "6.4.*",
         "symfony/web-profiler-bundle": "6.4.*"
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/Symphonic-eMotions/PHP-Midi.git"
+        }
+    ]
 }

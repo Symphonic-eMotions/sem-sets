@@ -20,6 +20,11 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+            -
+    App\Midi\:
+        resource: '../src/Midi/'
+        autowire: true
+        autoconfigure: true
 
     App\Service\VersioningService:
         arguments:
