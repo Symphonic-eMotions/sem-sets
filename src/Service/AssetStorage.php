@@ -9,6 +9,7 @@ use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
+use RuntimeException;
 use Throwable;
 use function preg_replace;
 
@@ -91,4 +92,48 @@ final class AssetStorage
         $this->em->remove($asset);
         $this->em->flush();
     }
+
+    /**
+     * Maakt een tijdelijk lokaal bestand van de asset-inhoud en geeft het pad terug.
+     *
+     * Let op: het temp-bestand wordt niet automatisch opgeruimd.
+     * Je kunt zelf eventueel na gebruik unlink() aanroepen.
+     *
+     * @throws FilesystemException
+     */
+    public function createLocalTempFile(Asset $asset): string
+    {
+        $path = $asset->getStoragePath();
+
+        if (!$this->uploadsStorage->fileExists($path)) {
+            throw new RuntimeException(sprintf(
+                'Bestand "%s" bestaat niet in uploadsStorage.',
+                $path
+            ));
+        }
+
+        $tmpFile = tempnam(sys_get_temp_dir(), 'midi_');
+        if ($tmpFile === false) {
+            throw new RuntimeException('Kon geen tijdelijk bestand aanmaken voor MIDI-analyse.');
+        }
+
+        // Simpelste variant: hele bestand in memory lezen en wegschrijven
+        $contents = $this->uploadsStorage->read($path);
+        if ($contents === "") {
+            throw new RuntimeException(sprintf(
+                'Kon inhoud van "%s" niet lezen uit uploadsStorage.',
+                $path
+            ));
+        }
+
+        if (file_put_contents($tmpFile, $contents) === false) {
+            throw new RuntimeException(sprintf(
+                'Kon tijdelijk bestand "%s" niet schrijven.',
+                $tmpFile
+            ));
+        }
+
+        return $tmpFile;
+    }
+
 }

@@ -115,7 +115,8 @@
                         trackForm:   form.tracks.vars.prototype,
                         index:       '__name__',
                         num:         '__num__',
-                        isPrototype: true
+                        isPrototype: true,
+                        midiInfo:    {}
                     } only %}
                 {% endset %}
 
@@ -131,7 +132,8 @@
                             trackForm:   trackForm,
                             index:       loop.index0,
                             num:         loop.index,
-                            isPrototype: false
+                            isPrototype: false,
+                            midiInfo:    midiInfo
                         } only %}
                     {% else %}
                         <p class="subtle">Nog geen tracks. Voeg er één toe.</p>

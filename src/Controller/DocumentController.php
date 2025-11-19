@@ -7,6 +7,7 @@ use App\Entity\Asset;
 use App\Entity\Document;
 use App\Form\DocumentFormType;
 use App\Form\NewDocumentFormType;
+use App\Midi\MidiAnalyzer;
 use App\Repository\AssetRepository;
 use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
@@ -80,6 +81,7 @@ final class DocumentController extends AbstractController
         Request $req,
         VersioningService $vs,
         AssetStorage $assets,
+        MidiAnalyzer $midiAnalyzer,
     ): Response {
         $form = $this->createForm(DocumentFormType::class, $doc);
         $form->handleRequest($req);
@@ -159,10 +161,42 @@ final class DocumentController extends AbstractController
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
+        // Load midi info
+        $midiInfo = [];
+        foreach ($doc->getTracks() as $track) {
+            $asset = $track->getMidiAsset();
+            if (!$asset) {
+                $midiInfo[$track->getTrackId()] = null;
+                continue;
+            }
+
+            $tmpPath = $assets->createLocalTempFile($asset);
+            try {
+                $summary = $midiAnalyzer->summarize($tmpPath);
+                $midiInfo[$track->getTrackId()] = [
+                    'bpm'        => $summary->bpm,
+                    'timeSig'    => $summary->hasTimeSignature()
+                        ? sprintf('%d/%d', $summary->timeSignatureNumerator, $summary->timeSignatureDenominator)
+                        : null,
+                    'bars'       => $summary->barCount,
+                    'duration'   => $summary->getDurationFormatted(),
+                    'rawSeconds' => $summary->durationSeconds,
+                ];
+
+                // Optioneel: opruimen na analyse
+//                @unlink($tmpPath);
+
+            } catch (Throwable $e) {
+                $midiInfo[$track->getTrackId()] = [
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
         return $this->render('Document/edit.html.twig', [
             'document' => $doc,
             'form'     => $form->createView(),
             'assets'   => $this->assetRepo->findForDocument($doc),
+            'midiInfo' => $midiInfo
         ]);
     }
 

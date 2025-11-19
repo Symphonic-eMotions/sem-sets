@@ -7922,12 +7922,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/Symphonic-eMotions/PHP-Midi.git",
-                "reference": "15817bd5745cc4bedf0bdaf7ecf3cecddff55097"
+                "reference": "3773b1f5fe0166888cf6c5e8bfdda6bbc738910e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Symphonic-eMotions/PHP-Midi/zipball/15817bd5745cc4bedf0bdaf7ecf3cecddff55097",
-                "reference": "15817bd5745cc4bedf0bdaf7ecf3cecddff55097",
+                "url": "https://api.github.com/repos/Symphonic-eMotions/PHP-Midi/zipball/3773b1f5fe0166888cf6c5e8bfdda6bbc738910e",
+                "reference": "3773b1f5fe0166888cf6c5e8bfdda6bbc738910e",
                 "shasum": ""
             },
             "require": {
@@ -7938,7 +7938,14 @@
             "autoload": {
                 "psr-4": {
                     "symphonic-emotions\\PhpMidi\\": "src/"
-                }
+                },
+                "classmap": [
+                    "src/midi.class.php",
+                    "src/midi_duration.class.php",
+                    "src/midi_conversion.class.php",
+                    "src/midi_trim.class.php",
+                    "src/midi_volume.class.php"
+                ]
             },
             "license": [
                 "WTFPL"
@@ -7953,7 +7960,7 @@
             "support": {
                 "source": "https://github.com/Symphonic-eMotions/PHP-Midi/tree/master"
             },
-            "time": "2025-11-19T10:34:58+00:00"
+            "time": "2025-11-19T16:10:46+00:00"
         },
         {
             "name": "twig/extra-bundle",

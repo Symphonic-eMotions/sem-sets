@@ -49,6 +49,26 @@
             <label class="label">MIDI bestand</label>
             {{ form_widget(trackForm.midiAsset) }}
 
+            {% set info = midiInfo[trackForm.trackId.vars.value] ?? null %}
+            {% if info %}
+                {% if info.error is defined %}
+                    <p class="danger" style="margin-top:6px">
+                        Kan MIDI analyseren: {{ info.error }}
+                    </p>
+                {% else %}
+                    <div class="midi-info">
+                        <div><strong>Duur:</strong> {{ info.duration }}</div>
+                        <div><strong>BPM:</strong> {{ info.bpm }}</div>
+                        {% if info.timeSig %}
+                            <div><strong>Maatsoort:</strong> {{ info.timeSig }}</div>
+                        {% endif %}
+                        {% if info.bars %}
+                            <div><strong>Maten:</strong> {{ info.bars }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endif %}
+
             {% if not isPrototype
                 and trackForm.midiAsset.vars.choices is defined
                 and trackForm.midiAsset.vars.choices|length == 0 %}
