@@ -24,7 +24,7 @@
                 </div>
             </div>
 
-            {# --- Upload + Assets naast elkaar --- #}
+            {# --- Assets --- #}
             <div class="section">
                 <h2 class="section-title">Assets</h2>
                 <div class="grid grid-2">
@@ -126,7 +126,6 @@
                      data-index="{{ form.tracks|length }}"
                      data-prototype="{{ track_proto|e('html_attr') }}">
 
-                    {# Bestaande tracks #}
                     {% for trackForm in form.tracks %}
                         {% include 'Document/_track_card.html.twig' with {
                             trackForm:   trackForm,
@@ -139,7 +138,6 @@
                         <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
                     {% endfor %}
                 </div>
-
             </div>
 
             {{ form_row(form.published) }}
@@ -216,9 +214,6 @@
                     });
                 },
 
-                /**
-                 * Maakt één tegel (button) voor een gegeven input.
-                 */
                 _createTile(input, idx) {
                     const v = String(input.value || '0') === '1' ? 1 : 0;
                     if (String(input.value) !== String(v)) {
@@ -243,9 +238,6 @@
                     return btn;
                 },
 
-                /**
-                 * (Re)buildt de tegel-UI op basis van de huidige hidden inputs.
-                 */
                 _rebuild(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     const tiles  = document.querySelector(tilesSel);
@@ -261,9 +253,6 @@
                     });
                 },
 
-                /**
-                 * Voegt één level toe (hidden input + tegel).
-                 */
                 add(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
@@ -289,9 +278,6 @@
                     this._rebuild(hiddenSel, tilesSel);
                 },
 
-                /**
-                 * Verwijdert het laatste level.
-                 */
                 removeLast(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
@@ -305,9 +291,6 @@
                     this._rebuild(hiddenSel, tilesSel);
                 },
 
-                /**
-                 * Zorgt dat er minimaal 1 item is, en bouwt daarna de tegels.
-                 */
                 seedIfEmpty(hiddenSel, tilesSel) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
@@ -320,24 +303,18 @@
                     }
                 },
 
-                /**
-                 * Past de lengte van de collection aan naar targetLen (truncate/pad met 0),
-                 * en rebuilt de tegel-UI.
-                 */
                 resizeTo(hiddenSel, tilesSel, targetLen) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
                     let items = hidden.querySelectorAll('.ld-item');
 
-                    // 1) Truncate als er teveel zijn
                     if (items.length > targetLen) {
                         for (let i = items.length - 1; i >= targetLen; i--) {
                             items[i].remove();
                         }
                     }
 
-                    // 2) Aanvullen als er te weinig zijn
                     while (hidden.querySelectorAll('.ld-item').length < targetLen) {
                         const i = parseInt(hidden.dataset.index || '0', 10);
                         const proto = hidden.dataset.prototype?.replace(/__name__/g, i);
@@ -367,15 +344,9 @@
                 }
             };
 
-            // Publiek maken (zodat submit-handler etc. het kan gebruiken)
             window.LD = LD;
 
-            // ============================================================
-            // 4. TRACKS MODULE
-            //    - Tracks toevoegen / initialiseren
-            //    - Levels per track syncen met set-levels
-            // ============================================================
-
+            // ---------- Tracks module ----------
             const tracksContainer = document.getElementById(TRACKS_CONTAINER_ID);
 
             function getSetLevelCount() {
@@ -426,27 +397,20 @@
                 wireNewTrackCard(card, index);
             }
 
-            // Globale remove-functie (gebruik je in de template als onclick="removeTrack(this)")
             window.removeTrack = function(btn) {
                 btn.closest('.track-card')?.remove();
             };
 
-            // ============================================================
-            // 5. INIT: bestaande tracks + LevelDurations + knoppen
-            // ============================================================
-
-            // a) Bestaande tracks initialiseren
+            // ---------- INIT ----------
             if (tracksContainer) {
                 document
                     .querySelectorAll('#tracks .track-card')
                     .forEach((card, i) => wireNewTrackCard(card, i));
             }
 
-            // b) Set-levels initialiseren
             LD.seedIfEmpty(SET_HIDDEN, SET_TILES);
             syncAllTracksToSetCount();
 
-            // c) Knoppen voor set-levels (toevoegen / verwijderen)
             const ldAddBtn    = document.getElementById('ld-add');
             const ldRemoveBtn = document.getElementById('ld-remove');
 
@@ -464,18 +428,12 @@
                 });
             }
 
-            // d) Track toevoegen-button
             document.getElementById('add-track')
                 ?.addEventListener('click', addTrackFromPrototype);
-
-            // ============================================================
-            // 6. FORM SUBMIT SAFETY: HTML5 validation shush
-            // ============================================================
 
             const form = document.querySelector('form');
             if (form) {
                 form.addEventListener('submit', () => {
-                    // Zorg dat verborgen inputs nooit "required" errors geven
                     document
                         .querySelectorAll('.ld-hidden')
                         .forEach(h => LD._stripRequired(h));
@@ -494,7 +452,6 @@
                 const editors = document.querySelectorAll('.js-loop-editor');
 
                 editors.forEach(function (editor) {
-                    // Zorg dat we niet dubbel initialiseren
                     if (editor.dataset.loopInitialized === '1') {
                         return;
                     }
@@ -503,7 +460,7 @@
                     const totalBars = parseInt(editor.dataset.totalBars || '0', 10);
                     const timeSig   = editor.dataset.timesig || editor.dataset.timeSig || '4/4';
                     const [numStr, denStr] = timeSig.split('/');
-                    const groupSize   = parseInt(numStr || '4', 10) || 4; // 4/4 => groeperen in veelvouden van 4 maten
+                    const groupSize = parseInt(numStr || '4', 10) || 4;
 
                     const hiddenInputId = editor.dataset.inputId;
                     const hiddenInput   = document.getElementById(hiddenInputId);
@@ -524,7 +481,6 @@
                         let raw = hiddenInput.value.trim();
                         let arr = [];
 
-                        // Sta zowel "[48,48]" als "48,48" toe
                         if (raw.startsWith('[')) {
                             try {
                                 const parsed = JSON.parse(raw);
@@ -547,7 +503,6 @@
                         if (!hiddenInput) {
                             return;
                         }
-                        // We slaan op als JSON array: [48,48]
                         hiddenInput.value = '[' + values.join(',') + ']';
                     }
 
@@ -633,8 +588,6 @@
                         return new Array(count).fill(quantized);
                     }
 
-                    // --- initialisatie --------------------------------------------------
-
                     let current = parseValueFromHidden();
                     if (!current.length) {
                         const base = computeEffectiveBase();
@@ -645,6 +598,7 @@
                             // Toon de berekende basis ook in het basismaten-veld
                             if (baseInput && !(baseInput.value || '').trim()) {
                                 baseInput.value = String(base);
+                            }
                         }
                     }
                     renderChips(current);
@@ -701,8 +655,6 @@
 
                     if (addBtn) {
                         addBtn.addEventListener('click', function () {
-                                return;
-                            }
                             const nextCount = (current.length || 1) + 1;
                             const next = recalcForSegmentCount(nextCount);
                             if (!next.length) {
@@ -788,9 +740,13 @@
 
                             const val = parseInt(raw, 10);
                             if (Number.isNaN(val) || val < 1) {
+                                baseInput.value = '';
+                            } else {
+                                baseInput.value = String(val);
                             }
 
                             updateLoopsFromBaseChange();
+                        });
                     }
                 });
             }
