@@ -105,26 +105,38 @@ final class DocumentController extends AbstractController
             }
 
             // 3) Tracks (DocumentTrack-collectie) normaliseren en relationeel goedzetten
-            $position = 0;
-            foreach ($doc->getTracks() as $t) {
-                // bi-directionele relatie
+            $tracksForm = $form->get('tracks');
+            $position   = 0;
+
+            foreach ($doc->getTracks() as $index => $t) {
+                // Bijbehorend subformulier voor deze track
+                $trackForm = $tracksForm[$index] ?? null;
+
+                // 3a) loopLength uit het formulier lezen (raw string zoals "[48,48]")
+                if ($trackForm && $trackForm->has('loopLength')) {
+                    $rawLoop = $trackForm->get('loopLength')->getData();
+                    // DocumentTrack::setLoopLength(string|array|null $value)
+                    $t->setLoopLength($rawLoop);
+                }
+
+                // 3b) bi-directionele relatie
                 if ($t->getDocument() !== $doc) {
                     $t->setDocument($doc);
                 }
 
-                // stabiel id indien leeg OF null
+                // 3c) stabiel id indien leeg OF null
                 if (!$t->getTrackId()) {  // covers null, '', etc.
                     $t->setTrackId($this->newTrackId());
                 }
 
-                // levels forceren naar ints
+                // 3d) levels forceren naar ints
                 $levels = array_values(array_map(
                     static fn($v) => (int) $v,
                     (array) $t->getLevels()
                 ));
                 $t->setLevels($levels);
 
-                // positie volgens formulier-volgorde
+                // 3e) positie volgens formulier-volgorde
                 $t->setPosition($position++);
 
                 // (optioneel) guard: midiAsset moet bij dit document horen
@@ -454,7 +466,14 @@ final class DocumentController extends AbstractController
         $instrumentsConfig = [];
 
         foreach ($doc->getTracks() as $t) {
-            // 1) MIDI-bestanden
+            // 1) LoopLength ophalen (altijd array<int>)
+            $loopLength = method_exists($t, 'getLoopLength')
+                ? $t->getLoopLength()
+                : [];
+
+            $loopLength = array_values(array_map('intval', $loopLength));
+
+            // 2) MIDI-bestanden
             $midi      = [];
             $midiLabel = null;
 
@@ -469,11 +488,11 @@ final class DocumentController extends AbstractController
                 $midi[] = [
                     'midiFileName' => $name,
                     'midiFileExt'  => $ext,
-                    'loopLength'   => [],   // later te vullen
+                    'loopLength'   => $loopLength,  // <-- hier komt nu [100] of [48,48] etc.
                 ];
             }
 
-            // 2) EXS preset → exsFiles-blok + label
+            // 3) EXS preset → exsFiles-blok + label
             $exsPreset       = method_exists($t, 'getExsPreset') ? $t->getExsPreset() : null;
             $exsFiles        = null;
             $instrumentType  = null;
@@ -488,10 +507,7 @@ final class DocumentController extends AbstractController
                 $exsLabel       = $this->humanizeLabel($exsPreset); // "Cellos Legato", "Advanced FM", etc.
             }
 
-            // 3) Track / instrument naam opbouwen
-            //    - Alleen MIDI: "Moon Left"
-            //    - Alleen EXS: "Cellos Legato"
-            //    - Beide    : "Moon Left – Cellos Legato"
+            // 4) Track / instrument naam opbouwen
             $instrumentName = null;
 
             if ($midiLabel && $exsLabel) {
@@ -505,14 +521,14 @@ final class DocumentController extends AbstractController
                 $instrumentName = $this->humanizeLabel($t->getTrackId() ?? '') ?? $t->getTrackId();
             }
 
-            // 4) Instrument-config entry
+            // 5) Instrument-config entry
             $instrumentsConfig[] = [
                 'trackId'        => $t->getTrackId(),
                 'levels'         => array_values(array_map('intval', $t->getLevels())),
                 'midiFiles'      => $midi,
                 'instrumentType' => $instrumentType,   // null of 'exsSampler'
                 'exsFiles'       => $exsFiles,         // null of array
-                'instrumentName' => $instrumentName,   // nieuwe veld
+                'instrumentName' => $instrumentName,
             ];
         }
 

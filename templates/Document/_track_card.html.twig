@@ -50,6 +50,9 @@
             {{ form_widget(trackForm.midiAsset) }}
 
             {% set info = midiInfo[trackForm.trackId.vars.value] ?? null %}
+            {% set totalBars = info.bars ?? 0 %}
+            {% set timeSig   = info.timeSig ?? '4/4' %}
+
             {% if info %}
                 {% if info.error is defined %}
                     <p class="danger" style="margin-top:6px">
@@ -67,7 +70,55 @@
                         {% endif %}
                     </div>
                 {% endif %}
+
+                <div class="subsection">
+                    <label class="label">Looplengte (maten)</label>
+
+                    {% set info = midiInfo[trackForm.trackId.vars.value] ?? null %}
+                    {% set totalBars = info.bars ?? 0 %}
+                    {% set timeSig   = info.timeSig ?? '4/4' %}
+
+                    <div
+                            class="loop-editor js-loop-editor"
+                            data-total-bars="{{ totalBars }}"
+                            data-timesig="{{ timeSig }}"
+                            data-input-id="{{ trackForm.loopLength.vars.id }}"
+                    >
+                        <div class="loop-chips js-loop-chips">
+                            {# wordt door JS gevuld #}
+                        </div>
+
+                        <div class="loop-actions">
+                            <button type="button" class="btn btn-mini js-loop-reset">
+                                Basis
+                            </button>
+                            <button type="button" class="btn btn-mini js-loop-add">
+                                + Loop
+                            </button>
+                            <button type="button" class="btn btn-mini js-loop-remove">
+                                – Loop
+                            </button>
+                        </div>
+
+                        <p class="loop-hint">
+                            Wordt opgeslagen als array van maten, bijv. <code>[48,48]</code>.
+                        </p>
+                    </div>
+
+                    {# Verborgen raw veld waar de JSON in komt, wordt door JS beheerd #}
+                    <div class="loop-hidden-input">
+                        {{ form_widget(trackForm.loopLength, {
+                            attr: { class: (trackForm.loopLength.vars.attr.class|default('') ~ ' js-loop-hidden-input')|trim }
+                        }) }}
+                    </div>
+                </div>
+
             {% endif %}
+
+
+
+
+
 
             {% if not isPrototype
                 and trackForm.midiAsset.vars.choices is defined

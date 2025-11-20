@@ -6,7 +6,7 @@
     <div class="wrap">
         <div class="card">
             <h1 class="title">Bewerken Set: {{ document.title }}</h1>
-            <p class="subtitle">Publiceer Symphnic eMotions muziek sets.</p>
+            <p class="subtitle">Publiceer Symphonic eMotions muziek sets.</p>
 
             {% form_theme form 'forms/_theme.html.twig' %}
             {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
@@ -216,7 +216,7 @@
             };
 
             // ============================================================
-            // 3. LEVELDURATIONS MODULE (LD)
+            // 3. LEVEL DURATIONS MODULE (LD)
             //    - Houdt de tegel-UI en de verborgen inputs in sync
             // ============================================================
 
@@ -337,7 +337,7 @@
 
                 /**
                  * Past de lengte van de collection aan naar targetLen (truncate/pad met 0),
-                 * en rebuildt de tegel-UI.
+                 * en rebuilt de tegel-UI.
                  */
                 resizeTo(hiddenSel, tilesSel, targetLen) {
                     const hidden = document.querySelector(hiddenSel);
@@ -345,7 +345,7 @@
 
                     let items = hidden.querySelectorAll('.ld-item');
 
-                    // 1) Trunceren als er teveel zijn
+                    // 1) Truncate als er teveel zijn
                     if (items.length > targetLen) {
                         for (let i = items.length - 1; i >= targetLen; i--) {
                             items[i].remove();
@@ -499,4 +499,157 @@
 
         })();
     </script>
+
+    <!-- Logica voor midi loop length naar midi loops -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const editors = document.querySelectorAll('.js-loop-editor');
+
+            editors.forEach(function (editor) {
+                const totalBars = parseInt(editor.dataset.totalBars || '0', 10);
+                const timeSig   = editor.dataset.timesig || '4/4';
+                const [numStr, denStr] = timeSig.split('/');
+                const groupSize   = parseInt(numStr || '4', 10) || 4; // 4/4 => groeperen in veelvouden van 4 maten
+
+                const hiddenInputId = editor.dataset.inputId;
+                const hiddenInput   = document.getElementById(hiddenInputId);
+                const chipsContainer = editor.querySelector('.js-loop-chips');
+
+                // 1) basis: grootste veelvoud van groupSize ← totalBars
+                const baseTotal = (totalBars > 0 && groupSize > 0)
+                    ? Math.floor(totalBars / groupSize) * groupSize
+                    : 0;
+
+                // --- helpers --------------------------------------------------------
+
+                function parseValueFromHidden() {
+                    if (!hiddenInput || !hiddenInput.value) {
+                        if (baseTotal > 0) {
+                            return [baseTotal]; // start met [100] in jouw voorbeeld
+                        }
+                        return [];
+                    }
+
+                    let raw = hiddenInput.value.trim();
+                    let arr = [];
+
+                    // Sta zowel "[48,48]" als "48,48" toe
+                    if (raw.startsWith('[')) {
+                        try {
+                            const parsed = JSON.parse(raw);
+                            if (Array.isArray(parsed)) {
+                                arr = parsed;
+                            }
+                        } catch (e) {
+                            // negeren, we proberen daarna CSV
+                        }
+                    } else {
+                        arr = raw.split(',').map(function (v) { return parseInt(v, 10); });
+                    }
+
+                    return arr
+                        .map(function (v) { return parseInt(v, 10); })
+                        .filter(function (v) { return !Number.isNaN(v) && v > 0; });
+                }
+
+                function storeValue(values) {
+                    if (!hiddenInput) {
+                        return;
+                    }
+                    // We slaan op als JSON array: [48,48]
+                    hiddenInput.value = '[' + values.join(',') + ']';
+                }
+
+                function renderChips(values) {
+                    chipsContainer.innerHTML = '';
+
+                    if (!values.length) {
+                        const span = document.createElement('span');
+                        span.className = 'loop-empty';
+                        span.textContent = 'Geen looplengte berekend';
+                        chipsContainer.appendChild(span);
+                        return;
+                    }
+
+                    values.forEach(function (len, idx) {
+                        const chip = document.createElement('span');
+                        chip.className = 'loop-chip';
+                        chip.textContent = 'Loop ' + (idx + 1) + ': ' + len + ' maten';
+                        chipsContainer.appendChild(chip);
+                    });
+                }
+
+                function recalcForSegmentCount(count) {
+                    if (baseTotal <= 0 || count <= 0 || groupSize <= 0) {
+                        return [];
+                    }
+                    const rawSegment   = baseTotal / count; // 100 / 2 = 50
+                    const quantized    = Math.floor(rawSegment / groupSize) * groupSize; // floor(50/4)*4 = 48
+                    if (quantized <= 0) {
+                        return [];
+                    }
+                    return new Array(count).fill(quantized);
+                }
+
+                // --- initialisatie --------------------------------------------------
+
+                let current = parseValueFromHidden();
+                if (!current.length && baseTotal > 0) {
+                    current = [baseTotal]; // bijv. [100]
+                    storeValue(current);
+                }
+                renderChips(current);
+
+                // --- event handlers -------------------------------------------------
+
+                const resetBtn  = editor.querySelector('.js-loop-reset');
+                const addBtn    = editor.querySelector('.js-loop-add');
+                const removeBtn = editor.querySelector('.js-loop-remove');
+
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', function () {
+                        if (baseTotal <= 0) {
+                            return;
+                        }
+                        current = [baseTotal]; // terug naar één segment
+                        storeValue(current);
+                        renderChips(current);
+                    });
+                }
+
+                if (addBtn) {
+                    addBtn.addEventListener('click', function () {
+                        if (baseTotal <= 0) {
+                            return;
+                        }
+                        const nextCount = (current.length || 1) + 1; // van [100] → 2, etc.
+                        const next = recalcForSegmentCount(nextCount);
+                        if (!next.length) {
+                            return;
+                        }
+                        current = next;
+                        storeValue(current);
+                        renderChips(current);
+                    });
+                }
+
+                if (removeBtn) {
+                    removeBtn.addEventListener('click', function () {
+                        if (current.length <= 1) {
+                            return; // minimaal 1 segment
+                        }
+                        const nextCount = current.length - 1;
+                        const next = recalcForSegmentCount(nextCount);
+                        if (!next.length) {
+                            return;
+                        }
+                        current = next;
+                        storeValue(current);
+                        renderChips(current);
+                    });
+                }
+            });
+        });
+    </script>
+
 {% endblock %}

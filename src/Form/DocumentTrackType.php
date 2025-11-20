@@ -13,6 +13,7 @@ use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -47,6 +48,14 @@ final class DocumentTrackType extends AbstractType
             'allow_delete' => true,
             'by_reference' => false,
             'prototype' => true,
+        ])
+        ->add('loopLength', TextType::class, [
+            'label'    => 'Looplengte (maten)',
+            'required' => false,
+            'mapped'   => false,
+            'attr'     => [
+                'class' => 'js-loop-length-raw',
+            ],
         ])
         // ENKELE midiAsset (EntityType)
         ->add('midiAsset', EntityType::class, [

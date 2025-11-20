@@ -26,6 +26,16 @@ class DocumentTrack
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $levels = [];
 
+    /**
+     * Loop-lengtes in maten, bv. [100] of [48,48] of [32,32,32].
+     *
+     * Wordt in de DB als JSON opgeslagen.
+     *
+     * @var int[]
+     */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $loopLength = [];
+
     // Eén (optionele) MIDI-asset per track
     #[ORM\ManyToOne(targetEntity: Asset::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
@@ -69,6 +79,73 @@ class DocumentTrack
         $this->levels = array_values(array_map(static fn($v)=> (int)$v, $levels));
         return $this;
     }
+
+    /**
+     * @return int[]
+     */
+    public function getLoopLength(): array
+    {
+        return $this->loopLength;
+    }
+
+    /**
+     * Accepteert zowel een string (bijv. "[48,48]" of "48,48")
+     * als een array, en normaliseert naar int[].
+     *
+     * @param string|array<int,mixed>|null $value
+     */
+    public function setLoopLength(string|array|null $value): self
+    {
+        if ($value === null || $value === '') {
+            $this->loopLength = [];
+            return $this;
+        }
+
+        // String-invoer: uit formulier / JS
+        if (is_string($value)) {
+            $raw = trim($value);
+
+            if ($raw === '') {
+                $this->loopLength = [];
+                return $this;
+            }
+
+            // Probeer JSON-array, bv. "[48,48]"
+            if (str_starts_with($raw, '[')) {
+                $decoded = json_decode($raw, true);
+                if (is_array($decoded)) {
+                    $value = $decoded;
+                } else {
+                    // fallback naar CSV
+                    $value = explode(',', $raw);
+                }
+            } else {
+                // CSV-vorm: "48,48"
+                $value = explode(',', $raw);
+            }
+        }
+
+        if (!is_array($value)) {
+            $this->loopLength = [];
+            return $this;
+        }
+
+        // Normaliseer naar int[] en filter alles ← 0 eruit
+        $normalized = array_values(
+            array_filter(
+                array_map(
+                    static fn ($v) => (int) $v,
+                    $value
+                ),
+                static fn (int $v): bool => $v > 0
+            )
+        );
+
+        $this->loopLength = $normalized;
+
+        return $this;
+    }
+
     public function getExsPreset(): ?string
     {
         return $this->exsPreset;

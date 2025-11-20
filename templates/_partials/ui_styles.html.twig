@@ -387,4 +387,37 @@
 
     /* Table / content safety */
     * { box-sizing: border-box; }
+
+    /* MIDI Loop editor */
+    .loop-editor {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 4px;
+    }
+    .loop-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    .loop-chip {
+        padding: 4px 8px;
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.1);
+        font-size: 13px;
+        background: #5865f2;
+        white-space: nowrap;
+    }
+    .loop-empty {
+        font-size: 13px;
+        color: #999;
+    }
+    .loop-actions {
+        display: flex;
+        gap: 6px;
+    }
+    .loop-hidden-input {
+        display: none; /* we laten alleen de chips zien */
+    }
+
 </style>
