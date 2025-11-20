@@ -86,10 +86,34 @@ final class DocumentController extends AbstractController
         $form = $this->createForm(DocumentFormType::class, $doc);
         $form->handleRequest($req);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        if (!$form->isSubmitted()) {
+            // 'tracks' is jouw CollectionType<DocumentTrackType>
+            $tracksForm = $form->get('tracks');
 
-//            dump($form);
-//            dd($req);
+            foreach ($doc->getTracks() as $index => $track) {
+                if (!isset($tracksForm[$index])) {
+                    continue;
+                }
+
+                $trackForm = $tracksForm[$index];
+
+                if (!$trackForm->has('loopLength')) {
+                    continue;
+                }
+
+                $loop = method_exists($track, 'getLoopLength')
+                    ? $track->getLoopLength()
+                    : [];
+
+                if (!empty($loop)) {
+                    // We zetten de data in dezelfde vorm als JS verwacht: "[48,48]"
+                    $raw = '[' . implode(',', array_map('intval', $loop)) . ']';
+                    $trackForm->get('loopLength')->setData($raw);
+                }
+            }
+        }
+
+        if ($form->isSubmitted() && $form->isValid()) {
 
             // 1) Slug bijwerken op basis van titel
             $title = (string) $form->get('title')->getData();
