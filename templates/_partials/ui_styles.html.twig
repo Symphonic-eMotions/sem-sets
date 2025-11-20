@@ -419,5 +419,28 @@
     .loop-hidden-input {
         display: none; /* we laten alleen de chips zien */
     }
+    .loop-base-wrapper {
+        margin-top: 8px;
+    }
 
+    .loop-base-header {
+        margin-bottom: 4px;
+    }
+
+    .loop-base-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;             /* ruimte tussen input en knoppen */
+    }
+
+    .loop-base-controls .js-loop-base-input {
+        flex: 1 1 auto;       /* input neemt alle beschikbare breedte */
+        min-width: 0;
+        max-width: 12%;
+    }
+
+    .loop-base-controls .btn-mini {
+        flex: 0 0 auto;       /* knoppen blijven compact */
+        white-space: nowrap;
+    }
 </style>
