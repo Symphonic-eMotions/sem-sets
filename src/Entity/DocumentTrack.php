@@ -28,13 +28,17 @@ class DocumentTrack
 
     /**
      * Loop-lengtes in maten, bv. [100] of [48,48] of [32,32,32].
-     *
      * Wordt in de DB als JSON opgeslagen.
-     *
      * @var int[]
      */
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $loopLength = [];
+
+    /**
+     * Override voor berekende loop length
+     */
+    #[ORM\Column(type: 'integer', nullable: true)]
+    private ?int $loopLengthOverride = null;
 
     // Eén (optionele) MIDI-asset per track
     #[ORM\ManyToOne(targetEntity: Asset::class)]
@@ -145,6 +149,31 @@ class DocumentTrack
 
         return $this;
     }
+
+    public function getLoopLengthOverride(): ?int
+    {
+        return $this->loopLengthOverride;
+    }
+
+    public function setLoopLengthOverride(?int $value): self
+    {
+        if ($value === null) {
+            $this->loopLengthOverride = null;
+            return $this;
+        }
+
+        $value = (int) $value;
+
+        // clamp op >= 1
+        if ($value < 1) {
+            $value = 1;
+        }
+
+        $this->loopLengthOverride = $value;
+
+        return $this;
+    }
+
 
     public function getExsPreset(): ?string
     {

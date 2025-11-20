@@ -71,49 +71,53 @@
                     </div>
                 {% endif %}
 
-                <div class="subsection">
-                    <label class="label">Looplengte (maten)</label>
+                <div
+                        class="loop-editor js-loop-editor"
+                        data-total-bars="{{ totalBars }}"
+                        data-timesig="{{ timeSig }}"
+                        data-input-id="{{ trackForm.loopLength.vars.id }}"
+                >
+                    {# 0) Verborgen input die Symfony leest en waar JS in schrijft #}
+                    <div class="loop-hidden-input">
+                        {{ form_widget(trackForm.loopLength) }}
+                    </div>
 
-                    {% set info = midiInfo[trackForm.trackId.vars.value] ?? null %}
-                    {% set totalBars = info.bars ?? 0 %}
-                    {% set timeSig   = info.timeSig ?? '4/4' %}
-
-                    <div
-                            class="loop-editor js-loop-editor"
-                            data-total-bars="{{ totalBars }}"
-                            data-timesig="{{ timeSig }}"
-                            data-input-id="{{ trackForm.loopLength.vars.id }}"
-                    >
-                        <div class="loop-chips js-loop-chips">
-                            {# wordt door JS gevuld #}
+                    {# 1) Override veld + stepper #}
+                    <div class="loop-base-wrapper">
+                        <div class="loop-base-header">
+                            <span class="label-small">Basismaten</span>
                         </div>
-
-                        <div class="loop-actions">
-                            <button type="button" class="btn btn-mini js-loop-reset">
-                                Basis
-                            </button>
-                            <button type="button" class="btn btn-mini js-loop-add">
-                                + Loop
-                            </button>
-                            <button type="button" class="btn btn-mini js-loop-remove">
-                                – Loop
-                            </button>
+                        <div class="loop-base-controls">
+                            {{ form_widget(trackForm.loopLengthOverride, {
+                                attr: trackForm.loopLengthOverride.vars.attr|merge({
+                                    class: (trackForm.loopLengthOverride.vars.attr.class|default('') ~ ' js-loop-base-input')|trim
+                                })
+                            }) }}
+                            <button type="button" class="btn btn-mini js-loop-base-dec">–</button>
+                            <button type="button" class="btn btn-mini js-loop-base-inc">+</button>
                         </div>
                     </div>
 
-                    {# Verborgen raw veld waar de JSON in komt, wordt door JS beheerd #}
-                    <div class="loop-hidden-input">
-                        {{ form_widget(trackForm.loopLength, {
-                            attr: { class: (trackForm.loopLength.vars.attr.class|default('') ~ ' js-loop-hidden-input')|trim }
-                        }) }}
+                    {# 2) De daadwerkelijke loop-segmenten chips #}
+                    <div class="loop-chips js-loop-chips">
+                        {# wordt door JS gevuld #}
+                    </div>
+
+                    {# 3) Segment-knoppen #}
+                    <div class="loop-actions">
+                        <button type="button" class="btn btn-mini js-loop-reset">
+                            Basis
+                        </button>
+                        <button type="button" class="btn btn-mini js-loop-add">
+                            + Loop
+                        </button>
+                        <button type="button" class="btn btn-mini js-loop-remove">
+                            – Loop
+                        </button>
                     </div>
                 </div>
 
             {% endif %}
-
-
-
-
 
 
             {% if not isPrototype

@@ -12,6 +12,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -55,6 +56,16 @@ final class DocumentTrackType extends AbstractType
             'mapped'   => false,
             'attr'     => [
                 'class' => 'js-loop-length-raw',
+            ],
+        ])
+        ->add('loopLengthOverride', IntegerType::class, [
+            'label'    => 'Basismaten',
+            'required' => false,
+            'mapped'   => true, // direct naar DocumentTrack::loopLengthOverride
+            'attr'     => [
+                'class' => 'js-loop-base-input',
+                'min'   => 1,
+                'step'  => 1,
             ],
         ])
         // ENKELE midiAsset (EntityType)
