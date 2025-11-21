@@ -214,31 +214,41 @@
                     });
                 },
 
-                _createTile(input, idx) {
-                    const v = String(input.value || '0') === '1' ? 1 : 0;
+                // NEW: locked flag
+                _createTile(input, idx, locked = false) {
+                    // For locked tiles, force value to 1 always
+                    const v = locked ? 1 : (String(input.value || '0') === '1' ? 1 : 0);
+
                     if (String(input.value) !== String(v)) {
                         input.value = String(v);
                     }
 
                     const btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.className = 'ld-square' + (v ? ' on' : '');
+                    btn.className = 'ld-square' + (v ? ' on' : '') + (locked ? ' locked' : '');
                     btn.dataset.index = String(idx);
                     btn.setAttribute('aria-pressed', v ? 'true' : 'false');
-                    btn.textContent = v ? '1' : '0';
+                    btn.textContent = String(v);
 
-                    btn.addEventListener('click', () => {
-                        const now = btn.classList.contains('on') ? 0 : 1;
-                        btn.classList.toggle('on', !!now);
-                        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
-                        btn.textContent = String(now);
-                        input.value = String(now);
-                    });
+                    if (!locked) {
+                        btn.addEventListener('click', () => {
+                            const now = btn.classList.contains('on') ? 0 : 1;
+                            btn.classList.toggle('on', !!now);
+                            btn.setAttribute('aria-pressed', now ? 'true' : 'false');
+                            btn.textContent = String(now);
+                            input.value = String(now);
+                        });
+                    } else {
+                        // purely visual; no toggle
+                        btn.setAttribute('aria-disabled', 'true');
+                        btn.title = 'Levels op set-niveau staan altijd aan';
+                    }
 
                     return btn;
                 },
 
-                _rebuild(hiddenSel, tilesSel) {
+                // NEW: locked flag threaded through
+                _rebuild(hiddenSel, tilesSel, locked = false) {
                     const hidden = document.querySelector(hiddenSel);
                     const tiles  = document.querySelector(tilesSel);
                     if (!hidden || !tiles) return;
@@ -248,12 +258,12 @@
 
                     const inputs = hidden.querySelectorAll('.ld-item input');
                     inputs.forEach((input, idx) => {
-                        const btn = this._createTile(input, idx);
+                        const btn = this._createTile(input, idx, locked);
                         tiles.appendChild(btn);
                     });
                 },
 
-                add(hiddenSel, tilesSel) {
+                add(hiddenSel, tilesSel, locked = false) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
@@ -267,7 +277,8 @@
 
                     const inp = wrap.querySelector('input');
                     if (inp) {
-                        inp.value = '0';
+                        // NEW: locked => always 1, otherwise 0
+                        inp.value = locked ? '1' : '0';
                         inp.removeAttribute('required');
                         inp.setAttribute('novalidate', 'novalidate');
                     }
@@ -275,10 +286,10 @@
                     hidden.appendChild(wrap);
                     hidden.dataset.index = String(idx + 1);
 
-                    this._rebuild(hiddenSel, tilesSel);
+                    this._rebuild(hiddenSel, tilesSel, locked);
                 },
 
-                removeLast(hiddenSel, tilesSel) {
+                removeLast(hiddenSel, tilesSel, locked = false) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
@@ -288,22 +299,22 @@
                     items[items.length - 1].remove();
                     hidden.dataset.index = String(items.length - 1);
 
-                    this._rebuild(hiddenSel, tilesSel);
+                    this._rebuild(hiddenSel, tilesSel, locked);
                 },
 
-                seedIfEmpty(hiddenSel, tilesSel) {
+                seedIfEmpty(hiddenSel, tilesSel, locked = false) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
                     const items = hidden.querySelectorAll('.ld-item');
                     if (!items.length) {
-                        this.add(hiddenSel, tilesSel);
+                        this.add(hiddenSel, tilesSel, locked);
                     } else {
-                        this._rebuild(hiddenSel, tilesSel);
+                        this._rebuild(hiddenSel, tilesSel, locked);
                     }
                 },
 
-                resizeTo(hiddenSel, tilesSel, targetLen) {
+                resizeTo(hiddenSel, tilesSel, targetLen, locked = false) {
                     const hidden = document.querySelector(hiddenSel);
                     if (!hidden) return;
 
@@ -326,7 +337,8 @@
 
                         const inp = wrap.querySelector('input');
                         if (inp) {
-                            inp.value = '0';
+                            // NEW: locked => always 1
+                            inp.value = locked ? '1' : '0';
                             inp.removeAttribute('required');
                             inp.setAttribute('novalidate', 'novalidate');
                         }
@@ -339,7 +351,7 @@
                     hidden.dataset.index = String(finalCount);
 
                     if (tilesSel) {
-                        this._rebuild(hiddenSel, tilesSel);
+                        this._rebuild(hiddenSel, tilesSel, locked);
                     }
                 }
             };
@@ -408,7 +420,7 @@
                     .forEach((card, i) => wireNewTrackCard(card, i));
             }
 
-            LD.seedIfEmpty(SET_HIDDEN, SET_TILES);
+            LD.seedIfEmpty(SET_HIDDEN, SET_TILES, true);
             syncAllTracksToSetCount();
 
             const ldAddBtn    = document.getElementById('ld-add');
@@ -416,14 +428,14 @@
 
             if (ldAddBtn) {
                 ldAddBtn.addEventListener('click', () => {
-                    LD.add(SET_HIDDEN, SET_TILES);
+                    LD.add(SET_HIDDEN, SET_TILES, true);
                     syncAllTracksToSetCount();
                 });
             }
 
             if (ldRemoveBtn) {
                 ldRemoveBtn.addEventListener('click', () => {
-                    LD.removeLast(SET_HIDDEN, SET_TILES);
+                    LD.removeLast(SET_HIDDEN, SET_TILES, true);
                     syncAllTracksToSetCount();
                 });
             }

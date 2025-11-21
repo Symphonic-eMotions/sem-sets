@@ -136,6 +136,9 @@ class Document
             $arr
         ), fn($v) => is_int($v) && $v >= 0));
 
+        // NEW: levels on set-niveau zijn altijd "aan"
+        $clean = array_map(static fn($_) => 1, $clean);
+
         $this->levelDurations = $clean;
         return $this;
     }
