@@ -363,10 +363,9 @@
 
             window.LD = LD;
 
-            // =====================================================================
-            // NEW: AreaOfInterest module + helpers (MOET vóór wireNewTrackCard)
-            // =====================================================================
-
+            // ===============================
+            // AreaOfInterest (raw JSON input)
+            // ===============================
             function getDocGrid() {
                 const gridSelect = document.querySelector('select[name$="[gridSize]"]');
                 if (gridSelect) {
@@ -378,107 +377,79 @@
                 return { cols: 1, rows: 1 };
             }
 
-            function syncAllAoIToDocGrid() {
-                const { cols, rows } = getDocGrid();
-                document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
-                    const hidden = card.querySelector('#aoi-hidden-' + i);
-                    const tiles  = card.querySelector('#aoi-tiles-' + i);
-                    if (hidden && tiles) {
-                        AOI.resizeTo('#' + hidden.id, '#' + tiles.id, cols, rows);
-                    }
-                });
+            function parseRawAoi(inputEl) {
+                if (!inputEl || !inputEl.value) return [];
+                const raw = inputEl.value.trim();
+                if (!raw) return [];
+
+                if (raw.startsWith('[')) {
+                    try {
+                        const arr = JSON.parse(raw);
+                        if (Array.isArray(arr)) return arr.map(v => (parseInt(v,10) === 1 ? 1 : 0));
+                    } catch(e) {}
+                }
+                return raw.split(',').map(v => (parseInt(v,10) === 1 ? 1 : 0));
             }
 
-            const AOI = {
-                _createTile(input, idx) {
-                    const v = String(input.value || '0') === '1' ? 1 : 0;
-                    if (String(input.value) !== String(v)) {
-                        input.value = String(v);
-                    }
+            function storeRawAoi(inputEl, arr) {
+                if (!inputEl) return;
+                inputEl.value = '[' + arr.join(',') + ']';
+            }
 
+            function buildAoiTiles(card, idx) {
+                const tiles = card.querySelector('#aoi-tiles-' + idx);
+                if (!tiles) return;
+
+                const inputId = tiles.dataset.inputId;
+                const inputEl = document.getElementById(inputId);
+
+                const { cols, rows } = getDocGrid();
+                const targetLen = Math.max(1, cols * rows);
+
+                let current = parseRawAoi(inputEl);
+
+                // seed / resize
+                if (current.length === 0) {
+                    current = new Array(targetLen).fill(1); // default alles aan
+                } else if (current.length > targetLen) {
+                    current = current.slice(0, targetLen);
+                } else if (current.length < targetLen) {
+                    current = current.concat(new Array(targetLen - current.length).fill(0));
+                }
+
+                storeRawAoi(inputEl, current);
+
+                // render grid
+                tiles.innerHTML = '';
+                tiles.style.gridTemplateColumns = `repeat(${cols}, 36px)`;
+
+                current.forEach((v, i) => {
                     const btn = document.createElement('button');
                     btn.type = 'button';
                     btn.className = 'ld-square' + (v ? ' on' : '');
-                    btn.dataset.index = String(idx);
-                    btn.setAttribute('aria-pressed', v ? 'true' : 'false');
                     btn.textContent = v ? '1' : '0';
+                    btn.setAttribute('aria-pressed', v ? 'true' : 'false');
 
                     btn.addEventListener('click', () => {
                         const now = btn.classList.contains('on') ? 0 : 1;
                         btn.classList.toggle('on', !!now);
-                        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
                         btn.textContent = String(now);
-                        input.value = String(now);
+                        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
+
+                        current[i] = now;
+                        storeRawAoi(inputEl, current);
                     });
 
-                    return btn;
-                },
+                    tiles.appendChild(btn);
+                });
+            }
 
-                _rebuild(hiddenSel, tilesSel, cols) {
-                    const hidden = document.querySelector(hiddenSel);
-                    const tiles  = document.querySelector(tilesSel);
-                    if (!hidden || !tiles) return;
+            function syncAllAoIToDocGrid() {
+                document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
+                    buildAoiTiles(card, i);
+                });
+            }
 
-                    tiles.innerHTML = '';
-                    tiles.style.gridTemplateColumns = `repeat(${cols}, 36px)`;
-
-                    const inputs = hidden.querySelectorAll('.ld-item input');
-                    inputs.forEach((input, idx) => {
-                        tiles.appendChild(this._createTile(input, idx));
-                    });
-                },
-
-                resizeTo(hiddenSel, tilesSel, cols, rows) {
-                    const hidden = document.querySelector(hiddenSel);
-                    if (!hidden) return;
-
-                    const targetLen = Math.max(1, cols * rows);
-
-                    // truncate
-                    let items = hidden.querySelectorAll('.ld-item');
-                    if (items.length > targetLen) {
-                        for (let i = items.length - 1; i >= targetLen; i--) {
-                            items[i].remove();
-                        }
-                    }
-
-                    // pad
-                    while (hidden.querySelectorAll('.ld-item').length < targetLen) {
-                        const i = parseInt(hidden.dataset.index || '0', 10);
-                        const proto = hidden.dataset.prototype?.replace(/__name__/g, i);
-                        if (!proto) break;
-
-                        const wrap = document.createElement('div');
-                        wrap.className = 'ld-item';
-                        wrap.innerHTML = proto;
-
-                        const inp = wrap.querySelector('input');
-                        if (inp) inp.value = '0';
-
-                        hidden.appendChild(wrap);
-                        hidden.dataset.index = String(i + 1);
-                    }
-
-                    hidden.dataset.index = String(hidden.querySelectorAll('.ld-item').length);
-                    this._rebuild(hiddenSel, tilesSel, cols);
-                },
-
-                seedIfEmpty(hiddenSel, tilesSel, cols, rows) {
-                    const hidden = document.querySelector(hiddenSel);
-                    if (!hidden) return;
-
-                    const items = hidden.querySelectorAll('.ld-item');
-                    if (!items.length) {
-                        this.resizeTo(hiddenSel, tilesSel, cols, rows);
-                        hidden.querySelectorAll('.ld-item input').forEach(inp => inp.value = '1');
-                        this._rebuild(hiddenSel, tilesSel, cols);
-                    } else {
-                        this.resizeTo(hiddenSel, tilesSel, cols, rows);
-                    }
-                }
-            };
-
-            window.AOI = AOI;
 
             // ---------- Tracks module ----------
             const tracksContainer = document.getElementById(TRACKS_CONTAINER_ID);
@@ -511,14 +482,8 @@
                     LD.resizeTo('#' + hidden.id, '#' + tiles.id, getSetLevelCount());
                 }
 
-                // AOI
-                const aoiHidden = card.querySelector('#aoi-hidden-' + idx);
-                const aoiTiles  = card.querySelector('#aoi-tiles-' + idx);
-
-                if (aoiHidden && aoiTiles) {
-                    const { cols, rows } = getDocGrid();
-                    AOI.seedIfEmpty('#' + aoiHidden.id, '#' + aoiTiles.id, cols, rows);
-                }
+                // AOI (raw)
+                buildAoiTiles(card, idx);
             }
 
 

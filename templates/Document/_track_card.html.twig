@@ -45,33 +45,23 @@
             </div>
         </div>
 
-        {# -- AreaOfInterest -- #}
+        {# -- AreaOfInterest (raw hidden input + tiles) -- #}
         <div class="subsection">
-            {# Label + grid-tiles op één regel #}
             <div class="label-with-tiles">
                 <label class="label">Area of interest</label>
 
-                {# grid container (JS zet columns) #}
                 <div id="aoi-tiles-{{ index }}"
                      class="aoi-tiles"
-                     data-target="#aoi-hidden-{{ index }}"></div>
+                     data-input-id="{{ trackForm.areaOfInterest.vars.id }}"></div>
             </div>
 
-            {# verborgen inputs die Symfony leest #}
-            <div id="aoi-hidden-{{ index }}"
-                 class="ld-hidden"
-                 data-prototype="{{ form_widget(trackForm.areaOfInterest.vars.prototype)|e('html_attr') }}"
-                 data-index="{{ (trackForm.areaOfInterest|length)|default(0) }}">
-
-                {% if not isPrototype %}
-                    {% for field in trackForm.areaOfInterest %}
-                        <div class="ld-item">{{ form_widget(field) }}</div>
-                    {% endfor %}
-                {% endif %}
+            {# verborgen raw input waar JS volledige array in schrijft #}
+            <div class="ld-hidden">
+                {{ form_widget(trackForm.areaOfInterest) }}
             </div>
         </div>
 
-
+        {# -- Midi bestand selecteren -- #}
         <div class="subsection">
             <label class="label">MIDI bestand</label>
             {{ form_widget(trackForm.midiAsset) }}

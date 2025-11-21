@@ -94,7 +94,6 @@ final class DocumentController extends AbstractController
                 if (!isset($tracksForm[$index])) {
                     continue;
                 }
-
                 $trackForm = $tracksForm[$index];
 
                 if (!$trackForm->has('loopLength')) {
@@ -109,6 +108,15 @@ final class DocumentController extends AbstractController
                     // We zetten de data in dezelfde vorm als JS verwacht: "[48,48]"
                     $raw = '[' . implode(',', array_map('intval', $loop)) . ']';
                     $trackForm->get('loopLength')->setData($raw);
+                }
+
+                // areaOfInterest raw prefill
+                if ($trackForm->has('areaOfInterest')) {
+                    $aoi = $track->getAreaOfInterest() ?? [];
+                    if (!empty($aoi)) {
+                        $raw = '[' . implode(',', array_map('intval', $aoi)) . ']';
+                        $trackForm->get('areaOfInterest')->setData($raw);
+                    }
                 }
             }
         }
@@ -140,6 +148,13 @@ final class DocumentController extends AbstractController
                 if ($trackForm && $trackForm->has('loopLength')) {
                     $rawLoop = $trackForm->get('loopLength')->getData();
                     $t->setLoopLength($rawLoop);
+                }
+
+                // areaOfInterest uit raw formulier lezen
+                if ($trackForm && $trackForm->has('areaOfInterest')) {
+                    $rawAoi = $trackForm->get('areaOfInterest')->getData();
+                    // setter accepteert string "[1,0,1]"
+                    $t->setAreaOfInterest($rawAoi);
                 }
 
                 // 3b) bi-directionele relatie
