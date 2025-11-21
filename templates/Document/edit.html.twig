@@ -214,7 +214,7 @@
                     });
                 },
 
-                // NEW: locked flag
+                // Locked flag
                 _createTile(input, idx, locked = false) {
                     // For locked tiles, force value to 1 always
                     const v = locked ? 1 : (String(input.value || '0') === '1' ? 1 : 0);
@@ -227,8 +227,14 @@
                     btn.type = 'button';
                     btn.className = 'ld-square' + (v ? ' on' : '') + (locked ? ' locked' : '');
                     btn.dataset.index = String(idx);
+
+                    // aria-pressed is still based on actual stored value
                     btn.setAttribute('aria-pressed', v ? 'true' : 'false');
-                    btn.textContent = String(v);
+
+                    // VISUAL LABEL:
+                    // locked tiles show level number (1-based),
+                    // unlocked tiles show the stored 0/1
+                    btn.textContent = locked ? String(idx + 1) : String(v);
 
                     if (!locked) {
                         btn.addEventListener('click', () => {
@@ -239,7 +245,6 @@
                             input.value = String(now);
                         });
                     } else {
-                        // purely visual; no toggle
                         btn.setAttribute('aria-disabled', 'true');
                         btn.title = 'Levels op set-niveau staan altijd aan';
                     }
@@ -247,7 +252,7 @@
                     return btn;
                 },
 
-                // NEW: locked flag threaded through
+                // Locked flag threaded through
                 _rebuild(hiddenSel, tilesSel, locked = false) {
                     const hidden = document.querySelector(hiddenSel);
                     const tiles  = document.querySelector(tilesSel);
@@ -277,7 +282,7 @@
 
                     const inp = wrap.querySelector('input');
                     if (inp) {
-                        // NEW: locked => always 1, otherwise 0
+                        // locked => always 1, otherwise 0
                         inp.value = locked ? '1' : '0';
                         inp.removeAttribute('required');
                         inp.setAttribute('novalidate', 'novalidate');
@@ -337,7 +342,7 @@
 
                         const inp = wrap.querySelector('input');
                         if (inp) {
-                            // NEW: locked => always 1
+                            // locked => always 1
                             inp.value = locked ? '1' : '0';
                             inp.removeAttribute('required');
                             inp.setAttribute('novalidate', 'novalidate');
