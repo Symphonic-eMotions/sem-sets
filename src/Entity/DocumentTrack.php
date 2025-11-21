@@ -48,6 +48,17 @@ class DocumentTrack
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $exsPreset = null;
 
+    /**
+     * Area of interest per grid-cell, row-major:
+     * index = (row * cols) + col
+     * Voorbeeld 2x1: [1,0] → links aan, rechts uit
+     * Voorbeeld 3x3: [1,1,1,0,0,0,0,0,0] → bovenste rij aan
+     *
+     * @var int[]
+     */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $areaOfInterest = [];
+
     // UI-volgorde voor netjes ordenen in formulieren
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
@@ -84,9 +95,7 @@ class DocumentTrack
         return $this;
     }
 
-    /**
-     * @return int[]
-     */
+    /** @return int[] */
     public function getLoopLength(): array
     {
         return $this->loopLength;
@@ -174,6 +183,76 @@ class DocumentTrack
         return $this;
     }
 
+    /** @return int[] */
+    public function getAreaOfInterest(): array
+    {
+        return $this->areaOfInterest;
+    }
+
+    /**
+     * @param string|array<int,mixed>|null $value
+     */
+    public function setAreaOfInterest(string|array|null $value): self
+    {
+        if ($value === null || $value === '') {
+            $arr = [];
+        } else {
+            // string: "[1,0,1]" of "1,0,1"
+            if (is_string($value)) {
+                $raw = trim($value);
+
+                if ($raw === '') {
+                    $arr = [];
+                } elseif (str_starts_with($raw, '[')) {
+                    $decoded = json_decode($raw, true);
+                    $arr = is_array($decoded) ? $decoded : explode(',', $raw);
+                } else {
+                    $arr = explode(',', $raw);
+                }
+            } else {
+                $arr = $value;
+            }
+        }
+
+        if (!is_array($arr)) {
+            $arr = [];
+        }
+
+        // sanitize naar 0/1 ints
+        $arr = array_values(array_map(
+            static fn($v) => (int)((int)$v === 1),
+            $arr
+        ));
+
+        // resize naar verwacht aantal cellen als document bekend is
+        $expected = $this->expectedAreaCount();
+        if ($expected !== null) {
+            if (count($arr) === 0) {
+                // default: alles aan (volledige grid is "interest")
+                $arr = array_fill(0, $expected, 1);
+            } elseif (count($arr) > $expected) {
+                $arr = array_slice($arr, 0, $expected);
+            } elseif (count($arr) < $expected) {
+                $arr = array_merge($arr, array_fill(0, $expected - count($arr), 0));
+            }
+        }
+
+        $this->areaOfInterest = $arr;
+        return $this;
+    }
+
+    private function expectedAreaCount(): ?int
+    {
+        if (!$this->document) {
+            return null;
+        }
+
+        $cols = $this->document->getGridColumns();
+        $rows = $this->document->getGridRows();
+        $n = (int) ($cols * $rows);
+
+        return $n > 0 ? $n : 1;
+    }
 
     public function getExsPreset(): ?string
     {

@@ -68,7 +68,30 @@ final class DocumentTrackType extends AbstractType
                 'step'  => 1,
             ],
         ])
-        // ENKELE midiAsset (EntityType)
+            // AreaOfInterest
+        ->add('areaOfInterest', CollectionType::class, [
+            'label' => 'Area of interest',
+            'entry_type' => NumberType::class,
+            'entry_options' => [
+                'html5' => true,
+                'scale' => 0,
+                'required' => false,
+                'attr' => [
+                    'class' => 'aoi-input',
+                    'min' => 0, 'max' => 1, 'step' => 1, 'inputmode' => 'numeric'
+                ],
+                'constraints' => [
+                    new Assert\NotNull(),
+                    new Assert\Type('numeric'),
+                    new Assert\Range(min: 0, max: 1),
+                ],
+            ],
+            'allow_add' => true,
+            'allow_delete' => true,
+            'by_reference' => false,
+            'prototype' => true,
+        ])
+            // ENKELE midiAsset (EntityType)
         ->add('midiAsset', EntityType::class, [
             'class' => Asset::class,
             'choice_label' => fn(Asset $a) => $a->getOriginalName(),

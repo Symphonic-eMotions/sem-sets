@@ -31,25 +31,37 @@ final class DocumentFormType extends AbstractType
             if (!$doc) return;
 
             $setLen = count((array) $doc->getLevelDurations());
+            $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
 
             foreach ($doc->getTracks() as $t) {
+                // --- levels interaction ---
                 $levels = array_values((array) $t->getLevels());
-                // resize: truncate of pad met 0
                 if ($setLen <= 0) {
-                    $t->setLevels([]); // of 1 item '0' als je dat wil
-                    continue;
-                }
-                if (count($levels) > $setLen) {
+                    $t->setLevels([]);
+                } elseif (count($levels) > $setLen) {
                     $levels = array_slice($levels, 0, $setLen);
                 } elseif (count($levels) < $setLen) {
                     $levels = array_merge($levels, array_fill(0, $setLen - count($levels), 0));
                 }
-                // sanitise naar 0/1
                 $levels = array_map(static fn($v) => (int)((int)$v === 1), $levels);
-
                 $t->setLevels($levels);
+
+                // --- areaOfInterest interaction ---
+                $aoi = array_values((array) $t->getAreaOfInterest());
+                if ($expectedAreas > 0) {
+                    if (count($aoi) === 0) {
+                        $aoi = array_fill(0, $expectedAreas, 1);
+                    } elseif (count($aoi) > $expectedAreas) {
+                        $aoi = array_slice($aoi, 0, $expectedAreas);
+                    } elseif (count($aoi) < $expectedAreas) {
+                        $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
+                    }
+                    $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
+                    $t->setAreaOfInterest($aoi);
+                }
             }
         });
+
 
         /** @var Document $doc */
         $doc = $options['data'];

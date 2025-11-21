@@ -139,7 +139,6 @@ final class DocumentController extends AbstractController
                 // 3a) loopLength uit het formulier lezen (raw string zoals "[48,48]")
                 if ($trackForm && $trackForm->has('loopLength')) {
                     $rawLoop = $trackForm->get('loopLength')->getData();
-                    // DocumentTrack::setLoopLength(string|array|null $value)
                     $t->setLoopLength($rawLoop);
                 }
 
@@ -149,7 +148,7 @@ final class DocumentController extends AbstractController
                 }
 
                 // 3c) stabiel id indien leeg OF null
-                if (!$t->getTrackId()) {  // covers null, '', etc.
+                if (!$t->getTrackId()) {
                     $t->setTrackId($this->newTrackId());
                 }
 
@@ -162,6 +161,28 @@ final class DocumentController extends AbstractController
 
                 // 3e) positie volgens formulier-volgorde
                 $t->setPosition($position++);
+
+                // ---------------------------------------------------------
+                // 3f) NEW: areaOfInterest resizen naar huidig document-grid
+                // ---------------------------------------------------------
+                $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
+                $aoi = array_values((array) $t->getAreaOfInterest());
+
+                if ($expectedAreas > 0) {
+                    if (count($aoi) === 0) {
+                        // default: alles aan bij lege AOI
+                        $aoi = array_fill(0, $expectedAreas, 1);
+                    } elseif (count($aoi) > $expectedAreas) {
+                        $aoi = array_slice($aoi, 0, $expectedAreas);
+                    } elseif (count($aoi) < $expectedAreas) {
+                        $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
+                    }
+
+                    // forceer strikt 0/1
+                    $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
+
+                    $t->setAreaOfInterest($aoi);
+                }
 
                 // (optioneel) guard: midiAsset moet bij dit document horen
                 // if ($a = $t->getMidiAsset()) {

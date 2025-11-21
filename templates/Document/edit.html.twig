@@ -156,7 +156,7 @@
     </div>
 
     {# ============================================================
-       SCRIPT 1: LevelDurations + Tracks
+       SCRIPT 1: LevelDurations + Tracks + AOI
        ============================================================ #}
     <script>
         (function() {
@@ -363,6 +363,123 @@
 
             window.LD = LD;
 
+            // =====================================================================
+            // NEW: AreaOfInterest module + helpers (MOET vóór wireNewTrackCard)
+            // =====================================================================
+
+            function getDocGrid() {
+                const gridSelect = document.querySelector('select[name$="[gridSize]"]');
+                if (gridSelect) {
+                    const m = String(gridSelect.value || '').match(/^(\d+)x(\d+)$/);
+                    if (m) {
+                        return { cols: parseInt(m[1], 10), rows: parseInt(m[2], 10) };
+                    }
+                }
+                return { cols: 1, rows: 1 };
+            }
+
+            function syncAllAoIToDocGrid() {
+                const { cols, rows } = getDocGrid();
+                document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
+                    const hidden = card.querySelector('#aoi-hidden-' + i);
+                    const tiles  = card.querySelector('#aoi-tiles-' + i);
+                    if (hidden && tiles) {
+                        AOI.resizeTo('#' + hidden.id, '#' + tiles.id, cols, rows);
+                    }
+                });
+            }
+
+            const AOI = {
+                _createTile(input, idx) {
+                    const v = String(input.value || '0') === '1' ? 1 : 0;
+                    if (String(input.value) !== String(v)) {
+                        input.value = String(v);
+                    }
+
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ld-square' + (v ? ' on' : '');
+                    btn.dataset.index = String(idx);
+                    btn.setAttribute('aria-pressed', v ? 'true' : 'false');
+                    btn.textContent = v ? '1' : '0';
+
+                    btn.addEventListener('click', () => {
+                        const now = btn.classList.contains('on') ? 0 : 1;
+                        btn.classList.toggle('on', !!now);
+                        btn.setAttribute('aria-pressed', now ? 'true' : 'false');
+                        btn.textContent = String(now);
+                        input.value = String(now);
+                    });
+
+                    return btn;
+                },
+
+                _rebuild(hiddenSel, tilesSel, cols) {
+                    const hidden = document.querySelector(hiddenSel);
+                    const tiles  = document.querySelector(tilesSel);
+                    if (!hidden || !tiles) return;
+
+                    tiles.innerHTML = '';
+                    tiles.style.gridTemplateColumns = `repeat(${cols}, 36px)`;
+
+                    const inputs = hidden.querySelectorAll('.ld-item input');
+                    inputs.forEach((input, idx) => {
+                        tiles.appendChild(this._createTile(input, idx));
+                    });
+                },
+
+                resizeTo(hiddenSel, tilesSel, cols, rows) {
+                    const hidden = document.querySelector(hiddenSel);
+                    if (!hidden) return;
+
+                    const targetLen = Math.max(1, cols * rows);
+
+                    // truncate
+                    let items = hidden.querySelectorAll('.ld-item');
+                    if (items.length > targetLen) {
+                        for (let i = items.length - 1; i >= targetLen; i--) {
+                            items[i].remove();
+                        }
+                    }
+
+                    // pad
+                    while (hidden.querySelectorAll('.ld-item').length < targetLen) {
+                        const i = parseInt(hidden.dataset.index || '0', 10);
+                        const proto = hidden.dataset.prototype?.replace(/__name__/g, i);
+                        if (!proto) break;
+
+                        const wrap = document.createElement('div');
+                        wrap.className = 'ld-item';
+                        wrap.innerHTML = proto;
+
+                        const inp = wrap.querySelector('input');
+                        if (inp) inp.value = '0';
+
+                        hidden.appendChild(wrap);
+                        hidden.dataset.index = String(i + 1);
+                    }
+
+                    hidden.dataset.index = String(hidden.querySelectorAll('.ld-item').length);
+                    this._rebuild(hiddenSel, tilesSel, cols);
+                },
+
+                seedIfEmpty(hiddenSel, tilesSel, cols, rows) {
+                    const hidden = document.querySelector(hiddenSel);
+                    if (!hidden) return;
+
+                    const items = hidden.querySelectorAll('.ld-item');
+                    if (!items.length) {
+                        this.resizeTo(hiddenSel, tilesSel, cols, rows);
+                        hidden.querySelectorAll('.ld-item input').forEach(inp => inp.value = '1');
+                        this._rebuild(hiddenSel, tilesSel, cols);
+                    } else {
+                        this.resizeTo(hiddenSel, tilesSel, cols, rows);
+                    }
+                }
+            };
+
+            window.AOI = AOI;
+
             // ---------- Tracks module ----------
             const tracksContainer = document.getElementById(TRACKS_CONTAINER_ID);
 
@@ -385,6 +502,7 @@
             }
 
             function wireNewTrackCard(card, idx) {
+                // levels
                 const hidden = card.querySelector('#trk-hidden-' + idx);
                 const tiles  = card.querySelector('#trk-tiles-' + idx);
 
@@ -392,7 +510,17 @@
                     LD.seedIfEmpty('#' + hidden.id, '#' + tiles.id);
                     LD.resizeTo('#' + hidden.id, '#' + tiles.id, getSetLevelCount());
                 }
+
+                // AOI
+                const aoiHidden = card.querySelector('#aoi-hidden-' + idx);
+                const aoiTiles  = card.querySelector('#aoi-tiles-' + idx);
+
+                if (aoiHidden && aoiTiles) {
+                    const { cols, rows } = getDocGrid();
+                    AOI.seedIfEmpty('#' + aoiHidden.id, '#' + aoiTiles.id, cols, rows);
+                }
             }
+
 
             function addTrackFromPrototype() {
                 if (!tracksContainer) return;
@@ -427,9 +555,18 @@
 
             LD.seedIfEmpty(SET_HIDDEN, SET_TILES, true);
             syncAllTracksToSetCount();
+            syncAllAoIToDocGrid();
 
             const ldAddBtn    = document.getElementById('ld-add');
             const ldRemoveBtn = document.getElementById('ld-remove');
+            // luister naar gridSize changes
+            const gridSelect = document.querySelector('select[name$="[gridSize]"]');
+
+            if (gridSelect) {
+                gridSelect.addEventListener('change', () => {
+                    syncAllAoIToDocGrid();
+                });
+            }
 
             if (ldAddBtn) {
                 ldAddBtn.addEventListener('click', () => {
