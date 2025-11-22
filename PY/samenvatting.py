@@ -23,11 +23,12 @@ EXTENSIONS = (".php", ".twig", ".yaml", ".yml", ".json", ".js", ".css", ".scss",
 # Gebruik relatieve paden t.o.v. project_root.
 WHITELIST = [
     "src/Controller/DocumentController.php",
-    "src/Entity/DocumentTrack.php",
-    "src/Entity/InstrumentPart.php",
-    "src/Form/DocumentFormType.php",
-    "src/Form/DocumentTrackType.php",
-    "src/Form/InstrumentPartType.php",
+#     "src/Entity/DocumentTrack.php",
+#     "src/Entity/InstrumentPart.php",
+#     "src/Form/DocumentFormType.php",
+#     "src/Form/DocumentTrackType.php",
+#     "src/Form/InstrumentPartType.php",
+    "templates/_partials/ui_styles.html.twig",
     "templates/Document/_track_card.html.twig",
     "templates/Document/edit.html.twig"
 ]

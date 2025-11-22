@@ -9,7 +9,7 @@
             <p class="subtitle">Publiceer Symphonic eMotions muziek sets.</p>
 
             {% form_theme form 'forms/_theme.html.twig' %}
-            {{ form_start(form, { attr: { enctype: 'multipart/form-data' } }) }}
+            {{ form_start(form, { attr: { id: 'document-form', enctype: 'multipart/form-data' } }) }}
 
             {# --- Set gegevens (Titel / Grid / BPM) --- #}
             <div class="section">
@@ -140,18 +140,45 @@
                 </div>
             </div>
 
-            {{ form_row(form.published) }}
-
-            {# --- Acties onderaan --- #}
-            <div class="form-actions">
-                <button class="btn" type="submit">Opslaan</button>
-                <a class="btn secondary" href="{{ path('app_dashboard') }}">Terug</a>
-            </div>
-
             {# Markeer custom gerenderde velden #}
             {% do form.tracks.setRendered %}
 
-            {{ form_end(form) }}
+            {# Render published alvast, maar bewaar in variabele. Hierdoor is hij "gerenderd" vóór form_rest. #}
+            {% set publishedRow %}
+                {{ form_row(form.published, {
+                    attr: form.published.vars.attr|merge({ form: 'document-form' })
+                }) }}
+            {% endset %}
+
+            {{ form_rest(form) }}
+            {{ form_end(form, { render_rest: false }) }}
+
+        </div>
+    </div>
+
+    {# --- Sticky/Fixed bottom bar OUTSIDE card/wrap --- #}
+    <div class="bottom-bar">
+        <div class="bottom-bar-inner">
+
+            <div class="bottom-bar-flashes">
+                {% for type, messages in app.flashes %}
+                    {% for msg in messages %}
+                        <div class="flash flash-{{ type }}">{{ msg }}</div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <div class="bottom-bar-actions">
+                <div class="bottom-bar-published">
+                    {{ publishedRow|raw }}
+                </div>
+
+                <button class="btn" type="submit" form="document-form">Opslaan</button>
+                <a class="btn secondary" href="{{ path('app_dashboard') }}">Terug</a>
+            </div>
+
+
+
         </div>
     </div>
 
