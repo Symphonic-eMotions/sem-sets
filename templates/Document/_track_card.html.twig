@@ -44,9 +44,9 @@
         </div>
 
         {# -- Midi bestand selecteren -- #}
-        <div class="subsection">
-            <label class="label">MIDI bestand</label>
-            {{ form_widget(trackForm.midiAsset) }}
+        <div class="subsection midi-panel">
+            <label class="label midi-label">MIDI bestand</label>
+            {{ form_widget(trackForm.midiAsset, { attr: { class: 'midi-select' } }) }}
 
             {% set info = midiInfo[trackForm.trackId.vars.value] ?? null %}
             {% set totalBars = info.bars ?? 0 %}
@@ -58,73 +58,79 @@
                         Kan MIDI analyseren: {{ info.error }}
                     </p>
                 {% else %}
-                    <div class="midi-info">
-                        <div><strong>Duur:</strong> {{ info.duration }}</div>
-                        <div><strong>BPM:</strong> {{ info.bpm }}</div>
-                        {% if info.timeSig %}
-                            <div><strong>Maatsoort:</strong> {{ info.timeSig }}</div>
-                        {% endif %}
-                        {% if info.bars %}
-                            <div><strong>Maten:</strong> {{ info.bars }}</div>
-                        {% endif %}
+
+                    {# === Header rij: context links, meta rechts === #}
+                    <div class="midi-header">
+                        <div class="midi-context">
+                            <div class="midi-timesig">
+                                <span class="midi-context-label">Maatsoort</span>
+                                <strong class="midi-context-value">{{ info.timeSig }}</strong>
+                            </div>
+                            <div class="midi-bars">
+                                <span class="midi-context-label">Totaal</span>
+                                <strong class="midi-context-value">{{ info.bars }} maten</strong>
+                            </div>
+                        </div>
+
+                        <div class="midi-meta">
+                            <span>⏱ {{ info.duration }}</span>
+                            <span>• ♩ {{ info.bpm }} BPM</span>
+                        </div>
                     </div>
+
+                    {# === Ritme & loop editor: coherent blok === #}
+                    <div
+                            class="midi-rhythm-card loop-editor js-loop-editor"
+                            data-total-bars="{{ totalBars }}"
+                            data-timesig="{{ timeSig }}"
+                            data-input-id="{{ trackForm.loopLength.vars.id }}"
+                    >
+                        {# Verborgen input #}
+                        <div class="loop-hidden-input">
+                            {{ form_widget(trackForm.loopLength) }}
+                        </div>
+
+                        {# Rij A: basismaten + controls op 1 lijn #}
+                        <div class="loop-base-row">
+                            <div class="loop-base-title">
+                                <span class="label-small">Basismaten</span>
+                                <span class="loop-base-hint subtle">
+                            (afgerond op maatsoort {{ timeSig }})
+                        </span>
+                            </div>
+
+                            <div class="loop-base-controls">
+                                {{ form_widget(trackForm.loopLengthOverride, {
+                                    attr: trackForm.loopLengthOverride.vars.attr|merge({
+                                        class: (trackForm.loopLengthOverride.vars.attr.class|default('') ~ ' js-loop-base-input loop-base-input')|trim
+                                    })
+                                }) }}
+
+                                <button type="button" class="btn-mini js-loop-base-dec">–</button>
+                                <button type="button" class="btn-mini js-loop-base-inc">+</button>
+                            </div>
+                        </div>
+
+                        {# Rij B: loops chips (verdeling) #}
+                        <div class="loop-chips js-loop-chips"></div>
+
+                        {# Acties compact onder chips #}
+                        <div class="loop-actions">
+                            <button type="button" class="btn-mini js-loop-reset">Basis</button>
+                            <button type="button" class="btn-mini js-loop-add">+ Loop</button>
+                            <button type="button" class="btn-mini js-loop-remove">– Loop</button>
+                        </div>
+                    </div>
+
                 {% endif %}
 
-                <div
-                        class="loop-editor js-loop-editor"
-                        data-total-bars="{{ totalBars }}"
-                        data-timesig="{{ timeSig }}"
-                        data-input-id="{{ trackForm.loopLength.vars.id }}"
-                >
-                    {# 0) Verborgen input die Symfony leest en waar JS in schrijft #}
-                    <div class="loop-hidden-input">
-                        {{ form_widget(trackForm.loopLength) }}
-                    </div>
-
-                    {# 1) Override veld + stepper #}
-                    <div class="loop-base-wrapper">
-                        <div class="loop-base-header">
-                            <span class="label-small">Basismaten</span>
-                        </div>
-                        <div class="loop-base-controls">
-                            {{ form_widget(trackForm.loopLengthOverride, {
-                                attr: trackForm.loopLengthOverride.vars.attr|merge({
-                                    class: (trackForm.loopLengthOverride.vars.attr.class|default('') ~ ' js-loop-base-input')|trim
-                                })
-                            }) }}
-                            <button type="button" class="btn btn-mini js-loop-base-dec">–</button>
-                            <button type="button" class="btn btn-mini js-loop-base-inc">+</button>
-                        </div>
-                    </div>
-
-                    {# 2) De daadwerkelijke loop-segmenten chips #}
-                    <div class="loop-chips js-loop-chips">
-                        {# wordt door JS gevuld #}
-                    </div>
-
-                    {# 3) Segment-knoppen #}
-                    <div class="loop-actions">
-                        <button type="button" class="btn btn-mini js-loop-reset">
-                            Basis
-                        </button>
-                        <button type="button" class="btn btn-mini js-loop-add">
-                            + Loop
-                        </button>
-                        <button type="button" class="btn btn-mini js-loop-remove">
-                            – Loop
-                        </button>
-                    </div>
-                </div>
-
-            {% endif %}
-
-
-            {% if not isPrototype
-                and trackForm.midiAsset.vars.choices is defined
-                and trackForm.midiAsset.vars.choices|length == 0 %}
-                <p class="subtle" style="margin-top:6px">
-                    Nog geen MIDI-assets. Upload ze bovenaan.
-                </p>
+                {% if not isPrototype
+                    and trackForm.midiAsset.vars.choices is defined
+                    and trackForm.midiAsset.vars.choices|length == 0 %}
+                    <p class="subtle" style="margin-top:6px">
+                        Nog geen MIDI-assets. Upload ze bovenaan.
+                    </p>
+                {% endif %}
             {% endif %}
         </div>
 
