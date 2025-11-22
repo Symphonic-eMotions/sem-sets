@@ -110,12 +110,19 @@ final class DocumentController extends AbstractController
                     $trackForm->get('loopLength')->setData($raw);
                 }
 
-                // areaOfInterest raw prefill
-                if ($trackForm->has('areaOfInterest')) {
-                    $aoi = $track->getAreaOfInterest() ?? [];
-                    if (!empty($aoi)) {
-                        $raw = '[' . implode(',', array_map('intval', $aoi)) . ']';
-                        $trackForm->get('areaOfInterest')->setData($raw);
+                if ( $trackForm->has('instrumentParts')) {
+                    $partsForm = $trackForm->get('instrumentParts');
+
+                    foreach ($track->getInstrumentParts() as $pIndex => $part) {
+                        if (!isset($partsForm[$pIndex]) || !$partsForm[$pIndex]->has('areaOfInterest')) {
+                            continue;
+                        }
+
+                        $aoi = $part->getAreaOfInterest() ?? [];
+                        if (!empty($aoi)) {
+                            $raw = '[' . implode(',', array_map('intval', $aoi)) . ']';
+                            $partsForm[$pIndex]->get('areaOfInterest')->setData($raw);
+                        }
                     }
                 }
             }
@@ -144,17 +151,47 @@ final class DocumentController extends AbstractController
                 // Bijbehorend subformulier voor deze track
                 $trackForm = $tracksForm[$index] ?? null;
 
+                $partsForm = $trackForm?->has('instrumentParts')
+                    ? $trackForm->get('instrumentParts')
+                    : null;
+
                 // 3a) loopLength uit het formulier lezen (raw string zoals "[48,48]")
                 if ($trackForm && $trackForm->has('loopLength')) {
                     $rawLoop = $trackForm->get('loopLength')->getData();
                     $t->setLoopLength($rawLoop);
                 }
 
-                // areaOfInterest uit raw formulier lezen
-                if ($trackForm && $trackForm->has('areaOfInterest')) {
-                    $rawAoi = $trackForm->get('areaOfInterest')->getData();
-                    // setter accepteert string "[1,0,1]"
-                    $t->setAreaOfInterest($rawAoi);
+                if ($partsForm) {
+                    $partPos = 0;
+                    $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
+                    foreach ($t->getInstrumentParts() as $pIndex => $part) {
+                        $partForm = $partsForm[$pIndex] ?? null;
+
+                        if ($partForm && $partForm->has('areaOfInterest')) {
+                            $rawAoi = $partForm->get('areaOfInterest')->getData();
+                            $part->setAreaOfInterest($rawAoi);
+                        }
+
+                        // AOI resizen op part-niveau
+                        $aoi = array_values($part->getAreaOfInterest());
+                        if ($expectedAreas > 0) {
+                            if (count($aoi) === 0) {
+                                $aoi = array_fill(0, $expectedAreas, 1);
+                            } elseif (count($aoi) > $expectedAreas) {
+                                $aoi = array_slice($aoi, 0, $expectedAreas);
+                            } elseif (count($aoi) < $expectedAreas) {
+                                $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
+                            }
+                            $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
+                            $part->setAreaOfInterest($aoi);
+                        }
+
+                        if ($part->getTrack() !== $t) {
+                            $part->setTrack($t);
+                        }
+
+                        $part->setPosition($partPos++);
+                    }
                 }
 
                 // 3b) bi-directionele relatie
@@ -177,27 +214,6 @@ final class DocumentController extends AbstractController
                 // 3e) positie volgens formulier-volgorde
                 $t->setPosition($position++);
 
-                // ---------------------------------------------------------
-                // 3f) NEW: areaOfInterest resizen naar huidig document-grid
-                // ---------------------------------------------------------
-                $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
-                $aoi = array_values((array) $t->getAreaOfInterest());
-
-                if ($expectedAreas > 0) {
-                    if (count($aoi) === 0) {
-                        // default: alles aan bij lege AOI
-                        $aoi = array_fill(0, $expectedAreas, 1);
-                    } elseif (count($aoi) > $expectedAreas) {
-                        $aoi = array_slice($aoi, 0, $expectedAreas);
-                    } elseif (count($aoi) < $expectedAreas) {
-                        $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
-                    }
-
-                    // forceer strikt 0/1
-                    $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
-
-                    $t->setAreaOfInterest($aoi);
-                }
 
                 // (optioneel) guard: midiAsset moet bij dit document horen
                 // if ($a = $t->getMidiAsset()) {
@@ -581,6 +597,17 @@ final class DocumentController extends AbstractController
                 $instrumentName = $this->humanizeLabel($t->getTrackId() ?? '') ?? $t->getTrackId();
             }
 
+            $partsConfig = [];
+            foreach ($t->getInstrumentParts() as $part) {
+                $aoi = $part->getAreaOfInterest();
+                $aoi = array_values(array_map('intval', $aoi));
+
+                $partsConfig[] = [
+                    'areaOfInterest' => $aoi,
+                    // later: instrumentPartName, damperTarget, mapMaxIndex, dontDrawVisual, etc.
+                ];
+            }
+
             // 5) Instrument-config entry
             $instrumentsConfig[] = [
                 'trackId'        => $t->getTrackId(),
@@ -589,6 +616,7 @@ final class DocumentController extends AbstractController
                 'instrumentType' => $instrumentType,   // null of 'exsSampler'
                 'exsFiles'       => $exsFiles,         // null of array
                 'instrumentName' => $instrumentName,
+                'instrumentParts' => $partsConfig,
             ];
         }
 

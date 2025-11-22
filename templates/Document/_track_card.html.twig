@@ -21,13 +21,11 @@
         <div class="subsection">
 
             {# Label + tegels op één regel #}
-            <div class="label-with-tiles">
                 <label class="label">Levels</label>
                 {# A) Tegelcontainer (visueel) #}
                 <div id="trk-tiles-{{ index }}"
                      class="ld-tiles"
                      data-target="#trk-hidden-{{ index }}"></div>
-            </div>
 
             {# B) Verborgen inputs die Symfony leest #}
             <div id="trk-hidden-{{ index }}"
@@ -42,22 +40,6 @@
                         <div class="ld-item">{{ form_widget(levelField) }}</div>
                     {% endfor %}
                 {% endif %}
-            </div>
-        </div>
-
-        {# -- AreaOfInterest (raw hidden input + tiles) -- #}
-        <div class="subsection">
-            <div class="label-with-tiles">
-                <label class="label">Area of interest</label>
-
-                <div id="aoi-tiles-{{ index }}"
-                     class="aoi-tiles"
-                     data-input-id="{{ trackForm.areaOfInterest.vars.id }}"></div>
-            </div>
-
-            {# verborgen raw input waar JS volledige array in schrijft #}
-            <div class="ld-hidden">
-                {{ form_widget(trackForm.areaOfInterest) }}
             </div>
         </div>
 
@@ -149,6 +131,32 @@
         <div class="subsection">
             <label class="label">EXS preset</label>
             {{ form_widget(trackForm.exsPreset) }}
+        </div>
+
+        {# -- InstrumentParts -- #}
+        <div class="subsection">
+            <label class="label">Instrument controllers</label>
+
+            <div id="parts-{{ index }}"
+                 class="parts"
+                 data-index="{{ trackForm.instrumentParts|length }}"
+                 data-prototype="{{ form_widget(trackForm.instrumentParts.vars.prototype)|e('html_attr') }}">
+            </div>
+
+            {% for partForm in trackForm.instrumentParts %}
+                <div class="instrument-part" data-part-index="{{ loop.index0 }}">
+
+                    <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
+                         class="aoi-tiles"
+                         data-input-id="{{ partForm.areaOfInterest.vars.id }}"></div>
+
+                    <div class="ld-hidden">
+                        {{ form_widget(partForm.areaOfInterest) }}
+                    </div>
+                </div>
+            {% endfor %}
+
+            {% do trackForm.instrumentParts.setRendered %}
         </div>
 
     </div>

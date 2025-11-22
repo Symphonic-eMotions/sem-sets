@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Entity\Document;
+use App\Entity\InstrumentPart;
 use App\Enum\SemVersion;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
@@ -46,18 +47,20 @@ final class DocumentFormType extends AbstractType
                 $levels = array_map(static fn($v) => (int)((int)$v === 1), $levels);
                 $t->setLevels($levels);
 
-                // --- areaOfInterest interaction ---
-                $aoi = array_values((array) $t->getAreaOfInterest());
-                if ($expectedAreas > 0) {
-                    if (count($aoi) === 0) {
-                        $aoi = array_fill(0, $expectedAreas, 1);
-                    } elseif (count($aoi) > $expectedAreas) {
-                        $aoi = array_slice($aoi, 0, $expectedAreas);
-                    } elseif (count($aoi) < $expectedAreas) {
-                        $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
+                foreach ($t->getInstrumentParts() as $part) {
+                    $aoi = array_values((array) $part->getAreaOfInterest());
+
+                    if ($expectedAreas > 0) {
+                        if (count($aoi) === 0) {
+                            $aoi = array_fill(0, $expectedAreas, 1);
+                        } elseif (count($aoi) > $expectedAreas) {
+                            $aoi = array_slice($aoi, 0, $expectedAreas);
+                        } elseif (count($aoi) < $expectedAreas) {
+                            $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
+                        }
+                        $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
+                        $part->setAreaOfInterest($aoi);
                     }
-                    $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
-                    $t->setAreaOfInterest($aoi);
                 }
             }
         });

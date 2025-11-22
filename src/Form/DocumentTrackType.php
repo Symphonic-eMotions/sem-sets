@@ -6,6 +6,7 @@ namespace App\Form;
 use App\Entity\Asset;
 use App\Entity\Document;
 use App\Entity\DocumentTrack;
+use App\Entity\InstrumentPart;
 use App\Repository\AssetRepository;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
@@ -16,6 +17,8 @@ use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -23,6 +26,16 @@ final class DocumentTrackType extends AbstractType
 {
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
+        $builder->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $e) {
+            /** @var DocumentTrack|null $track */
+            $track = $e->getData();
+            if (!$track) { return; }
+
+            if ($track->getInstrumentParts()->count() === 0) {
+                $track->addInstrumentPart(new InstrumentPart());
+            }
+        });
+
         /** @var Document|null $doc */
         $doc = $options['document'] ?? null;
 
@@ -68,15 +81,15 @@ final class DocumentTrackType extends AbstractType
                 'step'  => 1,
             ],
         ])
-            // AreaOfInterest
-        ->add('areaOfInterest', TextType::class, [
-            'label'    => false,
-            'required' => false,
-            'mapped'   => false,
-            'attr'     => [
-                'class' => 'js-aoi-raw',
-            ],
+            // InstrumentParts
+        ->add('instrumentParts', CollectionType::class, [
+            'entry_type'    => InstrumentPartType::class,
+            'allow_add'     => true,
+            'allow_delete'  => true,
+            'by_reference'  => false,
+            'prototype'     => true,
         ])
+
             // ENKELE midiAsset (EntityType)
         ->add('midiAsset', EntityType::class, [
             'class' => Asset::class,
