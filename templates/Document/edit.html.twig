@@ -26,7 +26,7 @@
 
             {# --- Assets --- #}
             <div class="section">
-                <h2 class="section-title">Assets</h2>
+                <h2 class="section-title">Bestanden</h2>
                 <div class="grid grid-2">
                     <div>
                         {{ form_row(form.midiFiles) }}
@@ -60,7 +60,7 @@
                             </div>
                         {% else %}
                             <p class="subtle" style="margin-top:6px">
-                                Nog geen assets. Upload één of meer .mid-bestanden.
+                                Nog geen bestanden naar de server verzonden. Upload één of meer .mid-bestanden.
                             </p>
                         {% endif %}
                     </div>
@@ -69,26 +69,27 @@
 
             {# --- LevelDurations custom UI (tegels) --- #}
             <div class="section">
-                <h2 class="section-title">LevelDurations</h2>
+                    <h2 class="section-title">Aantal levels voor deze set</h2>
 
-                <div class="ld-row">
+                <div class="ld-row align-items-center">
                     {# 1. Tegels #}
                     <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
 
-                    {# 2. Knoppen rechts naast de tegels #}
+                    {# 2. Acties rechts naast de tegels #}
                     <div class="ld-actions">
                         <button type="button" class="btn-mini" id="ld-add">+ Toevoegen</button>
-                        <button
-                                type="button"
-                                class="btn-mini secondary"
-                                id="ld-remove"
-                        >
+                        <button type="button" class="btn-mini secondary" id="ld-remove">
                             – Verwijder laatste
                         </button>
                     </div>
+
+                    {# 3. Track toevoegen rechts uitgelijnd op dezelfde rij #}
+                    <div class="ld-track-add">
+                        <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
+                    </div>
                 </div>
 
-                {# 3. Verborgen inputs die Symfony leest #}
+                {# Hidden inputs #}
                 <div id="ld-hidden-inputs"
                      class="ld-hidden"
                      data-prototype="{{ form_widget(form.levelDurations.vars.prototype)|e('html_attr') }}"
@@ -105,9 +106,6 @@
 
             {# --- Tracks (DocumentTrack) --- #}
             <div class="section">
-                <div class="form-actions" style="margin-top:10px">
-                    <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
-                </div>
 
                 {# 1) Prototype track-kaart #}
                 {% set track_proto %}
