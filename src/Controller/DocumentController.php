@@ -87,33 +87,28 @@ final class DocumentController extends AbstractController
         $form->handleRequest($req);
 
         if (!$form->isSubmitted()) {
-            // 'tracks' is jouw CollectionType<DocumentTrackType>
-            $tracksForm = $form->get('tracks');
 
-            foreach ($doc->getTracks() as $index => $track) {
-                if (!isset($tracksForm[$index])) {
-                    continue;
-                }
+            $tracksForm = $form->get('tracks');
+            $tracks = array_values($doc->getTracks()->toArray());
+
+            foreach ($tracks as $index => $track) {
+                if (!isset($tracksForm[$index])) { continue; }
                 $trackForm = $tracksForm[$index];
 
-                if (!$trackForm->has('loopLength')) {
-                    continue;
+                if ($trackForm->has('loopLength')) {
+                    $loop = $track->getLoopLength() ?? [];
+                    if (!empty($loop)) {
+                        $raw = '[' . implode(',', array_map('intval', $loop)) . ']';
+                        $trackForm->get('loopLength')->setData($raw);
+                    }
                 }
 
-                $loop = method_exists($track, 'getLoopLength')
-                    ? $track->getLoopLength()
-                    : [];
+                if ($trackForm->has('instrumentParts')) {
 
-                if (!empty($loop)) {
-                    // We zetten de data in dezelfde vorm als JS verwacht: "[48,48]"
-                    $raw = '[' . implode(',', array_map('intval', $loop)) . ']';
-                    $trackForm->get('loopLength')->setData($raw);
-                }
-
-                if ( $trackForm->has('instrumentParts')) {
                     $partsForm = $trackForm->get('instrumentParts');
+                    $parts = array_values($track->getInstrumentParts()->toArray());
 
-                    foreach ($track->getInstrumentParts() as $pIndex => $part) {
+                    foreach ($parts as $pIndex => $part) {
                         if (!isset($partsForm[$pIndex]) || !$partsForm[$pIndex]->has('areaOfInterest')) {
                             continue;
                         }
@@ -146,38 +141,36 @@ final class DocumentController extends AbstractController
             // 3) Tracks (DocumentTrack-collectie) normaliseren en relationeel goedzetten
             $tracksForm = $form->get('tracks');
             $position   = 0;
+            $tracks = array_values($doc->getTracks()->toArray());
 
-            foreach ($doc->getTracks() as $index => $t) {
-                // Bijbehorend subformulier voor deze track
+            foreach ($tracks as $index => $t) {
                 $trackForm = $tracksForm[$index] ?? null;
 
                 $partsForm = $trackForm?->has('instrumentParts')
                     ? $trackForm->get('instrumentParts')
                     : null;
 
-                // 3a) loopLength uit het formulier lezen (raw string zoals "[48,48]")
                 if ($trackForm && $trackForm->has('loopLength')) {
                     $rawLoop = $trackForm->get('loopLength')->getData();
                     $t->setLoopLength($rawLoop);
                 }
 
                 // effects normaliseren
-                $effects = $t->getEffects()->toArray();
-
-                // sorteer op position uit form (want user kan reorder)
-                usort($effects, static fn($a,$b) => $a->getPosition() <=> $b->getPosition());
+                $trackEffects = array_values($t->getTrackEffects()->toArray());
+                $trackEffects = array_filter($trackEffects, static fn($te) => $te->getPreset() !== null);
 
                 $pos = 0;
-                foreach ($effects as $e) {
-                    $e->setTrack($t);
-                    $e->setPosition($pos++);
+                foreach ($trackEffects as $te) {
+                    $te->setTrack($t);
+                    $te->setPosition($pos++);
                 }
 
-
                 if ($partsForm) {
+                    $parts = array_values($t->getInstrumentParts()->toArray());
                     $partPos = 0;
                     $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
-                    foreach ($t->getInstrumentParts() as $pIndex => $part) {
+
+                    foreach ($parts as $pIndex => $part) {
                         $partForm = $partsForm[$pIndex] ?? null;
 
                         if ($partForm && $partForm->has('areaOfInterest')) {
@@ -185,7 +178,7 @@ final class DocumentController extends AbstractController
                             $part->setAreaOfInterest($rawAoi);
                         }
 
-                        // AOI resizen op part-niveau
+                        // AOI resizen...
                         $aoi = array_values($part->getAreaOfInterest());
                         if ($expectedAreas > 0) {
                             if (count($aoi) === 0) {
@@ -202,38 +195,21 @@ final class DocumentController extends AbstractController
                         if ($part->getTrack() !== $t) {
                             $part->setTrack($t);
                         }
-
                         $part->setPosition($partPos++);
                     }
                 }
 
-                // 3b) bi-directionele relatie
                 if ($t->getDocument() !== $doc) {
                     $t->setDocument($doc);
                 }
-
-                // 3c) stabiel id indien leeg OF null
                 if (!$t->getTrackId()) {
                     $t->setTrackId($this->newTrackId());
                 }
 
-                // 3d) levels forceren naar ints
-                $levels = array_values(array_map(
-                    static fn($v) => (int) $v,
-                    (array) $t->getLevels()
-                ));
+                $levels = array_values(array_map(static fn($v) => (int)$v, (array)$t->getLevels()));
                 $t->setLevels($levels);
 
-                // 3e) positie volgens formulier-volgorde
                 $t->setPosition($position++);
-
-
-                // (optioneel) guard: midiAsset moet bij dit document horen
-                // if ($a = $t->getMidiAsset()) {
-                //     if ($a->getDocument()?->getId() !== $doc->getId()) {
-                //         $t->setMidiAsset(null);
-                //     }
-                // }
             }
 
             // 4) BPM bijwerken
@@ -611,10 +587,13 @@ final class DocumentController extends AbstractController
             }
 
             $effectsConfig = [];
-            foreach ($t->getEffects() as $e) {
+            foreach ($t->getTrackEffects() as $te) {
+                $preset = $te->getPreset();
+                if (!$preset) continue;
+
                 $effectsConfig[] = [
-                    'name' => $e->getName(),
-                    'config' => $e->getConfig(), // pure array
+                    'name'   => $preset->getName(),
+                    'config' => $preset->getConfig(),
                 ];
             }
 

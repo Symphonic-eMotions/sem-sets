@@ -116,17 +116,15 @@ final class DocumentTrackType extends AbstractType
             // label == value (AdvancedFM etc.)
         ])
 
-        ->add('effects', CollectionType::class, [
-            'entry_type' => EffectSettingsType::class,
-            'allow_add' => true,
+        ->add('trackEffects', CollectionType::class, [
+            'entry_type'   => DocumentTrackEffectType::class,
+            'allow_add'    => true,
             'allow_delete' => true,
             'by_reference' => false,
-            'prototype' => true,
-            'label' => false,
-            'attr' => ['class' => 'effects-collection'],
+            'prototype'    => true,
+            'label'        => false,
+            'attr'         => ['class' => 'effects-collection'],
         ]);
-
-
     }
 
     public function configureOptions(OptionsResolver $resolver): void

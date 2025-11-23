@@ -11,6 +11,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: DocumentTrackRepository::class)]
 #[ORM\Table(name: 'document_tracks')]
+#[ORM\HasLifecycleCallbacks]
 class DocumentTrack
 {
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(type: 'integer')]
@@ -50,9 +51,14 @@ class DocumentTrack
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $exsPreset = null;
 
-    #[ORM\OneToMany(targetEntity: EffectSettings::class, mappedBy: 'track', cascade: ['persist','remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(
+        targetEntity: DocumentTrackEffect::class,
+        mappedBy: 'track',
+        cascade: ['persist','remove'],
+        orphanRemoval: true
+    )]
     #[ORM\OrderBy(['position' => 'ASC'])]
-    private Collection $effects;
+    private Collection $trackEffects;
 
     #[ORM\OneToMany(
         targetEntity: InstrumentPart::class,
@@ -80,7 +86,7 @@ class DocumentTrack
         $this->updatedAt = $now;
 
         $this->instrumentParts = new ArrayCollection();
-        $this->effects = new ArrayCollection();
+        $this->trackEffects = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -160,7 +166,6 @@ class DocumentTrack
                 static fn (int $v): bool => $v > 0
             )
         );
-
         $this->loopLength = $normalized;
 
         return $this;
@@ -190,23 +195,23 @@ class DocumentTrack
         return $this;
     }
 
-    public function getEffects(): Collection
+    public function getTrackEffects(): Collection
     {
-        return $this->effects;
+        return $this->trackEffects;
     }
 
-    public function addEffect(EffectSettings $e): self
+    public function addTrackEffect(DocumentTrackEffect $e): self
     {
-        if (!$this->effects->contains($e)) {
-            $this->effects->add($e);
+        if (!$this->trackEffects->contains($e)) {
+            $this->trackEffects->add($e);
             $e->setTrack($this);
         }
         return $this;
     }
 
-    public function removeEffect(EffectSettings $e): self
+    public function removeTrackEffect(DocumentTrackEffect $e): self
     {
-        if ($this->effects->removeElement($e)) {
+        if ($this->trackEffects->removeElement($e)) {
             if ($e->getTrack() === $this) {
                 $e->setTrack(null);
             }

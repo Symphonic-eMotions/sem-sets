@@ -6,7 +6,7 @@ window.addEffect = function(trackIdx) {
     if (!container) return;
 
     const index = parseInt(container.dataset.index || '0', 10);
-    const proto = container.dataset.prototype?.replace(/__name__/g, index);
+    const proto = container.dataset.prototype.replace(/__name__/g, index);
     if (!proto) return;
 
     const wrap = document.createElement('div');
@@ -27,6 +27,13 @@ window.addEffect = function(trackIdx) {
 
     wireEffectCard(wrap, container);
     renumberEffectPositions(container);
+
+    function updatePositions(container) {
+        container.querySelectorAll('.effect-card').forEach((card, i) => {
+            const pos = card.querySelector('.effect-position');
+            if (pos) pos.value = i;
+        });
+    }
 };
 
 function wireEffectCard(card, container) {

@@ -9,7 +9,12 @@
                 <h1 class="title">Symphonic eMotions Sets</h1>
                 <p class="subtitle">Beheer je sets, assets en versies</p>
             </div>
-            <a class="btn" href="{{ path('doc_new') }}">+ Nieuwe Set</a>
+            <div style="display:flex; gap:8px">
+                {% if is_granted('ROLE_ADMIN') %}
+                    <a class="btn secondary" href="{{ path('effects_index') }}">Effect presets</a>
+                {% endif %}
+                <a class="btn" href="{{ path('doc_new') }}">+ Nieuwe Set</a>
+            </div>
         </div>
 
         <div class="card">

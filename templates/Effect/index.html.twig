@@ -1,0 +1,59 @@
+{# templates/Effect/index.html.twig #}
+{% extends 'base.html.twig' %}
+{% block title %}Effect presets{% endblock %}
+
+{% block body %}
+    <div class="wrap">
+        <div class="page-header">
+            <div>
+                <h1 class="title">Effect presets</h1>
+                <p class="subtitle">Beheer globale effecten voor tracks</p>
+            </div>
+
+            <div style="display:flex; gap:8px">
+                <a class="btn secondary" href="{{ path('app_dashboard') }}">← Terug naar sets</a>
+                <a class="btn" href="{{ path('effects_new') }}">+ Nieuw effect</a>
+            </div>
+        </div>
+
+        <div class="bottom-bar-flashes">
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="flash flash-{{ label }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="card">
+            {% if effects is empty %}
+                <p class="subtle">Nog geen effecten.</p>
+            {% else %}
+                <table class="table">
+                    <thead>
+                    <tr>
+                        <th>Naam</th>
+                        <th style="width:220px">Acties</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for e in effects %}
+                        <tr>
+                            <td><strong>{{ e.name }}</strong></td>
+                            <td class="actions">
+                                <a class="btn secondary btn-sm" href="{{ path('effects_edit', {id: e.id}) }}">Bewerken</a>
+                                <form method="post" action="{{ path('effects_delete', {id: e.id}) }}"
+                                      onsubmit="return confirm('Effect {{ e.name }} verwijderen?');" style="display:inline">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('delete-effect-' ~ e.id) }}">
+                                    <button class="btn btn-danger btn-sm">Verwijder</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

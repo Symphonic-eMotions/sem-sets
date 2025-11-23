@@ -1,0 +1,47 @@
+{# templates/Effect/edit.html.twig #}
+{% extends 'base.html.twig' %}
+{% block title %}Effect preset{% endblock %}
+
+{% block body %}
+    <div class="wrap">
+        <div class="page-header">
+            <div>
+                <h1 class="title">
+                    {{ effect.id ? 'Effect bewerken' : 'Nieuw effect' }}
+                </h1>
+                <p class="subtitle">JSON preset voor tracks</p>
+            </div>
+        </div>
+
+        {# flashes staan al links in base vermoedelijk; anders hier renderen #}
+        {# {{ include('partials/_flashes.html.twig') }} #}
+
+        <div class="card">
+            {{ form_start(form) }}
+
+            {{ form_row(form.name) }}
+            {{ form_row(form.config) }}
+
+            <div class="bottom-bar" style="position: unset">
+                <div class="bottom-bar-inner">
+                    <div class="bottom-bar-flashes">
+                        {% for label, messages in app.flashes %}
+                            {% for message in messages %}
+                                <div class="flash flash-{{ label }}">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+
+                    <div class="form-actions" style="display:flex; gap:8px">
+                        <a class="btn secondary" href="{{ path('effects_index') }}">Terug</a>
+                        <button class="btn" type="submit">Opslaan</button>
+                    </div>
+                </div>
+            </div>
+
+            {{ form_end(form) }}
+        </div>
+    </div>
+{% endblock %}
