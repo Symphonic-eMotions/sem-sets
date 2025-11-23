@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\EffectSettingsRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: EffectSettingsRepository::class)]
@@ -18,6 +20,19 @@ class EffectSettings
 
     #[ORM\Column(type: 'json')]
     private array $config = [];
+
+    #[ORM\OneToMany(
+        targetEntity: EffectSettingsKeyValue::class,
+        mappedBy: 'effectSettings',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
+    private Collection $keysValues;
+
+    public function __construct()
+    {
+        $this->keysValues = new ArrayCollection();
+    }
 
     public function getId(): ?int { return $this->id; }
 
@@ -61,5 +76,26 @@ class EffectSettings
     public function __toString(): string
     {
         return $this->name ?: ('Effect #' . $this->id);
+    }
+
+    /** @return Collection<int, EffectSettingsKeyValue> */
+    public function getKeysValues(): Collection
+    {
+        return $this->keysValues;
+    }
+
+    public function addKeyValue(EffectSettingsKeyValue $kv): void
+    {
+        if (!$this->keysValues->contains($kv)) {
+            $this->keysValues->add($kv);
+            $kv->setEffectSettings($this); // owning side sync
+        }
+    }
+
+    public function removeKeyValue(EffectSettingsKeyValue $kv): void
+    {
+        if ($this->keysValues->removeElement($kv)) {
+            $kv->setEffectSettings(null); // triggers orphanRemoval
+        }
     }
 }

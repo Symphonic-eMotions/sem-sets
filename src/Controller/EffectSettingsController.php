@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\EffectSettings;
+use App\Entity\EffectSettingsKeyValue;
 use App\Form\EffectSettingsType;
 use App\Repository\EffectSettingsRepository;
+use App\Service\EffectConfigExtractor;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormError;
@@ -18,7 +20,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[Route('/effects')]
 final class EffectSettingsController extends AbstractController
 {
-    public function __construct(private EntityManagerInterface $em) {}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private EffectConfigExtractor $extractor
+    ) {}
 
     #[Route('', name: 'effects_index', methods: ['GET'])]
     public function index(EffectSettingsRepository $repo): Response
@@ -53,6 +58,7 @@ final class EffectSettingsController extends AbstractController
             }
 
             if ($form->isValid()) {
+                $this->syncKeysValues($effect);
                 $this->em->persist($effect);
                 $this->em->flush();
                 $this->addFlash('success', 'Effect preset opgeslagen.');
@@ -97,6 +103,7 @@ final class EffectSettingsController extends AbstractController
             }
 
             if ($form->isValid()) {
+                $this->syncKeysValues($effect);
                 $this->em->flush();
                 $this->addFlash('success', 'Effect preset bijgewerkt.');
                 return $this->redirectToRoute('effects_index');
@@ -126,5 +133,37 @@ final class EffectSettingsController extends AbstractController
         $this->em->flush();
         $this->addFlash('success', 'Effect preset verwijderd.');
         return $this->redirectToRoute('effects_index');
+    }
+
+    private function syncKeysValues(EffectSettings $effect): void
+    {
+        // explicitly remove old rows
+        foreach ($effect->getKeysValues() as $existing) {
+            $effect->removeKeyValue($existing);
+            $this->em->remove($existing); // extra explicit; rock-solid
+        }
+
+        $data = $this->extractor->extract($effect->getConfig());
+
+        if ($data['effectName']) {
+            $effect->addKeyValue(
+                new EffectSettingsKeyValue(
+                    $effect,
+                    EffectSettingsKeyValue::TYPE_NAME,
+                    'effectName',
+                    $data['effectName']
+                )
+            );
+        }
+
+        foreach ($data['params'] as $paramKey) {
+            $effect->addKeyValue(
+                new EffectSettingsKeyValue(
+                    $effect,
+                    EffectSettingsKeyValue::TYPE_PARAM,
+                    $paramKey
+                )
+            );
+        }
     }
 }
