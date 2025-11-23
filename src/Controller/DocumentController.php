@@ -161,6 +161,19 @@ final class DocumentController extends AbstractController
                     $t->setLoopLength($rawLoop);
                 }
 
+                // effects normaliseren
+                $effects = $t->getEffects()->toArray();
+
+                // sorteer op position uit form (want user kan reorder)
+                usort($effects, static fn($a,$b) => $a->getPosition() <=> $b->getPosition());
+
+                $pos = 0;
+                foreach ($effects as $e) {
+                    $e->setTrack($t);
+                    $e->setPosition($pos++);
+                }
+
+
                 if ($partsForm) {
                     $partPos = 0;
                     $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
@@ -597,6 +610,14 @@ final class DocumentController extends AbstractController
                 $instrumentName = $this->humanizeLabel($t->getTrackId() ?? '') ?? $t->getTrackId();
             }
 
+            $effectsConfig = [];
+            foreach ($t->getEffects() as $e) {
+                $effectsConfig[] = [
+                    'name' => $e->getName(),
+                    'config' => $e->getConfig(), // pure array
+                ];
+            }
+
             $partsConfig = [];
             foreach ($t->getInstrumentParts() as $part) {
                 $aoi = $part->getAreaOfInterest();
@@ -617,6 +638,7 @@ final class DocumentController extends AbstractController
                 'exsFiles'       => $exsFiles,         // null of array
                 'instrumentName' => $instrumentName,
                 'instrumentParts' => $partsConfig,
+                'effects'        => $effectsConfig,
             ];
         }
 

@@ -50,6 +50,10 @@ class DocumentTrack
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $exsPreset = null;
 
+    #[ORM\OneToMany(targetEntity: EffectSettings::class, mappedBy: 'track', cascade: ['persist','remove'], orphanRemoval: true)]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    private Collection $effects;
+
     #[ORM\OneToMany(
         targetEntity: InstrumentPart::class,
         mappedBy: 'track',
@@ -76,6 +80,7 @@ class DocumentTrack
         $this->updatedAt = $now;
 
         $this->instrumentParts = new ArrayCollection();
+        $this->effects = new ArrayCollection();
     }
 
     public function getId(): ?int { return $this->id; }
@@ -182,6 +187,30 @@ class DocumentTrack
 
         $this->loopLengthOverride = $value;
 
+        return $this;
+    }
+
+    public function getEffects(): Collection
+    {
+        return $this->effects;
+    }
+
+    public function addEffect(EffectSettings $e): self
+    {
+        if (!$this->effects->contains($e)) {
+            $this->effects->add($e);
+            $e->setTrack($this);
+        }
+        return $this;
+    }
+
+    public function removeEffect(EffectSettings $e): self
+    {
+        if ($this->effects->removeElement($e)) {
+            if ($e->getTrack() === $this) {
+                $e->setTrack(null);
+            }
+        }
         return $this;
     }
 

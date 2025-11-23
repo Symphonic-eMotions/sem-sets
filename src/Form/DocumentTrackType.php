@@ -114,6 +114,16 @@ final class DocumentTrackType extends AbstractType
             'placeholder' => '— Geen preset —',
             'choices'     => array_combine(self::exsPresets(), self::exsPresets()),
             // label == value (AdvancedFM etc.)
+        ])
+
+        ->add('effects', CollectionType::class, [
+            'entry_type' => EffectSettingsType::class,
+            'allow_add' => true,
+            'allow_delete' => true,
+            'by_reference' => false,
+            'prototype' => true,
+            'label' => false,
+            'attr' => ['class' => 'effects-collection'],
         ]);
 
 

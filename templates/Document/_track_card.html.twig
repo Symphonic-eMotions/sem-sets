@@ -139,6 +139,42 @@
             {{ form_widget(trackForm.exsPreset) }}
         </div>
 
+        <div class="subsection effects-panel">
+            <label class="label">Effecten</label>
+
+            {# container die JS kan vullen + prototype #}
+            <div id="effects-{{ index }}"
+                 class="effects"
+                 data-index="{{ trackForm.effects|length }}"
+                 data-prototype="{{ form_widget(trackForm.effects.vars.prototype)|e('html_attr') }}">
+
+                {# render bestaande effects #}
+                {% for effectForm in trackForm.effects %}
+                    <div class="effect-card">
+                        <div class="effect-head">
+                            <div class="effect-title">
+                                {{ form_row(effectForm.name) }}
+                            </div>
+
+                            <div class="effect-actions">
+                                <button type="button" class="btn-mini js-effect-up">↑</button>
+                                <button type="button" class="btn-mini js-effect-down">↓</button>
+                                <button type="button" class="btn-mini danger js-effect-remove">Verwijder</button>
+                            </div>
+                        </div>
+
+                        {{ form_row(effectForm.config) }}
+                        {{ form_widget(effectForm.position) }}
+                    </div>
+                {% endfor %}
+            </div>
+            {% do trackForm.effects.setRendered %}
+
+            <button type="button" style="margin-top: 8px;" class="btn-mini" onclick="addEffect('{{ index }}')">
+                + Effect toevoegen
+            </button>
+        </div>
+
         {# -- InstrumentParts -- #}
         <div class="subsection">
             <label class="label">Locatie en werking in het camerabeeld</label>

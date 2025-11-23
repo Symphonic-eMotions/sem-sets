@@ -584,6 +584,35 @@
         }
     }
 
+    /* ===== Effects UI ===== */
+    .effects-panel { display: grid;}
+
+    .effects { display: grid; gap: 8px; }
+
+    .effect-card {
+        background: #0b1224;
+        border: 1px solid #243148;
+        border-radius: 10px;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+    }
+
+    .effect-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .effect-actions { display: inline-flex; gap: 6px; }
+
+    .effect-json {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12.5px;
+        line-height: 1.35;
+    }
+
     /* ======== Area of Interest UI ======== */
     .aoi-tiles {
         display: grid;
@@ -715,4 +744,5 @@
             width: 100%;
         }
     }
+
 </style>
