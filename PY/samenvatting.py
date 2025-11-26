@@ -23,22 +23,24 @@ EXTENSIONS = (".php", ".twig", ".yaml", ".yml", ".json", ".js", ".css", ".scss",
 # Gebruik relatieve paden t.o.v. project_root.
 WHITELIST = [
     "public/js/effectsSettings.js",
-#     "src/Controller/DocumentController.php",
-    "src/Controller/EffectSettingsController.php",
+    "src/Controller/DocumentController.php",
+#     "src/Controller/EffectSettingsController.php",
 #     "src/Entity/DocumentTrack.php",
 #     "src/Entity/DocumentTrackEffect.php",
-    "src/Entity/EffectSettings.php",
-#     "src/Entity/InstrumentPart.php",
+#     "src/Entity/EffectSettings.php",
+    "src/Entity/InstrumentPart.php",
 #     "src/Form/DocumentFormType.php",
 #     "src/Form/DocumentTrackEffectType.php,"
 #     "src/Form/DocumentTrackType.php",
-    "src/Form/EffectSettingsType.php",
-#     "src/Form/InstrumentPartType.php",
+#     "src/Form/EffectSettingsType.php",
+    "src/Form/InstrumentPartType.php",
+#     "src/Repository/EffectSettingsKeyValueRepository.php",
 #     "src/Repository/EffectSettingsRepository.php",
+    "src/Service/TrackEffectParamChoicesBuilder.php",
 #     "templates/_partials/ui_styles.html.twig",
-#     "templates/Document/_track_card.html.twig",
-#     "templates/Document/edit.html.twig"
-    "templates/Effect/edit.html.twig",
+    "templates/Document/_track_card.html.twig",
+    "templates/Document/edit.html.twig"
+#     "templates/Effect/edit.html.twig",
 #     "templates/Effect/index.html.twig"
 ]
 # ------------------------------------------------------------------

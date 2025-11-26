@@ -181,5 +181,8 @@
     <script src="{{ asset('js/leveldurationsTracksAOI.js') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js') }}" defer></script>
+    <script>
+        window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
+    </script>
 
 {% endblock %}

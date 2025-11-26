@@ -5,12 +5,14 @@ namespace App\Controller;
 
 use App\Entity\Asset;
 use App\Entity\Document;
+use App\Entity\EffectSettingsKeyValue;
 use App\Form\DocumentFormType;
 use App\Form\NewDocumentFormType;
 use App\Midi\MidiAnalyzer;
 use App\Repository\AssetRepository;
 use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
+use App\Repository\EffectSettingsRepository;
 use App\Service\AssetStorage;
 use App\Service\VersioningService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -82,6 +84,7 @@ final class DocumentController extends AbstractController
         VersioningService $vs,
         AssetStorage $assets,
         MidiAnalyzer $midiAnalyzer,
+        EffectSettingsRepository $effectSettingsRepo,
     ): Response {
         $form = $this->createForm(DocumentFormType::class, $doc);
         $form->handleRequest($req);
@@ -269,11 +272,40 @@ final class DocumentController extends AbstractController
                 ];
             }
         }
+
+        // Load target effect parameter data
+        $allPresets = $effectSettingsRepo->findAll();
+
+        $allEffectPresetsMap = [];
+        foreach ($allPresets as $preset) {
+            $effectName = $preset->getName();
+            $params = [];
+
+            foreach ($preset->getKeysValues() as $kv) {
+                if ($kv->getType() === EffectSettingsKeyValue::TYPE_NAME) {
+                    $effectName = $kv->getValue() ?? $effectName;
+                }
+                if ($kv->getType() === EffectSettingsKeyValue::TYPE_PARAM) {
+                    $params[] = [
+                        'id'  => $kv->getId(),
+                        'key' => $kv->getKeyName(),
+                    ];
+                }
+            }
+
+            $allEffectPresetsMap[$preset->getId()] = [
+                'presetId'   => $preset->getId(),
+                'effectName' => $effectName,
+                'params'     => $params,
+            ];
+        }
+
         return $this->render('Document/edit.html.twig', [
             'document' => $doc,
             'form'     => $form->createView(),
             'assets'   => $this->assetRepo->findForDocument($doc),
-            'midiInfo' => $midiInfo
+            'midiInfo' => $midiInfo,
+            'allEffectPresetsMap' => $allEffectPresetsMap,
         ]);
     }
 

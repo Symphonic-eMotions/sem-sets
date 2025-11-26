@@ -6,7 +6,46 @@
    - isPrototype : bool
 #}
 
-<div class="track-card">
+{% set trackEntity = trackForm.vars.data %}
+
+{# Bouw effectsData alleen voor echte tracks (geen prototype) #}
+{% set effectsData = [] %}
+
+{% if not isPrototype and trackEntity %}
+    {% for te in trackEntity.trackEffects %}
+        {% set preset = te.preset %}
+        {% if preset %}
+            {# 1) effectName bepalen (TYPE_NAME) #}
+            {% set effectName = preset.name %}
+            {% for kv in preset.keysValues %}
+                {% if kv.type == 'name' %}
+                    {% set effectName = kv.value %}
+                {% endif %}
+            {% endfor %}
+
+            {# 2) parameters (TYPE_PARAM) #}
+            {% set params = [] %}
+            {% for kv in preset.keysValues %}
+                {% if kv.type == 'parameter' %}
+                    {% set params = params|merge([{
+                        id: kv.id,
+                        key: kv.keyName
+                    }]) %}
+                {% endif %}
+            {% endfor %}
+
+            {# 3) toevoegen aan array #}
+            {% set effectsData = effectsData|merge([{
+                presetId: preset.id,
+                effectName: effectName,
+                params: params
+            }]) %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
+
+<div class="track-card"
+     data-effects='{{ effectsData|json_encode|e("html_attr") }}'>
     <div class="track-head">
         <div class="track-title">Track {{ num }}</div>
         <div class="track-actions">
@@ -185,6 +224,13 @@
             </div>
 
             {% for partForm in trackForm.instrumentParts %}
+                {% set partEntity = partForm.vars.data %}
+                {% set currentTargetId =
+                    partEntity and partEntity.targetEffectParam
+                    ? partEntity.targetEffectParam.id
+                    : null
+                %}
+
                 <div class="instrument-part" data-part-index="{{ loop.index0 }}">
 
                     <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
@@ -193,6 +239,16 @@
 
                     <div class="ld-hidden">
                         {{ form_widget(partForm.areaOfInterest) }}
+                    </div>
+
+                    <div class="part-effect-target">
+                        <label class="label-small">Target effect parameter</label>
+                        {{ form_widget(partForm.targetEffectParam, {
+                            attr: {
+                                class: (partForm.targetEffectParam.vars.attr.class|default('') ~ ' js-target-effect-param')|trim,
+                                'data-current-id': currentTargetId
+                            }
+                        }) }}
                     </div>
                 </div>
             {% endfor %}

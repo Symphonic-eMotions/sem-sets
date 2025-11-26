@@ -25,6 +25,10 @@ class InstrumentPart
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $areaOfInterest = [];
 
+    #[ORM\ManyToOne(targetEntity: EffectSettingsKeyValue::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?EffectSettingsKeyValue $targetEffectParam = null;
+
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
 
@@ -125,6 +129,17 @@ class InstrumentPart
         $n = (int)($cols * $rows);
 
         return $n > 0 ? $n : 1;
+    }
+
+    public function getTargetEffectParam(): ?EffectSettingsKeyValue
+    {
+        return $this->targetEffectParam;
+    }
+
+    public function setTargetEffectParam(?EffectSettingsKeyValue $kv): self
+    {
+        $this->targetEffectParam = $kv;
+        return $this;
     }
 
     public function getPosition(): int
