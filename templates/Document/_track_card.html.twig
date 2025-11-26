@@ -179,7 +179,20 @@
         </div>
 
         <div class="subsection effects-panel">
-            <label class="label">Effecten</label>
+
+            {# Header: label + knop op één rij #}
+            <div class="effects-header">
+                <label class="label">Effecten</label>
+
+                {# labels, ids en JS blijven hetzelfde, alleen class gewijzigd naar .btn #}
+                <button
+                        type="button"
+                        class="btn effects-add-btn"
+                        onclick="addEffect('{{ index }}')"
+                >
+                    + Effect toevoegen
+                </button>
+            </div>
 
             <div id="effects-{{ index }}"
                  class="effects"
@@ -206,16 +219,19 @@
             </div>
 
             {% do trackForm.trackEffects.setRendered %}
-
-            <button type="button" class="btn-mini" onclick="addEffect('{{ index }}')">
-                + Effect toevoegen
-            </button>
         </div>
 
 
+
+        {# -- InstrumentParts -- #}
         {# -- InstrumentParts -- #}
         <div class="subsection">
-            <label class="label">Locatie en werking in het camerabeeld</label>
+
+            {# Koppen voor beide kolommen, zelfde opmaak en hoogte #}
+            <div class="instrument-parts-header">
+                <label class="label">Actieve regio's</label>
+                <label class="label">Wat stuurt deze regio aan</label>
+            </div>
 
             <div id="parts-{{ index }}"
                  class="parts"
@@ -233,22 +249,27 @@
 
                 <div class="instrument-part" data-part-index="{{ loop.index0 }}">
 
-                    <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
-                         class="aoi-tiles"
-                         data-input-id="{{ partForm.areaOfInterest.vars.id }}"></div>
+                    <div class="instrument-part-grid">
+                        {# LINKER kolom: actieve regio (tegels) #}
+                        <div class="instrument-part-region">
+                            <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
+                                 class="aoi-tiles"
+                                 data-input-id="{{ partForm.areaOfInterest.vars.id }}"></div>
 
-                    <div class="ld-hidden">
-                        {{ form_widget(partForm.areaOfInterest) }}
-                    </div>
+                            <div class="ld-hidden">
+                                {{ form_widget(partForm.areaOfInterest) }}
+                            </div>
+                        </div>
 
-                    <div class="part-effect-target">
-                        <label class="label-small">Target effect parameter</label>
-                        {{ form_widget(partForm.targetEffectParam, {
-                            attr: {
-                                class: (partForm.targetEffectParam.vars.attr.class|default('') ~ ' js-target-effect-param')|trim,
-                                'data-current-id': currentTargetId
-                            }
-                        }) }}
+                        {# RECHTER kolom: wat stuurt deze regio aan #}
+                        <div class="part-effect-target">
+                            {{ form_widget(partForm.targetEffectParam, {
+                                attr: {
+                                    class: (partForm.targetEffectParam.vars.attr.class|default('') ~ ' js-target-effect-param')|trim,
+                                    'data-current-id': currentTargetId
+                                }
+                            }) }}
+                        </div>
                     </div>
                 </div>
             {% endfor %}

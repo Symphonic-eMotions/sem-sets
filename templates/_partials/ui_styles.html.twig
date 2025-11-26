@@ -24,10 +24,11 @@
     }
 
     /* ======== Baseline ======== */
-    html { scrollbar-gutter: stable both-edges; }
+    html { scrollbar-gutter: stable; }
     @supports not (scrollbar-gutter: stable) {
         html { overflow-y: scroll; }
     }
+
     body {
         background:
                 radial-gradient(1200px 600px at 10% 10%, #24324b 0%, transparent 50%),
@@ -35,15 +36,6 @@
                 linear-gradient(180deg, var(--bg), #0b1321);
         min-height: 100dvh;
         font-family: var(--font-base), sans-serif;
-        color: var(--text);
-    }
-    body {
-        background:
-                radial-gradient(1200px 600px at 10% 10%, #24324b 0%, transparent 50%),
-                radial-gradient(900px 500px at 90% 20%, #161f32 0%, transparent 40%),
-                linear-gradient(180deg, var(--bg), #0b1321);
-        min-height: 100dvh;
-        font-family: var(--font-base), serif;
         color: var(--text);
     }
 
@@ -585,7 +577,26 @@
     }
 
     /* ===== Effects UI ===== */
-    .effects-panel { display: grid;}
+    .effects-panel {
+        display: grid;
+        margin-top: 16px; /* optioneel, voor wat extra lucht t.o.v. de rest */
+    }
+
+    .effects-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .effects-header .label {
+        margin-bottom: 0; /* label netjes gecentreerd met de knop */
+    }
+
+    /* Optioneel: kleine tweak specifiek voor deze knop */
+    .effects-add-btn {
+        white-space: nowrap;
+    }
 
     .effects { display: grid; gap: 8px; }
 
@@ -626,6 +637,31 @@
         display: grid;
         gap: 8px;
         margin: 8px 0 6px;
+    }
+
+    /* Instrument parts layout: AOI links, target rechts */
+    .instrument-parts-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 6px;
+    }
+
+    .instrument-parts-header .label {
+        flex: 1;
+    }
+
+    /* Twee kolommen per instrument-part */
+    .instrument-part-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+        gap: 16px;
+        align-items: flex-start;
+    }
+
+    .instrument-part-region,
+    .part-effect-target {
+        min-width: 0;
     }
 
     /* ===========================
