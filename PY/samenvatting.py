@@ -33,6 +33,8 @@ STRIP_NOISE = False  # op False laten voor volledige inhoud
 # Gebruik relatieve paden t.o.v. project_root.
 WHITELIST = [
 #     "public/js/effectsSettings.js",
+    "public/js/leveldurationsTracksAOI.js",
+#     "public/js/loopLengthEditor.js",
 #     "src/Controller/DocumentController.php",
 #     "src/Controller/EffectSettingsController.php",
 #     "src/Entity/Document.php",
@@ -49,8 +51,8 @@ WHITELIST = [
 #     "src/Repository/EffectSettingsKeyValueRepository.php",
 #     "src/Repository/EffectSettingsRepository.php",
 #     "src/Service/TrackEffectParamChoicesBuilder.php",
-#     "templates/_partials/ui_styles.html.twig",
-#     "templates/Document/_track_card.html.twig",
+    "templates/_partials/ui_styles.html.twig",
+    "templates/Document/_track_card.html.twig",
 #     "templates/Document/edit.html.twig"
 #     "templates/Effect/edit.html.twig",
 #     "templates/Effect/index.html.twig"
@@ -162,7 +164,7 @@ def main():
     # go one directory up
     project_root = os.path.realpath(os.path.join(os.path.dirname(__file__), ".."))
 
-    targets = ["src", "templates"]
+    targets = ["src", "templates","public/js"]
     all_files = collect_files(project_root, targets)
     all_files.sort()
 

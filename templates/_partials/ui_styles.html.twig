@@ -632,11 +632,81 @@
         margin-top:12px;
     }
 
+    /* === Instrument Parts UI === */
+
+    .instrument-parts-panel {
+        display: grid;
+        margin-top: 16px;
+    }
+
+    .instrument-parts-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .instrument-parts-add-btn {
+        white-space: nowrap;
+    }
+
+    .instrument-parts {
+        display: grid;
+        gap: 10px;
+    }
+
+    /* Elke instrument-part als card (zelfde feel als .effect-card) */
+    .instrument-part {
+        background: #0b1224;
+        border: 1px solid #243148;
+        border-radius: 10px;
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
+    .instrument-part-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+        gap: 16px;
+        align-items: flex-start;
+        padding-left: 6px;
+    }
+
+    .instrument-part-region,
+    .part-effect-target {
+        min-width: 0;
+    }
+
+    .part-effect-target select {
+        width: 100%;
+    }
+
     /* ======== Area of Interest UI ======== */
     .aoi-tiles {
         display: grid;
         gap: 8px;
         margin: 8px 0 6px;
+    }
+
+    .instrument-part-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 6px;
+    }
+
+    /* Labelsblok mag gewoon uitrekken */
+    .instrument-part-header-row .instrument-parts-header {
+        flex: 1 1 auto;
+    }
+
+    /* Knop compact rechtsboven */
+    .instrument-part-remove {
+        align-self: flex-start;
+        white-space: nowrap;
     }
 
     /* Instrument parts layout: AOI links, target rechts */
@@ -654,7 +724,7 @@
     /* Twee kolommen per instrument-part */
     .instrument-part-grid {
         display: grid;
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1.5fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
         gap: 16px;
         align-items: flex-start;
     }

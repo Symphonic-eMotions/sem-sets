@@ -203,6 +203,35 @@
 
     window.LD = LD;
 
+    window.removeInstrumentPart = function(buttonEl) {
+        const part = buttonEl.closest('.instrument-part');
+        if (!part) return;
+
+        const trackCard = part.closest('.track-card');
+        if (!trackCard) return;
+
+        // Alle parts binnen deze track (maakt niet uit of uit Twig of JS komen)
+        const allParts = trackCard.querySelectorAll('.instrument-part');
+        if (allParts.length <= 1) {
+            alert('Er moet minimaal één instrument part blijven bestaan.');
+            return;
+        }
+
+        part.remove();
+
+        // AOI-tiles opnieuw opbouwen voor de resterende parts
+        const trackIdx = Array.from(
+            document.querySelectorAll('#tracks .track-card')
+        ).indexOf(trackCard);
+
+        if (trackIdx !== -1) {
+            buildAoiTiles(trackCard, trackIdx);
+            if (typeof refreshTrackPartSelects === 'function') {
+                refreshTrackPartSelects(trackCard);
+            }
+        }
+    };
+
     // ===============================
     // AreaOfInterest (raw JSON input)
     // ===============================
@@ -240,21 +269,24 @@
         const { cols, rows } = getDocGrid();
         const targetLen = Math.max(1, cols * rows);
 
-        // zoek alle parts in deze track-card
+        // Pak gewoon alle instrument-part blocks in deze track-card
         const partBlocks = card.querySelectorAll('.instrument-part');
 
-        partBlocks.forEach((partBlock, partIdx) => {
-            const tiles = partBlock.querySelector('#aoi-tiles-' + trackIdx + '-' + partIdx);
+        partBlocks.forEach((partBlock) => {
+            // In elk part gewoon de lokale .aoi-tiles pakken
+            const tiles = partBlock.querySelector('.aoi-tiles');
             if (!tiles) return;
 
             const inputId = tiles.dataset.inputId;
+            if (!inputId) return;
+
             const inputEl = document.getElementById(inputId);
             if (!inputEl) return;
 
             let current = parseRawAoi(inputEl);
 
             if (current.length === 0) {
-                current = new Array(targetLen).fill(1); // default alles aan
+                current = new Array(targetLen).fill(1); // default: alles aan
             } else if (current.length > targetLen) {
                 current = current.slice(0, targetLen);
             } else if (current.length < targetLen) {
@@ -316,44 +348,108 @@
         });
     }
 
+    // Helper: maak één InstrumentPart DOM-structuur vanuit het Symfony prototype
+    function createInstrumentPart(partsContainer, trackIdx, pIndex) {
+        const proto = partsContainer.dataset.prototype?.replace(/__name__/g, pIndex);
+        if (!proto) return null;
+
+        const tmp = document.createElement('div');
+        tmp.innerHTML = proto.trim();
+
+        // Verwacht: areaOfInterest + targetBinding uit Symfony-prototype
+        const areaField   = tmp.querySelector('[name$="[areaOfInterest]"]') || tmp.firstElementChild;
+        const targetField = tmp.querySelector('[name$="[targetBinding]"]') || (areaField && areaField.nextElementSibling) || null;
+
+        if (!areaField) {
+            return null;
+        }
+
+        const card = document.createElement('div');
+        card.className = 'instrument-part';
+        card.dataset.partIndex = String(pIndex);
+
+        card.innerHTML = `
+        <div class="instrument-part-header-row">
+            <div class="instrument-parts-header">
+                <label class="label">Actieve regio delen</label>
+                <label class="label">Wat stuurt deze regio aan</label>
+            </div>
+            
+            <button type="button"
+                    class="btn-mini danger instrument-part-remove"
+                    onclick="removeInstrumentPart(this)">
+                Verwijder
+            </button>
+        </div>
+
+        <div class="instrument-part-grid">
+        
+            <div class="instrument-part-region">
+                <div class="aoi-tiles" data-input-id=""></div>
+                <div class="ld-hidden"></div>
+            </div>
+            <div class="part-effect-target"></div>
+        </div>
+    `;
+
+        // AOI input in hidden wrapper hangen
+        const hiddenWrapper = card.querySelector('.instrument-part-region .ld-hidden');
+        hiddenWrapper.appendChild(areaField);
+
+        const tilesDiv = card.querySelector('.instrument-part-region .aoi-tiles');
+        tilesDiv.dataset.inputId = areaField.id;
+        // optioneel: nog steeds een uniek id geven
+        tilesDiv.id = `aoi-tiles-${trackIdx}-${pIndex}`;
+
+        // targetBinding hidden + select voor effect/seq
+        const targetContainer = card.querySelector('.part-effect-target');
+        if (targetField) {
+            targetField.classList.add('js-target-binding-hidden');
+            targetContainer.appendChild(targetField);
+        }
+
+        const select = document.createElement('select');
+        select.className = 'js-target-effect-param';
+        if (targetField) {
+            select.dataset.bindInput = targetField.id;
+        }
+        targetContainer.appendChild(select);
+
+        partsContainer.appendChild(card);
+        partsContainer.dataset.index = String(pIndex + 1);
+
+        return card;
+    }
+
     function ensureAtLeastOnePart(card, trackIdx) {
         const partsContainer = card.querySelector('#parts-' + trackIdx);
         if (!partsContainer) return;
 
-        // als er al parts zijn, klaar
+        // als er al parts zijn, niets doen
         if (card.querySelectorAll('.instrument-part').length > 0) return;
 
         const pIndex = parseInt(partsContainer.dataset.index || '0', 10);
-        const proto  = partsContainer.dataset.prototype?.replace(/__name__/g, pIndex);
-        if (!proto) return;
+        const newCard = createInstrumentPart(partsContainer, trackIdx, pIndex);
+        if (!newCard) return;
 
-        // proto is enkel het form field (TextType). We bouwen er dezelfde wrapper omheen als Twig.
-        const tmp = document.createElement('div');
-        tmp.innerHTML = proto.trim();
-        const partField = tmp.firstElementChild;
-        if (!partField) return;
+        const trackCard = card.closest('.track-card') || card;
 
-        const wrap = document.createElement('div');
-        wrap.className = 'instrument-part';
-        wrap.dataset.partIndex = String(pIndex);
+        // AOI-tiles voor alle parts in deze track opnieuw bouwen
+        buildAoiTiles(trackCard, trackIdx);
 
-        wrap.innerHTML = `
-        <div class="label-with-tiles">
-            <label class="label">Area of interest (part ${pIndex + 1})</label>
-            <div id="aoi-tiles-${trackIdx}-${pIndex}"
-                 class="aoi-tiles"
-                 data-input-id=""></div>
-        </div>
-        <div class="ld-hidden"></div>
-    `;
+        // Effect-parameterselects vullen op basis van huidige effecten (uit effectsSettings.js)
+        if (typeof refreshTrackPartSelects === 'function') {
+            refreshTrackPartSelects(trackCard);
+        }
 
-        wrap.querySelector('.ld-hidden').appendChild(partField);
-
-        const tilesDiv = wrap.querySelector('.aoi-tiles');
-        tilesDiv.dataset.inputId = partField.id;
-
-        partsContainer.appendChild(wrap);
-        partsContainer.dataset.index = String(pIndex + 1);
+        // select → hidden sync (targetBinding)
+        newCard.querySelectorAll('select.js-target-effect-param').forEach(sel => {
+            sel.addEventListener('change', () => {
+                if (typeof syncBindingToHidden === 'function') {
+                    syncBindingToHidden(sel);
+                }
+            });
+        });
     }
 
     function wireNewTrackCard(card, idx) {
@@ -395,6 +491,42 @@
 
     window.removeTrack = function(btn) {
         btn.closest('.track-card')?.remove();
+    };
+
+    // Publieke helper voor de "+ Nieuw instrument part" knop
+    window.addInstrumentPart = function(trackIdx) {
+        const tracksContainer = document.getElementById(TRACKS_CONTAINER_ID);
+        if (!tracksContainer) return;
+
+        const cards = tracksContainer.querySelectorAll('.track-card');
+        const card = cards[trackIdx];
+        if (!card) return;
+
+        const partsContainer = card.querySelector('#parts-' + trackIdx);
+        if (!partsContainer) return;
+
+        const pIndex = parseInt(partsContainer.dataset.index || '0', 10);
+        const newCard = createInstrumentPart(partsContainer, trackIdx, pIndex);
+        if (!newCard) return;
+
+        const trackCard = card;
+
+        // AOI-tiles opnieuw opbouwen voor deze track
+        buildAoiTiles(trackCard, trackIdx);
+
+        // Effect-parameter-selecten updaten
+        if (typeof refreshTrackPartSelects === 'function') {
+            refreshTrackPartSelects(trackCard);
+        }
+
+        // select → hidden sync
+        newCard.querySelectorAll('select.js-target-effect-param').forEach(sel => {
+            sel.addEventListener('change', () => {
+                if (typeof syncBindingToHidden === 'function') {
+                    syncBindingToHidden(sel);
+                }
+            });
+        });
     };
 
     // ---------- INIT ----------

@@ -222,29 +222,50 @@
         </div>
 
         {# -- InstrumentParts -- #}
-        <div class="subsection">
+        <div class="subsection instrument-parts-panel">
 
-            {# Koppen voor beide kolommen, zelfde opmaak en hoogte #}
-            <div class="instrument-parts-header">
-                <label class="label">Actieve regio's</label>
-                <label class="label">Wat stuurt deze regio aan</label>
+            {# header: titel + knop rechts #}
+            <div class="instrument-parts-header-row">
+                <label class="label">Instrument regio's</label>
+
+                <button
+                        type="button"
+                        class="btn instrument-parts-add-btn"
+                        onclick="addInstrumentPart('{{ index }}')"
+                >
+                    + Ragio toevoegen
+                </button>
             </div>
 
+            {# Symfony-collection container met prototype #}
             <div id="parts-{{ index }}"
-                 class="parts"
+                 class="instrument-parts"
                  data-index="{{ trackForm.instrumentParts|length }}"
                  data-prototype="{{ form_widget(trackForm.instrumentParts.vars.prototype)|e('html_attr') }}">
             </div>
 
+            {# Bestaande parts (server-side gerenderd) #}
             {% for partForm in trackForm.instrumentParts %}
-                {# Bepaal binding-code vanuit het hidden formveld.
-       In de controller hebben we targetBinding al gezet op "effect:ID" of "seq:velocity". #}
                 {% set bindingCode = partForm.targetBinding.vars.data ?? null %}
 
                 <div class="instrument-part" data-part-index="{{ loop.index0 }}">
 
+                    {# Kopregel: labels links, verwijder-knop rechts #}
+                    <div class="instrument-part-header-row">
+                        <div class="instrument-parts-header">
+                            <label class="label">Actieve regio delen</label>
+                            <label class="label">Wat stuurt deze regio aan</label>
+                        </div>
+
+                        <button type="button"
+                                class="btn-mini danger instrument-part-remove"
+                                onclick="removeInstrumentPart(this)">
+                            Verwijder
+                        </button>
+                    </div>
+
                     <div class="instrument-part-grid">
-                        {# LINKER kolom: actieve regio (tegels) #}
+                        {# LINKER kolom: AOI tegels #}
                         <div class="instrument-part-region">
                             <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
                                  class="aoi-tiles"
@@ -255,25 +276,23 @@
                             </div>
                         </div>
 
-                        {# RECHTER kolom: wat stuurt deze regio aan #}
+                        {# RECHTER kolom: target binding #}
                         <div class="part-effect-target">
-                            {# Hidden veld dat de binding-code draagt (wordt door JS gesynchroniseerd) #}
                             {{ form_widget(partForm.targetBinding, {
                                 attr: {
                                     class: (partForm.targetBinding.vars.attr.class|default('') ~ ' js-target-binding-hidden')|trim
                                 }
                             }) }}
-                            {# Zichtbare select die JS volledig mag beheren #}
+
                             <select
                                     class="js-target-effect-param"
                                     data-current-id="{{ bindingCode }}"
                                     data-bind-input="{{ partForm.targetBinding.vars.id }}"
-                            >
-                                {# JS vult options/optgroups in #}
-                            </select>
+                            ></select>
                         </div>
                     </div>
                 </div>
+
             {% endfor %}
 
             {% do trackForm.instrumentParts.setRendered %}
