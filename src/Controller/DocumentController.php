@@ -6,6 +6,7 @@ namespace App\Controller;
 use App\Entity\Asset;
 use App\Entity\Document;
 use App\Entity\EffectSettingsKeyValue;
+use App\Entity\InstrumentPart;
 use App\Form\DocumentFormType;
 use App\Form\NewDocumentFormType;
 use App\Midi\MidiAnalyzer;
@@ -112,14 +113,36 @@ final class DocumentController extends AbstractController
                     $parts = array_values($track->getInstrumentParts()->toArray());
 
                     foreach ($parts as $pIndex => $part) {
-                        if (!isset($partsForm[$pIndex]) || !$partsForm[$pIndex]->has('areaOfInterest')) {
+                        if (!isset($partsForm[$pIndex])) {
                             continue;
                         }
 
-                        $aoi = $part->getAreaOfInterest() ?? [];
-                        if (!empty($aoi)) {
-                            $raw = '[' . implode(',', array_map('intval', $aoi)) . ']';
-                            $partsForm[$pIndex]->get('areaOfInterest')->setData($raw);
+                        $partForm = $partsForm[$pIndex];
+
+                        // AOI → string voor het formulier
+                        if ($partForm->has('areaOfInterest')) {
+                            $aoi = $part->getAreaOfInterest() ?? [];
+                            if (!empty($aoi)) {
+                                $raw = '[' . implode(',', array_map('intval', $aoi)) . ']';
+                                $partForm->get('areaOfInterest')->setData($raw);
+                            }
+                        }
+
+                        // 🔹 targetBinding → "effect:ID" of "seq:velocity"
+                        if ($partForm->has('targetBinding')) {
+                            $binding = null;
+
+                            if ($part->getTargetType() === InstrumentPart::TARGET_TYPE_EFFECT
+                                && $part->getTargetEffectParam()
+                            ) {
+                                $binding = 'effect:' . $part->getTargetEffectParam()->getId();
+                            } elseif ($part->getTargetType() === InstrumentPart::TARGET_TYPE_SEQUENCER
+                                && $part->getTargetSequencerParam()
+                            ) {
+                                $binding = 'seq:' . $part->getTargetSequencerParam(); // "seq:velocity"
+                            }
+
+                            $partForm->get('targetBinding')->setData($binding);
                         }
                     }
                 }
@@ -179,6 +202,39 @@ final class DocumentController extends AbstractController
                         if ($partForm && $partForm->has('areaOfInterest')) {
                             $rawAoi = $partForm->get('areaOfInterest')->getData();
                             $part->setAreaOfInterest($rawAoi);
+                        }
+
+                        // 🔹 targetBinding → targetType + effect/sequencer param
+                        if ($partForm && $partForm->has('targetBinding')) {
+                            /** @var string|null $binding */
+                            $binding = $partForm->get('targetBinding')->getData();
+
+                            // reset alles
+                            $part->setTargetType(InstrumentPart::TARGET_TYPE_NONE);
+                            $part->setTargetEffectParam(null);
+                            $part->setTargetSequencerParam(null);
+
+                            if (is_string($binding) && $binding !== '') {
+                                if (str_starts_with($binding, 'effect:')) {
+                                    $id = (int) substr($binding, strlen('effect:'));
+                                    if ($id > 0) {
+                                        $kvRepo = $this->em->getRepository(EffectSettingsKeyValue::class);
+                                        $kv = $kvRepo->find($id);
+                                        if ($kv) {
+                                            $part
+                                                ->setTargetType(InstrumentPart::TARGET_TYPE_EFFECT)
+                                                ->setTargetEffectParam($kv);
+                                        }
+                                    }
+                                } elseif (str_starts_with($binding, 'seq:')) {
+                                    $param = substr($binding, strlen('seq:')) ?: null;
+                                    if ($param === 'velocity') {
+                                        $part
+                                            ->setTargetType(InstrumentPart::TARGET_TYPE_SEQUENCER)
+                                            ->setTargetSequencerParam('velocity');
+                                    }
+                                }
+                            }
                         }
 
                         // AOI resizen...

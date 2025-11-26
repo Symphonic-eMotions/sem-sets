@@ -221,9 +221,6 @@
             {% do trackForm.trackEffects.setRendered %}
         </div>
 
-
-
-        {# -- InstrumentParts -- #}
         {# -- InstrumentParts -- #}
         <div class="subsection">
 
@@ -240,12 +237,9 @@
             </div>
 
             {% for partForm in trackForm.instrumentParts %}
-                {% set partEntity = partForm.vars.data %}
-                {% set currentTargetId =
-                    partEntity and partEntity.targetEffectParam
-                    ? partEntity.targetEffectParam.id
-                    : null
-                %}
+                {# Bepaal binding-code vanuit het hidden formveld.
+       In de controller hebben we targetBinding al gezet op "effect:ID" of "seq:velocity". #}
+                {% set bindingCode = partForm.targetBinding.vars.data ?? null %}
 
                 <div class="instrument-part" data-part-index="{{ loop.index0 }}">
 
@@ -263,12 +257,20 @@
 
                         {# RECHTER kolom: wat stuurt deze regio aan #}
                         <div class="part-effect-target">
-                            {{ form_widget(partForm.targetEffectParam, {
+                            {# Hidden veld dat de binding-code draagt (wordt door JS gesynchroniseerd) #}
+                            {{ form_widget(partForm.targetBinding, {
                                 attr: {
-                                    class: (partForm.targetEffectParam.vars.attr.class|default('') ~ ' js-target-effect-param')|trim,
-                                    'data-current-id': currentTargetId
+                                    class: (partForm.targetBinding.vars.attr.class|default('') ~ ' js-target-binding-hidden')|trim
                                 }
                             }) }}
+                            {# Zichtbare select die JS volledig mag beheren #}
+                            <select
+                                    class="js-target-effect-param"
+                                    data-current-id="{{ bindingCode }}"
+                                    data-bind-input="{{ partForm.targetBinding.vars.id }}"
+                            >
+                                {# JS vult options/optgroups in #}
+                            </select>
                         </div>
                     </div>
                 </div>

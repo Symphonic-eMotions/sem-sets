@@ -13,28 +13,45 @@ function parseEffectsData(trackCard) {
 }
 
 function buildGroupedOptions(effectsData) {
-    // [{ label, presetId, options:[{id,text}] }]
-    return effectsData.map(eff => ({
+    const groups = effectsData.map(eff => ({
         label: eff.effectName,
         presetId: eff.presetId,
         options: (eff.params || []).map(p => ({
-            id: String(p.id),
+            // Binding-code: effect:<id>
+            id: 'effect:' + String(p.id),
             text: p.key
         }))
     }));
+
+    // Vaste Sequencer-groep
+    groups.push({
+        label: 'Sequencer',
+        presetId: null,
+        options: [
+            { id: 'seq:velocity', text: 'Velocity' }
+        ]
+    });
+
+    return groups;
+}
+
+function syncBindingToHidden(selectEl) {
+    const hiddenId = selectEl.dataset.bindInput;
+    if (!hiddenId) return;
+
+    const hidden = document.getElementById(hiddenId);
+    if (!hidden) return;
+
+    hidden.value = selectEl.value || '';
 }
 
 function fillPartSelect(selectEl, grouped) {
-    // Huidige waarde:
-    // - van de server (data-current-id)
-    // - of uit de DOM (net gekozen in de UI)
     const currentFromData  = selectEl.dataset.currentId || null;
     const currentFromValue = selectEl.value || null;
     const currentValue     = currentFromData || currentFromValue || null;
 
     selectEl.innerHTML = '';
 
-    // Placeholder
     const ph = document.createElement('option');
     ph.value = '';
     ph.textContent = '— kies parameter —';
@@ -49,7 +66,7 @@ function fillPartSelect(selectEl, grouped) {
 
         group.options.forEach(opt => {
             const o = document.createElement('option');
-            o.value = opt.id;
+            o.value = opt.id;      // "effect:123" of "seq:velocity"
             o.textContent = opt.text;
             if (currentValue && currentValue === opt.id) {
                 o.selected = true;
@@ -60,10 +77,12 @@ function fillPartSelect(selectEl, grouped) {
         selectEl.appendChild(optgroup);
     });
 
-    // Als de opgeslagen ID niet meer bestaat → reset naar leeg
     if (currentValue && selectEl.value !== currentValue) {
         selectEl.value = '';
     }
+
+    // Zorg dat hidden veld direct in sync is
+    syncBindingToHidden(selectEl);
 }
 
 function refreshTrackPartSelects(trackCard) {
@@ -101,16 +120,15 @@ function canRemoveEffectCard(trackCard, presetIdToRemove) {
     if (!presetIdToRemove) return true;
 
     // alle gekozen target params in parts
+    // alleen effect-bindings meenemen: "effect:<id>"
     const usedParamIds = new Set(
         Array.from(trackCard.querySelectorAll('select.js-target-effect-param'))
             .map(s => s.value)
-            .filter(v => v)
+            .filter(v => v && v.startsWith('effect:'))
+            .map(v => v.substring('effect:'.length))
     );
 
     if (!usedParamIds.size) return true;
-
-    const presetInfo = window.EFFECT_PRESET_MAP?.[presetIdToRemove];
-    if (!presetInfo) return true;
 
     const presetParamIds = new Set(
         (presetInfo.params || []).map(p => String(p.id))
@@ -265,6 +283,15 @@ function initTrackCards() {
 
         // 3) watcher activeren zodat wijzigingen in effecten doorwerken
         attachEffectsWatcher(trackCard);
+
+        // 4) select → hidden sync bij change
+        trackCard
+            .querySelectorAll('select.js-target-effect-param')
+            .forEach(sel => {
+                sel.addEventListener('change', () => {
+                    syncBindingToHidden(sel);
+                });
+            });
     });
 }
 

@@ -1,16 +1,20 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Entity;
 
-use Doctrine\ORM\Mapping as ORM;
 use DateTimeImmutable;
+use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'instrument_parts')]
+#[ORM\HasLifecycleCallbacks]
 class InstrumentPart
 {
+    public const TARGET_TYPE_NONE      = 'none';
+    public const TARGET_TYPE_EFFECT    = 'effect';
+    public const TARGET_TYPE_SEQUENCER = 'sequencer';
+
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(type: 'integer')]
     private ?int $id = null;
 
@@ -25,9 +29,16 @@ class InstrumentPart
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $areaOfInterest = [];
 
+    #[ORM\Column(type: 'string', length: 20, options: ['default' => 'none'])]
+    private string $targetType = self::TARGET_TYPE_NONE;
+
     #[ORM\ManyToOne(targetEntity: EffectSettingsKeyValue::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?EffectSettingsKeyValue $targetEffectParam = null;
+
+    // voor nu alleen "velocity", maar later kun je hier "swing", "gate", etc. aan toevoegen
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
+    private ?string $targetSequencerParam = null;
 
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
@@ -131,6 +142,19 @@ class InstrumentPart
         return $n > 0 ? $n : 1;
     }
 
+    // --- nieuwe target-velden ---
+
+    public function getTargetType(): string
+    {
+        return $this->targetType;
+    }
+
+    public function setTargetType(string $type): self
+    {
+        $this->targetType = $type;
+        return $this;
+    }
+
     public function getTargetEffectParam(): ?EffectSettingsKeyValue
     {
         return $this->targetEffectParam;
@@ -141,6 +165,19 @@ class InstrumentPart
         $this->targetEffectParam = $kv;
         return $this;
     }
+
+    public function getTargetSequencerParam(): ?string
+    {
+        return $this->targetSequencerParam;
+    }
+
+    public function setTargetSequencerParam(?string $param): self
+    {
+        $this->targetSequencerParam = $param;
+        return $this;
+    }
+
+    // --- overig ---
 
     public function getPosition(): int
     {

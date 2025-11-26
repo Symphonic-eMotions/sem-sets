@@ -7,8 +7,6 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Entity\Document;
-use App\Entity\InstrumentPart;
-use App\Enum\SemVersion;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
