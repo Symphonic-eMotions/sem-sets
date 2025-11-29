@@ -206,32 +206,37 @@ final class DocumentController extends AbstractController
 
                         // 🔹 targetBinding → targetType + effect/sequencer param
                         if ($partForm && $partForm->has('targetBinding')) {
+
                             /** @var string|null $binding */
                             $binding = $partForm->get('targetBinding')->getData();
 
-                            // reset alles
+                            // Sla raw binding op voor JSON-export
+                            $part->setTargetBinding($binding);
+
+                            // reset
                             $part->setTargetType(InstrumentPart::TARGET_TYPE_NONE);
                             $part->setTargetEffectParam(null);
                             $part->setTargetSequencerParam(null);
 
                             if (is_string($binding) && $binding !== '') {
+
                                 if (str_starts_with($binding, 'effect:')) {
-                                    $id = (int) substr($binding, strlen('effect:'));
+                                    $id = (int) substr($binding, 7);
                                     if ($id > 0) {
                                         $kvRepo = $this->em->getRepository(EffectSettingsKeyValue::class);
                                         $kv = $kvRepo->find($id);
                                         if ($kv) {
-                                            $part
-                                                ->setTargetType(InstrumentPart::TARGET_TYPE_EFFECT)
-                                                ->setTargetEffectParam($kv);
+                                            $part->setTargetType(InstrumentPart::TARGET_TYPE_EFFECT);
+                                            $part->setTargetEffectParam($kv);
                                         }
                                     }
-                                } elseif (str_starts_with($binding, 'seq:')) {
-                                    $param = substr($binding, strlen('seq:')) ?: null;
+                                }
+
+                                elseif (str_starts_with($binding, 'seq:')) {
+                                    $param = substr($binding, 4) ?: null;
                                     if ($param === 'velocity') {
-                                        $part
-                                            ->setTargetType(InstrumentPart::TARGET_TYPE_SEQUENCER)
-                                            ->setTargetSequencerParam('velocity');
+                                        $part->setTargetType(InstrumentPart::TARGET_TYPE_SEQUENCER);
+                                        $part->setTargetSequencerParam('velocity');
                                     }
                                 }
                             }
@@ -616,6 +621,11 @@ final class DocumentController extends AbstractController
         $bpm            = (float) $doc->getSetBPM();
         $levelDurations = array_map('intval', $doc->getLevelDurations());
 
+        // Grid voor AOI
+        $cols  = (int) ($doc->getGridColumns() ?? 1);
+        $rows  = (int) ($doc->getGridRows() ?? 1);
+        $cells = max(1, $cols * $rows);
+
         $instrumentsConfig = [];
 
         foreach ($doc->getTracks() as $t) {
@@ -641,7 +651,7 @@ final class DocumentController extends AbstractController
                 $midi[] = [
                     'midiFileName' => $name,
                     'midiFileExt'  => $ext,
-                    'loopLength'   => $loopLength,  // <-- hier komt nu [100] of [48,48] etc.
+                    'loopLength'   => $loopLength,  // bv [56] of [48,48]
                 ];
             }
 
@@ -657,7 +667,7 @@ final class DocumentController extends AbstractController
                     'exsFileName' => $exsPreset,
                 ]];
                 $instrumentType = 'exsSampler';
-                $exsLabel       = $this->humanizeLabel($exsPreset); // "Cellos Legato", "Advanced FM", etc.
+                $exsLabel       = $this->humanizeLabel($exsPreset); // "Cellos Legato", ...
             }
 
             // 4) Track / instrument naam opbouwen
@@ -674,38 +684,102 @@ final class DocumentController extends AbstractController
                 $instrumentName = $this->humanizeLabel($t->getTrackId() ?? '') ?? $t->getTrackId();
             }
 
+            // -----------------------------------------------------------------
+            // 4a) Effects-config (zoals je al had) + binding-map voor parts
+            // -----------------------------------------------------------------
             $effectsConfig = [];
+            $bindingMap    = [];
+
             foreach ($t->getTrackEffects() as $te) {
                 $preset = $te->getPreset();
-                if (!$preset) continue;
+                if (!$preset) {
+                    continue;
+                }
 
-                $effectsConfig[] = [
-                    'name'   => $preset->getName(),
-                    'config' => $preset->getConfig(),
-                ];
+                $config = $preset->getConfig(); // Compleet effect uit config
+                if (is_array($config)) {
+                    $effectsConfig[] = $config;
+                }
+
+
+                // Effect-naam zoals in Twig (name override via TYPE_NAME)
+                $effectName = $preset->getName();
+                if (method_exists($preset, 'getKeysValues')) {
+                    foreach ($preset->getKeysValues() as $kv) {
+                        if ($kv->getType() === 'name' && $kv->getValue() !== null) {
+                            $effectName = $kv->getValue();
+                        }
+                    }
+
+                    // Parameters → binding-map
+                    foreach ($preset->getKeysValues() as $kv) {
+                        if ($kv->getType() !== 'parameter') {
+                            continue;
+                        }
+
+                        $bindingKey = 'effect:' . $kv->getId();
+
+                        $bindingMap[$bindingKey] = [
+                            'nodeType'  => 'effect',
+                            'nodeName'  => $effectName,        // parent van de parameter
+                            'parameter' => $kv->getKeyName(),  // bv "cutoffFrequency"
+                        ];
+                    }
+                }
             }
 
+            // Vaste sequencer-binding (voor "Velocity")
+            $bindingMap['seq:velocity'] = [
+                'nodeType'  => 'sequencer',
+                'nodeName'  => '',
+                'parameter' => 'velocity',
+            ];
+
+            // -----------------------------------------------------------------
+            // 4b) InstrumentParts + damperTarget
+            // -----------------------------------------------------------------
+            $gridCells = max(
+                1,
+                (int) $doc->getGridColumns() * (int) $doc->getGridRows()
+            );
             $partsConfig = [];
+
             foreach ($t->getInstrumentParts() as $part) {
-                $aoi = $part->getAreaOfInterest();
-                $aoi = array_values(array_map('intval', $aoi));
+
+                $aoiRaw = $part->getAreaOfInterest();
+                $aoi = $this->parseAreaOfInterest($aoiRaw, $gridCells);
+
+                $bindingCode  = $part->getTargetBinding() ?: null;
+
+                $damperTarget = null;
+                if ($bindingCode && isset($bindingMap[$bindingCode])) {
+                    $meta = $bindingMap[$bindingCode];
+
+                    $damperTarget = [
+                        'nodeType'  => $meta['nodeType'],       // "effect" of "sequencer"
+                        'parameter' => $meta['parameter'],      // bv "cutoffFrequency" of "velocity"
+                        'trackId'   => $t->getTrackId(),        // track waar de part in zit
+                        'nodeName'  => $meta['nodeName'],       // effectName of "" bij sequencer
+                    ];
+                }
 
                 $partsConfig[] = [
                     'areaOfInterest' => $aoi,
-                    // later: instrumentPartName, damperTarget, mapMaxIndex, dontDrawVisual, etc.
+                    'damperTarget'   => $damperTarget,
+                    // later: instrumentPartName, dontDrawVisual, mapMaxIndex, ...
                 ];
             }
 
             // 5) Instrument-config entry
             $instrumentsConfig[] = [
-                'trackId'        => $t->getTrackId(),
-                'levels'         => array_values(array_map('intval', $t->getLevels())),
-                'midiFiles'      => $midi,
-                'instrumentType' => $instrumentType,   // null of 'exsSampler'
-                'exsFiles'       => $exsFiles,         // null of array
-                'instrumentName' => $instrumentName,
+                'trackId'         => $t->getTrackId(),
+                'levels'          => array_values(array_map('intval', $t->getLevels())),
+                'midiFiles'       => $midi,
+                'instrumentType'  => $instrumentType,   // null of 'exsSampler'
+                'exsFiles'        => $exsFiles,         // null of array
+                'instrumentName'  => $instrumentName,
                 'instrumentParts' => $partsConfig,
-                'effects'        => $effectsConfig,
+                'effects'         => $effectsConfig,
             ];
         }
 
@@ -724,6 +798,69 @@ final class DocumentController extends AbstractController
             $payload,
             JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_PRETTY_PRINT
         );
+    }
+
+    /**
+     * Normaliseert areaOfInterest naar een binaire array met vaste lengte.
+     *
+     * @param string|array<int,int>|null $raw
+     * @param int                        $expectedCells totaal aantal grid-cellen (cols * rows)
+     *
+     * @return array<int,int> 0/1 per cel
+     */
+    private function parseAreaOfInterest($raw, int $expectedCells): array
+    {
+        $values = [];
+
+        // 1) Als het al een array is (Doctrine json type), direct normaliseren
+        if (is_array($raw)) {
+            $values = array_map('intval', $raw);
+        }
+
+        // 2) Als het een string is (bijv. "[1,0,1]" of "1,0,1")
+        elseif (is_string($raw)) {
+            $str = trim($raw);
+            if ($str !== '') {
+                if (str_starts_with($str, '[')) {
+                    // JSON-array
+                    $decoded = json_decode($str, true);
+                    if (is_array($decoded)) {
+                        $values = array_map('intval', $decoded);
+                    }
+                } else {
+                    // "1,0,1" → explode
+                    $parts  = explode(',', $str);
+                    $values = array_map('intval', $parts);
+                }
+            }
+        }
+
+        // Alles wat geen array/string is → lege array
+        // (bijv. null, of foute data)
+        // -> laten we gewoon als [] staan
+
+        // 3) Binaire normalisatie: alles naar 0/1
+        $values = array_map(static function ($v) {
+            return (intval($v) === 1) ? 1 : 0;
+        }, $values);
+
+        // 4) Lengte corrigeren naar expectedCells
+        if ($expectedCells > 0) {
+            // te lang → afkappen
+            $values = array_slice($values, 0, $expectedCells);
+
+            $len = count($values);
+
+            if ($len === 0) {
+                // leeg → default: alles aan
+                $values = array_fill(0, $expectedCells, 1);
+            } elseif ($len < $expectedCells) {
+                // te kort → aanvullen met nullen
+                $values = array_pad($values, $expectedCells, 0);
+            }
+        }
+
+        return array_values($values);
     }
 
     /**

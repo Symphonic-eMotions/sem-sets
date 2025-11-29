@@ -36,9 +36,12 @@ class InstrumentPart
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?EffectSettingsKeyValue $targetEffectParam = null;
 
-    // voor nu alleen "velocity", maar later kun je hier "swing", "gate", etc. aan toevoegen
+    // Voor nu alleen "velocity", maar later kun je hier "swing", "gate", etc. aan toevoegen
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $targetSequencerParam = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $targetBinding = null;
 
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
@@ -174,6 +177,18 @@ class InstrumentPart
     public function setTargetSequencerParam(?string $param): self
     {
         $this->targetSequencerParam = $param;
+        return $this;
+    }
+
+    public function getTargetBinding(): ?string
+    {
+        return $this->targetBinding;
+    }
+
+    public function setTargetBinding(?string $targetBinding): self
+    {
+        $this->targetBinding = $targetBinding;
+
         return $this;
     }
 
