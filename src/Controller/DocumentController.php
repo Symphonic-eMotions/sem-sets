@@ -621,13 +621,7 @@ final class DocumentController extends AbstractController
         $bpm            = (float) $doc->getSetBPM();
         $levelDurations = array_map('intval', $doc->getLevelDurations());
 
-        // Grid voor AOI
-        $cols  = (int) ($doc->getGridColumns() ?? 1);
-        $rows  = (int) ($doc->getGridRows() ?? 1);
-        $cells = max(1, $cols * $rows);
-
         $instrumentsConfig = [];
-
         foreach ($doc->getTracks() as $t) {
             // 1) LoopLength ophalen (altijd array<int>)
             $loopLength = method_exists($t, 'getLoopLength')
@@ -700,7 +694,6 @@ final class DocumentController extends AbstractController
                 if (is_array($config)) {
                     $effectsConfig[] = $config;
                 }
-
 
                 // Effect-naam zoals in Twig (name override via TYPE_NAME)
                 $effectName = $preset->getName();

@@ -169,6 +169,16 @@
             <div class="bottom-bar-actions">
                 <div class="bottom-bar-published">
                     {{ publishedRow|raw }}
+                    <a
+                            href="{{ path('doc_api_json', { id: document.id }) }}"
+                            title="Download laatst opgeslagen JSON voor deze set"
+                            style="
+                                padding-left: 4px;
+                                text-decoration:none;
+                                font-size: 13px;
+                                color: var(--muted);
+                                "
+                    >⬇️<span style="padding-left: 10px;">Download</span></a>
                 </div>
 
                 <button class="btn" type="submit" form="document-form">Opslaan</button>

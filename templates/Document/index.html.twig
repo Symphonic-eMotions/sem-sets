@@ -26,7 +26,6 @@
                     <tr>
                         <th>Titel</th>
                         <th>Tracks</th>
-                        <th>Download</th>
                         <th>Status</th>
                         <th style="width:280px">Acties</th>
                     </tr>JSON
@@ -49,18 +48,12 @@
                                 </span>
                             </td>
 
-                            {# Link naar JSON API voor deze set, als knop met slug-tekst #}
                             <td>
                                 <a
-                                        class="btn secondary"
-                                        href="{{ path('doc_api_json', { id: d.id }) }}"
-                                        title="Download JSON voor deze set"
-                                >
-                                    {{ d.slug ?: 'download-json' }}
-                                </a>
-                            </td>
-
-                            <td>
+                                    href="{{ path('doc_api_json', { id: d.id }) }}"
+                                    title="Download JSON voor deze set"
+                                    style="text-decoration:none; margin-right: 8px"
+                                >⬇️</a>
                                 {% if d.published %}
                                     <span class="pill">Live</span>
                                 {% else %}
