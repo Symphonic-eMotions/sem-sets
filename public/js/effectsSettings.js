@@ -17,18 +17,18 @@ function buildGroupedOptions(effectsData) {
         label: eff.effectName,
         presetId: eff.presetId,
         options: (eff.params || []).map(p => ({
-            // Binding-code: effect:<id>
             id: 'effect:' + String(p.id),
-            text: p.key
+            text: p.key,
+            range: Array.isArray(p.range) ? p.range : null
         }))
     }));
 
-    // Vaste Sequencer-groep
+    // Sequencer: velocity krijgt standaard een range [0,1]
     groups.push({
         label: 'Sequencer',
         presetId: null,
         options: [
-            { id: 'seq:velocity', text: 'Velocity' }
+            { id: 'seq:velocity', text: 'Velocity', range: [0, 1] }
         ]
     });
 
@@ -89,6 +89,18 @@ function refreshTrackPartSelects(trackCard) {
     const effectsData = parseEffectsData(trackCard);
     const grouped = buildGroupedOptions(effectsData);
 
+    // --- Nieuw: rangeMap per track ---
+    const rangeMap = {};
+    grouped.forEach(group => {
+        (group.options || []).forEach(opt => {
+            if (opt.range) {
+                rangeMap[opt.id] = opt.range;    // bv "effect:13" → [10,20000]
+            }
+        });
+    });
+    trackCard.rangeMap = rangeMap; // opslaan op trackCard DOM node
+
+    // Bestaande select-vuller
     trackCard
         .querySelectorAll('select.js-target-effect-param')
         .forEach(sel => fillPartSelect(sel, grouped));
@@ -141,6 +153,59 @@ function canRemoveEffectCard(trackCard, presetIdToRemove) {
     }
 
     return true;
+}
+
+function formatRangeValue(v) {
+    const num = Number(v);
+    if (!Number.isFinite(num)) return '';
+
+    if (Math.abs(num) >= 1000) {
+        return String(Math.round(num));
+    }
+    if (Math.abs(num) >= 10) {
+        return num.toFixed(1);
+    }
+    return num.toFixed(3)
+        .replace(/0+$/, '')
+        .replace(/\.$/, '');
+}
+
+function wireRangeSliders(container) {
+    if (container.dataset.rangeSlidersWired === '1') return;
+    container.dataset.rangeSlidersWired = '1';
+
+    const lowSlider  = container.querySelector('.range-low');
+    const highSlider = container.querySelector('.range-high');
+    const lowHidden  = container.querySelector('.range-low-hidden');
+    const highHidden = container.querySelector('.range-high-hidden');
+    const lowLabel   = container.querySelector('.range-label-low-value');
+    const highLabel  = container.querySelector('.range-label-high-value');
+
+    if (!lowSlider || !highSlider || !lowHidden || !highHidden) return;
+
+    const updateFromSliders = () => {
+        const minVal = parseFloat(container.dataset.rangeMin ?? '');
+        const maxVal = parseFloat(container.dataset.rangeMax ?? '');
+
+        if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || maxVal === minVal) {
+            return;
+        }
+
+        const lowNorm  = Math.min(1, Math.max(0, parseFloat(lowSlider.value  || '0')));
+        const highNorm = Math.min(1, Math.max(0, parseFloat(highSlider.value || '1')));
+
+        const lowRaw  = minVal + (maxVal - minVal) * lowNorm;
+        const highRaw = minVal + (maxVal - minVal) * highNorm;
+
+        lowHidden.value  = String(lowRaw);
+        highHidden.value = String(highRaw);
+
+        if (lowLabel)  lowLabel.textContent  = formatRangeValue(lowRaw);
+        if (highLabel) highLabel.textContent = formatRangeValue(highRaw);
+    };
+
+    lowSlider.addEventListener('input', updateFromSliders);
+    highSlider.addEventListener('input', updateFromSliders);
 }
 
 // ------------ Wiring van individuele effect-cards ------------
@@ -271,6 +336,200 @@ function initEffectsCollections() {
     });
 }
 
+function applyRangeForSelect(selectEl) {
+    const trackCard = selectEl.closest('.track-card');
+    if (!trackCard || !trackCard.rangeMap) return;
+
+    const selected  = selectEl.value;
+    const container = selectEl.closest('.part-effect-target');
+    if (!container) return;
+
+    const lowSlider  = container.querySelector('.range-low');
+    const highSlider = container.querySelector('.range-high');
+    const lowHidden  = container.querySelector('.range-low-hidden');
+    const highHidden = container.querySelector('.range-high-hidden');
+    const lowLabel   = container.querySelector('.range-label-low-value');
+    const highLabel  = container.querySelector('.range-label-high-value');
+
+    if (!lowSlider || !highSlider || !lowHidden || !highHidden) return;
+
+    // --- Nieuw: binding-state per container ---
+    const previousBinding   = container.dataset.currentBinding || null;
+    const currentBinding    = selected || '';
+    const firstTimeInit     = container.dataset.rangeInitialized !== '1';
+    const bindingHasChanged = !firstTimeInit && previousBinding !== currentBinding;
+
+    const range = trackCard.rangeMap[selected] || null;
+
+    // Geen range → alles uit
+    if (!range || !Array.isArray(range) || range.length !== 2) {
+        lowSlider.disabled = true;
+        highSlider.disabled = true;
+        container.dataset.rangeMin = '';
+        container.dataset.rangeMax = '';
+        lowHidden.value = '';
+        highHidden.value = '';
+        if (lowLabel)  lowLabel.textContent = '';
+        if (highLabel) highLabel.textContent = '';
+
+        container.dataset.currentBinding    = currentBinding;
+        container.dataset.rangeInitialized  = '1';
+        return;
+    }
+
+    const minVal = Number(range[0]);
+    const maxVal = Number(range[1]);
+
+    if (!Number.isFinite(minVal) || !Number.isFinite(maxVal) || maxVal === minVal) {
+        // Treat as no usable range
+        lowSlider.disabled = true;
+        highSlider.disabled = true;
+        container.dataset.rangeMin = '';
+        container.dataset.rangeMax = '';
+        lowHidden.value = '';
+        highHidden.value = '';
+        if (lowLabel)  lowLabel.textContent = '';
+        if (highLabel) highLabel.textContent = '';
+
+        container.dataset.currentBinding    = currentBinding;
+        container.dataset.rangeInitialized  = '1';
+        return;
+    }
+
+    container.dataset.rangeMin = String(minVal);
+    container.dataset.rangeMax = String(maxVal);
+
+    lowSlider.disabled  = false;
+    highSlider.disabled = false;
+
+    // Sliders werken altijd 0..1
+    lowSlider.min  = '0';
+    lowSlider.max  = '1';
+    highSlider.min = '0';
+    highSlider.max = '1';
+
+    // Probeer bestaande hidden waarden te gebruiken (bij edit),
+    // MAAR niet als we net naar een andere parameter zijn geswitcht.
+    let lowRaw  = parseFloat(lowHidden.value);
+    let highRaw = parseFloat(highHidden.value);
+
+    const hasStoredLow  = Number.isFinite(lowRaw);
+    const hasStoredHigh = Number.isFinite(highRaw);
+
+    if (bindingHasChanged) {
+        // Nieuwe parameter → reset naar volledige range
+        lowRaw  = minVal;
+        highRaw = maxVal;
+    } else {
+        // Init of zelfde binding → gebruik hidden/anders fallback
+        if (!hasStoredLow)  lowRaw  = minVal;
+        if (!hasStoredHigh) highRaw = maxVal;
+    }
+
+    const norm = (val) => Math.min(1, Math.max(0, (val - minVal) / (maxVal - minVal)));
+
+    lowSlider.value  = String(norm(lowRaw));
+    highSlider.value = String(norm(highRaw));
+
+    // Hidden & labels direct updaten
+    lowHidden.value  = String(lowRaw);
+    highHidden.value = String(highRaw);
+
+    if (lowLabel)  lowLabel.textContent  = formatRangeValue(lowRaw);
+    if (highLabel) highLabel.textContent = formatRangeValue(highRaw);
+
+    // Markeer als geïnitialiseerd en onthoud huidige binding
+    container.dataset.currentBinding   = currentBinding;
+    container.dataset.rangeInitialized = '1';
+}
+// ook exporteren voor gebruik in andere JS-files
+window.applyRangeForSelect = applyRangeForSelect;
+
+function ensureRangeControlsForTrackCard(trackCard) {
+    trackCard.querySelectorAll('.part-effect-target').forEach(container => {
+        if (container.dataset.rangeControlsAttached === '1') {
+            return;
+        }
+        container.dataset.rangeControlsAttached = '1';
+
+        // LOW slider + labels
+        const lowRow = document.createElement('div');
+        lowRow.className = 'range-row range-row-low';
+        lowRow.style.display = 'flex';
+        lowRow.style.alignItems = 'center';
+        lowRow.style.gap = '8px';
+        lowRow.style.marginTop = '6px';
+
+        const lowLabelLeft = document.createElement('span');
+        lowLabelLeft.className = 'range-label range-label-low-value';
+        lowLabelLeft.style.minWidth = '60px';
+
+        const lowSlider = document.createElement('input');
+        lowSlider.type = 'range';
+        lowSlider.className = 'range-slider range-low';
+        lowSlider.step = '0.001';
+        lowSlider.min = '0';
+        lowSlider.max = '1';
+        lowSlider.style.flex = '1';
+
+        const lowLabelRight = document.createElement('span');
+        lowLabelRight.className = 'range-label range-label-low-spacer';
+        lowLabelRight.style.minWidth = '60px';
+
+        lowRow.appendChild(lowLabelLeft);
+        lowRow.appendChild(lowSlider);
+        lowRow.appendChild(lowLabelRight);
+
+        // HIGH slider + labels
+        const highRow = document.createElement('div');
+        highRow.className = 'range-row range-row-high';
+        highRow.style.display = 'flex';
+        highRow.style.alignItems = 'center';
+        highRow.style.gap = '8px';
+        highRow.style.marginTop = '4px';
+        highRow.style.marginBottom = '2px';
+
+        const highLabelLeft = document.createElement('span');
+        highLabelLeft.className = 'range-label range-label-high-spacer';
+        highLabelLeft.style.minWidth = '60px';
+
+        const highSlider = document.createElement('input');
+        highSlider.type = 'range';
+        highSlider.className = 'range-slider range-high';
+        highSlider.step = '0.001';
+        highSlider.min = '0';
+        highSlider.max = '1';
+        highSlider.style.flex = '1';
+
+        const highLabelRight = document.createElement('span');
+        highLabelRight.className = 'range-label range-label-high-value';
+        highLabelRight.style.minWidth = '60px';
+
+        highRow.appendChild(highLabelLeft);
+        highRow.appendChild(highSlider);
+        highRow.appendChild(highLabelRight);
+
+        // Hidden fields voor opslag van echte waarden (NIET 0–1)
+        const lowHidden = document.createElement('input');
+        lowHidden.type = 'hidden';
+        lowHidden.className = 'range-low-hidden';
+
+        const highHidden = document.createElement('input');
+        highHidden.type = 'hidden';
+        highHidden.className = 'range-high-hidden';
+
+        container.appendChild(lowRow);
+        container.appendChild(highRow);
+        container.appendChild(lowHidden);
+        container.appendChild(highHidden);
+
+        wireRangeSliders(container);
+    });
+}
+
+// zodat leveldurationsTracksAOI.js hem kan aanroepen
+window.ensureRangeControlsForTrackCard = ensureRangeControlsForTrackCard;
+
 function initTrackCards() {
     document.querySelectorAll('.track-card').forEach(trackCard => {
         // 1) data-effects van Twig gebruiken (of, als leeg, zelf opbouwen)
@@ -281,16 +540,25 @@ function initTrackCards() {
         // 2) selects vullen (en bestaande keuzes selecteren via data-current-id)
         refreshTrackPartSelects(trackCard);
 
+        // 2b) sliders onder de select toevoegen
+        ensureRangeControlsForTrackCard(trackCard);
+
         // 3) watcher activeren zodat wijzigingen in effecten doorwerken
         attachEffectsWatcher(trackCard);
 
-        // 4) select → hidden sync bij change
+        // 4) select → hidden sync + range toepassen bij change
         trackCard
             .querySelectorAll('select.js-target-effect-param')
             .forEach(sel => {
                 sel.addEventListener('change', () => {
                     syncBindingToHidden(sel);
+                    applyRangeForSelect(sel);
                 });
+
+                // Bij load: meteen range toepassen als er al een keuze is
+                if (sel.value) {
+                    applyRangeForSelect(sel);
+                }
             });
     });
 }

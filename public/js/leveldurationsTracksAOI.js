@@ -442,14 +442,28 @@
             refreshTrackPartSelects(trackCard);
         }
 
-        // select → hidden sync (targetBinding)
+        // Sliders onder de select toevoegen
+        if (typeof ensureRangeControlsForTrackCard === 'function') {
+            ensureRangeControlsForTrackCard(trackCard);
+        }
+
+        // select → hidden sync + range
         newCard.querySelectorAll('select.js-target-effect-param').forEach(sel => {
             sel.addEventListener('change', () => {
                 if (typeof syncBindingToHidden === 'function') {
                     syncBindingToHidden(sel);
                 }
+                if (typeof applyRangeForSelect === 'function') {
+                    applyRangeForSelect(sel);
+                }
             });
+
+            // Bij initialiseren (als er al een waarde is) meteen range zetten
+            if (sel.value && typeof applyRangeForSelect === 'function') {
+                applyRangeForSelect(sel);
+            }
         });
+
     }
 
     function wireNewTrackCard(card, idx) {
@@ -519,13 +533,25 @@
             refreshTrackPartSelects(trackCard);
         }
 
-        // select → hidden sync
+        // Sliders onder de select toevoegen
+        if (typeof ensureRangeControlsForTrackCard === 'function') {
+            ensureRangeControlsForTrackCard(trackCard);
+        }
+
+        // select → hidden sync + range
         newCard.querySelectorAll('select.js-target-effect-param').forEach(sel => {
             sel.addEventListener('change', () => {
                 if (typeof syncBindingToHidden === 'function') {
                     syncBindingToHidden(sel);
                 }
+                if (typeof applyRangeForSelect === 'function') {
+                    applyRangeForSelect(sel);
+                }
             });
+
+            if (sel.value && typeof applyRangeForSelect === 'function') {
+                applyRangeForSelect(sel);
+            }
         });
     };
 

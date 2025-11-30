@@ -334,7 +334,7 @@ final class DocumentController extends AbstractController
             }
         }
 
-        // Load target effect parameter data
+        // Load target effect parameter data (met ranges uit config)
         $allPresets = $effectSettingsRepo->findAll();
 
         $allEffectPresetsMap = [];
@@ -342,14 +342,32 @@ final class DocumentController extends AbstractController
             $effectName = $preset->getName();
             $params = [];
 
+            // Volledige config JSON (bv. {"cutoffFrequency":{"range":[10,20000],"value":20000}, ...})
+            $config = $preset->getConfig();
+
             foreach ($preset->getKeysValues() as $kv) {
                 if ($kv->getType() === EffectSettingsKeyValue::TYPE_NAME) {
                     $effectName = $kv->getValue() ?? $effectName;
                 }
+
                 if ($kv->getType() === EffectSettingsKeyValue::TYPE_PARAM) {
+                    $key   = $kv->getKeyName();
+                    $range = null;
+
+                    if (is_array($config)
+                        && array_key_exists($key, $config)
+                        && is_array($config[$key])
+                        && isset($config[$key]['range'])
+                        && is_array($config[$key]['range'])
+                    ) {
+                        // Zorg dat we altijd [min, max] als "platte" array hebben
+                        $range = array_values($config[$key]['range']);
+                    }
+
                     $params[] = [
-                        'id'  => $kv->getId(),
-                        'key' => $kv->getKeyName(),
+                        'id'    => $kv->getId(),
+                        'key'   => $key,
+                        'range' => $range,
                     ];
                 }
             }
