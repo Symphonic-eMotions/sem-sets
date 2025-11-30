@@ -43,6 +43,12 @@ class InstrumentPart
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $targetBinding = null;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $targetRangeLow = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $targetRangeHigh = null;
+
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
 
@@ -189,6 +195,38 @@ class InstrumentPart
     {
         $this->targetBinding = $targetBinding;
 
+        return $this;
+    }
+
+    public function getTargetRangeLow(): ?float
+    {
+        return $this->targetRangeLow;
+    }
+
+    public function setTargetRangeLow(?float $value): self
+    {
+        if ($value === null) {
+            $this->targetRangeLow = null;
+            return $this;
+        }
+
+        $this->targetRangeLow = (float) $value;
+        return $this;
+    }
+
+    public function getTargetRangeHigh(): ?float
+    {
+        return $this->targetRangeHigh;
+    }
+
+    public function setTargetRangeHigh(?float $value): self
+    {
+        if ($value === null) {
+            $this->targetRangeHigh = null;
+            return $this;
+        }
+
+        $this->targetRangeHigh = (float) $value;
         return $this;
     }
 

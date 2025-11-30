@@ -23,13 +23,19 @@ final class InstrumentPartType extends AbstractType
             ])
 
             // Synthetisch veld: bevat "effect:123" of "seq:velocity"
-            // Synthetisch veld: bevat "effect:123" of "seq:velocity"
             ->add('targetBinding', HiddenType::class, [
                 'required' => false,
                 'mapped'   => false,
                 'attr'     => [
                     'class' => 'js-target-binding-hidden',
                 ],
+            ])
+
+            ->add('targetRangeLow', HiddenType::class, [
+                'required' => false,
+            ])
+            ->add('targetRangeHigh', HiddenType::class, [
+                'required' => false,
             ])
         ;
     }

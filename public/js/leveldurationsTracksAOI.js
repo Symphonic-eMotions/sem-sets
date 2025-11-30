@@ -359,6 +359,8 @@
         // Verwacht: areaOfInterest + targetBinding uit Symfony-prototype
         const areaField   = tmp.querySelector('[name$="[areaOfInterest]"]') || tmp.firstElementChild;
         const targetField = tmp.querySelector('[name$="[targetBinding]"]') || (areaField && areaField.nextElementSibling) || null;
+        const rangeLowField  = tmp.querySelector('[name$="[targetRangeLow]"]');
+        const rangeHighField = tmp.querySelector('[name$="[targetRangeHigh]"]');
 
         if (!areaField) {
             return null;
@@ -374,7 +376,6 @@
                 <label class="label">Actieve regio delen</label>
                 <label class="label">Wat stuurt deze regio aan</label>
             </div>
-            
             <button type="button"
                     class="btn-mini danger instrument-part-remove"
                     onclick="removeInstrumentPart(this)">
@@ -383,7 +384,6 @@
         </div>
 
         <div class="instrument-part-grid">
-        
             <div class="instrument-part-region">
                 <div class="aoi-tiles" data-input-id=""></div>
                 <div class="ld-hidden"></div>
@@ -403,9 +403,20 @@
 
         // targetBinding hidden + select voor effect/seq
         const targetContainer = card.querySelector('.part-effect-target');
+
         if (targetField) {
             targetField.classList.add('js-target-binding-hidden');
             targetContainer.appendChild(targetField);
+        }
+
+        if (rangeLowField) {
+            rangeLowField.classList.add('range-low-hidden');
+            targetContainer.appendChild(rangeLowField);
+        }
+
+        if (rangeHighField) {
+            rangeHighField.classList.add('range-high-hidden');
+            targetContainer.appendChild(rangeHighField);
         }
 
         const select = document.createElement('select');
@@ -414,9 +425,16 @@
             select.dataset.bindInput = targetField.id;
         }
         targetContainer.appendChild(select);
-
-        partsContainer.appendChild(card);
         partsContainer.dataset.index = String(pIndex + 1);
+
+        // Card visueel onderaan de instrument-parts-panel zetten
+        const panel = partsContainer.closest('.instrument-parts-panel');
+        if (panel) {
+            panel.appendChild(card);
+        } else {
+            // Fallback: als er iets mis is, gewoon in de container zetten
+            partsContainer.appendChild(card);
+        }
 
         return card;
     }

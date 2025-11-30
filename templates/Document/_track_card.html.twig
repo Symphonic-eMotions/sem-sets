@@ -298,6 +298,14 @@
                                 }
                             }) }}
 
+                            {# Hidden fields voor echte low/high-waarden #}
+                            {{ form_widget(partForm.targetRangeLow, {
+                                attr: { class: 'range-low-hidden' }
+                            }) }}
+                            {{ form_widget(partForm.targetRangeHigh, {
+                                attr: { class: 'range-high-hidden' }
+                            }) }}
+
                             <select
                                     class="js-target-effect-param"
                                     data-current-id="{{ bindingCode }}"

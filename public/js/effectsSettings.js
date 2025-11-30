@@ -509,24 +509,30 @@ function ensureRangeControlsForTrackCard(trackCard) {
         highRow.appendChild(highSlider);
         highRow.appendChild(highLabelRight);
 
-        // Hidden fields voor opslag van echte waarden (NIET 0–1)
-        const lowHidden = document.createElement('input');
-        lowHidden.type = 'hidden';
-        lowHidden.className = 'range-low-hidden';
+        // Hidden fields: gebruik bestaande Symfony widgets als ze er zijn
+        let lowHidden  = container.querySelector('.range-low-hidden');
+        let highHidden = container.querySelector('.range-high-hidden');
 
-        const highHidden = document.createElement('input');
-        highHidden.type = 'hidden';
-        highHidden.className = 'range-high-hidden';
+        if (!lowHidden) {
+            lowHidden = document.createElement('input');
+            lowHidden.type = 'hidden';
+            lowHidden.className = 'range-low-hidden';
+            container.appendChild(lowHidden);
+        }
+
+        if (!highHidden) {
+            highHidden = document.createElement('input');
+            highHidden.type = 'hidden';
+            highHidden.className = 'range-high-hidden';
+            container.appendChild(highHidden);
+        }
 
         container.appendChild(lowRow);
         container.appendChild(highRow);
-        container.appendChild(lowHidden);
-        container.appendChild(highHidden);
 
         wireRangeSliders(container);
     });
 }
-
 // zodat leveldurationsTracksAOI.js hem kan aanroepen
 window.ensureRangeControlsForTrackCard = ensureRangeControlsForTrackCard;
 

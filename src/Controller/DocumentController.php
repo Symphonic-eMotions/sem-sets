@@ -772,6 +772,20 @@ final class DocumentController extends AbstractController
                         'trackId'   => $t->getTrackId(),        // track waar de part in zit
                         'nodeName'  => $meta['nodeName'],       // effectName of "" bij sequencer
                     ];
+                    // --- ParameterRange uit entity meenemen ---
+                    $low  = $part->getTargetRangeLow();
+                    $high = $part->getTargetRangeHigh();
+
+                    if ($low !== null && $high !== null) {
+                        $lowF  = (float) $low;
+                        $highF = (float) $high;
+
+                        // Zorg dat low <= high in de JSON
+                        $min = min($lowF, $highF);
+                        $max = max($lowF, $highF);
+
+                        $damperTarget['parameterRange'] = [$min, $max];
+                    }
                 }
 
                 $partsConfig[] = [
