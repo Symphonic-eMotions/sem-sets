@@ -406,6 +406,14 @@
         background: #5865f2;
         white-space: nowrap;
     }
+    .loop-chip-colored {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        margin-right: 6px;
+        margin-bottom: 4px;
+    }
     .loop-empty {
         font-size: 13px;
         color: #999;
@@ -731,6 +739,26 @@
     .instrument-part-region,
     .part-effect-target {
         min-width: 0;
+    }
+
+    /* loopsToGrid */
+    .instrument-part-region {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .loops-grid-label {
+        margin-top: 10px;
+    }
+
+    .loops-tiles {
+        display: grid;
+        gap: 4px;
+    }
+
+    .loops-tiles.loops-disabled {
+        opacity: 0.4;
     }
 
     /* ===========================

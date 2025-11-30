@@ -22,6 +22,16 @@ final class InstrumentPartType extends AbstractType
                 'attr'     => ['class' => 'js-aoi-raw'],
             ])
 
+            // loopsToGrid als raw JSON/CSV, unmapped
+            ->add('loopsToGrid', TextType::class, [
+                'label'    => false,
+                'required' => false,
+                'mapped'   => false,
+                'attr'     => [
+                    'class' => 'js-loops-grid-raw',
+                ],
+            ])
+
             // Synthetisch veld: bevat "effect:123" of "seq:velocity"
             ->add('targetBinding', HiddenType::class, [
                 'required' => false,

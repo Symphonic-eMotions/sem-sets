@@ -69,10 +69,22 @@
                     return;
                 }
 
+                const COLORS = window.SEM_LOOP_COLORS || [];
+                const LABELS = window.SEM_LOOP_LABELS || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
                 values.forEach(function (len, idx) {
                     const chip = document.createElement('span');
-                    chip.className = 'loop-chip';
-                    chip.textContent = 'Loop ' + (idx + 1) + ': ' + len + ' maten';
+                    chip.className = 'loop-chip loop-chip-colored';
+
+                    // A, B, C… of anders fallback naar 1,2,3
+                    const label = LABELS[idx] || String(idx + 1);
+                    chip.textContent = 'Loop ' + label + ': ' + len + ' maten';
+
+                    if (COLORS.length) {
+                        chip.style.backgroundColor = COLORS[idx % COLORS.length];
+                        chip.style.color = '#fff';
+                    }
+
                     chipsContainer.appendChild(chip);
                 });
             }
@@ -182,6 +194,17 @@
                 renderChips(current);
             }
 
+            function notifyLoopsChanged() {
+                if (typeof window.refreshLoopsGridForTrack !== 'function') {
+                    return;
+                }
+                const card = editor.closest('.track-card');
+                if (!card) {
+                    return;
+                }
+                window.refreshLoopsGridForTrack(card);
+            }
+
             if (resetBtn) {
                 resetBtn.addEventListener('click', function () {
                     // Override loslaten
@@ -202,6 +225,9 @@
                     current = [base];
                     storeValue(current);
                     renderChips(current);
+
+                    // Aantal loops is nu 1 → Loops naar grid verbergen + reset
+                    notifyLoopsChanged();
                 });
             }
 
@@ -215,6 +241,9 @@
                     current = next;
                     storeValue(current);
                     renderChips(current);
+
+                    // Aantal loops verhoogd, reset alle tiles naar loop A
+                    notifyLoopsChanged();
                 });
             }
 
@@ -231,6 +260,9 @@
                     current = next;
                     storeValue(current);
                     renderChips(current);
+
+                    // Aantal loops verlaagd, reset alle tiles naar loop A
+                    notifyLoopsChanged();
                 });
             }
 

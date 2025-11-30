@@ -29,6 +29,15 @@ class InstrumentPart
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $areaOfInterest = [];
 
+    /**
+     * Loop-index per gridcel (0 = loop A, 1 = B, etc.).
+     * Wordt als JSON-array in de DB opgeslagen, bv [0,0,1,1,...].
+     *
+     * @var int[]
+     */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $loopsToGrid = [];
+
     #[ORM\Column(type: 'string', length: 20, options: ['default' => 'none'])]
     private string $targetType = self::TARGET_TYPE_NONE;
 
@@ -151,8 +160,58 @@ class InstrumentPart
         return $n > 0 ? $n : 1;
     }
 
-    // --- nieuwe target-velden ---
+    /** @return int[] */
+    public function getLoopsToGrid(): array
+    {
+        return $this->loopsToGrid;
+    }
 
+    /**
+     * @param string|array<int,mixed>|null $value
+     */
+    public function setLoopsToGrid(string|array|null $value): self
+    {
+        if ($value === null || $value === '') {
+            $this->loopsToGrid = [];
+            return $this;
+        }
+
+        if (is_string($value)) {
+            $raw = trim($value);
+            if ($raw === '') {
+                $this->loopsToGrid = [];
+                return $this;
+            }
+
+            if (str_starts_with($raw, '[')) {
+                $decoded = json_decode($raw, true);
+                $value = is_array($decoded) ? $decoded : explode(',', $raw);
+            } else {
+                $value = explode(',', $raw);
+            }
+        }
+
+        if (!is_array($value)) {
+            $this->loopsToGrid = [];
+            return $this;
+        }
+
+        // Normaliseer naar ints ≥ 0
+        $normalized = array_values(array_map(
+            static function ($v): int {
+                $n = (int) $v;
+                return $n < 0 ? 0 : $n;
+            },
+            $value
+        ));
+
+        $this->loopsToGrid = $normalized;
+
+        return $this;
+    }
+
+
+    // --- nieuwe target-velden ---
     public function getTargetType(): string
     {
         return $this->targetType;

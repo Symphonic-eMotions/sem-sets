@@ -265,15 +265,169 @@
         inputEl.value = '[' + arr.join(',') + ']';
     }
 
+    function getTrackLoopCount(card) {
+        // zoek de loop-editor binnen deze track-card
+        const editor = card.querySelector('.js-loop-editor');
+        if (!editor) return 0;
+
+        const inputId = editor.dataset.inputId;
+        const hiddenInput = inputId ? document.getElementById(inputId) : null;
+        if (!hiddenInput || !hiddenInput.value) return 0;
+
+        let raw = hiddenInput.value.trim();
+        let arr = [];
+
+        if (!raw) {
+            return 0;
+        }
+
+        if (raw.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    arr = parsed;
+                }
+            } catch (e) {
+                // negeren
+            }
+        } else {
+            arr = raw.split(',').map(v => parseInt(v, 10));
+        }
+
+        arr = arr
+            .map(v => parseInt(v, 10))
+            .filter(v => !Number.isNaN(v) && v > 0);
+
+        return arr.length;
+    }
+
+    function parseRawLoopsGrid(inputEl, loopCount, targetLen) {
+        if (!inputEl || loopCount <= 0 || targetLen <= 0) {
+            return new Array(targetLen).fill(0);
+        }
+
+        let raw = (inputEl.value || '').trim();
+        let arr = [];
+
+        if (raw) {
+            if (raw.startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    if (Array.isArray(parsed)) {
+                        arr = parsed;
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            } else {
+                arr = raw.split(',').map(v => parseInt(v, 10));
+            }
+        }
+
+        arr = arr.map(function (v) {
+            let n = parseInt(v, 10);
+            if (Number.isNaN(n) || n < 0) n = 0;
+            if (loopCount > 0) {
+                n = n % loopCount;
+            }
+            return n;
+        });
+
+        if (!arr.length) {
+            arr = new Array(targetLen).fill(0);
+        } else if (arr.length > targetLen) {
+            arr = arr.slice(0, targetLen);
+        } else if (arr.length < targetLen) {
+            arr = arr.concat(new Array(targetLen - arr.length).fill(0));
+        }
+
+        return arr;
+    }
+
+    function storeRawLoopsGrid(inputEl, arr) {
+        if (!inputEl) return;
+        inputEl.value = '[' + arr.join(',') + ']';
+    }
+
+    function buildLoopsGridTiles(partBlock, card, cols, rows, resetToFirstLoop) {
+        const loopsTiles = partBlock.querySelector('.loops-tiles');
+        if (!loopsTiles) return;
+
+        const inputId = loopsTiles.dataset.inputId;
+        const inputEl = inputId ? document.getElementById(inputId) : null;
+        const targetLen = Math.max(1, cols * rows);
+
+        const loopsCount = getTrackLoopCount(card);
+
+        // Als er 0 of 1 loops zijn, tonen we niets / disabled
+        if (!inputEl || loopsCount <= 1) {
+            loopsTiles.innerHTML = '<em style="font-size: 0.8em;">Voeg loops toe om ze te kunnen plaatsen</em>';
+            loopsTiles.classList.add('loops-disabled');
+            inputEl.value = '';
+            return;
+        }
+
+        loopsTiles.classList.remove('loops-disabled');
+
+        let mapping;
+        if (resetToFirstLoop) {
+            // Alles terug naar loop 0 (= A)
+            mapping = new Array(targetLen).fill(0);
+        } else {
+            mapping = parseRawLoopsGrid(inputEl, loopsCount, targetLen);
+        }
+
+        storeRawLoopsGrid(inputEl, mapping);
+
+        loopsTiles.innerHTML = '';
+        loopsTiles.style.gridTemplateColumns = `repeat(${cols}, 36px)`;
+
+        const COLORS = window.SEM_LOOP_COLORS || [];
+        const LABELS = window.SEM_LOOP_LABELS || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+        mapping.forEach((loopIdx, cellIdx) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'ld-square loop-square';
+            const label = LABELS[loopIdx] || String(loopIdx + 1);
+            btn.textContent = label;
+            btn.dataset.loopIndex = String(loopIdx);
+            btn.dataset.cellIndex = String(cellIdx);
+
+            if (COLORS.length) {
+                btn.style.backgroundColor = COLORS[loopIdx % COLORS.length];
+                btn.style.color = '#fff';
+            }
+
+            btn.addEventListener('click', () => {
+                // cycle A→B→C→...
+                const current = mapping[cellIdx];
+                const next = (current + 1) % loopsCount;
+                mapping[cellIdx] = next;
+
+                const nextLabel = LABELS[next] || String(next + 1);
+                btn.textContent = nextLabel;
+                btn.dataset.loopIndex = String(next);
+
+                if (COLORS.length) {
+                    btn.style.backgroundColor = COLORS[next % COLORS.length];
+                }
+
+                storeRawLoopsGrid(inputEl, mapping);
+            });
+
+            loopsTiles.appendChild(btn);
+        });
+    }
+
     function buildAoiTiles(card, trackIdx) {
         const { cols, rows } = getDocGrid();
         const targetLen = Math.max(1, cols * rows);
 
-        // Pak gewoon alle instrument-part blocks in deze track-card
         const partBlocks = card.querySelectorAll('.instrument-part');
 
         partBlocks.forEach((partBlock) => {
-            // In elk part gewoon de lokale .aoi-tiles pakken
+            // AOI
             const tiles = partBlock.querySelector('.aoi-tiles');
             if (!tiles) return;
 
@@ -317,8 +471,21 @@
 
                 tiles.appendChild(btn);
             });
+
+            // NIEUW: loops-to-grid tegels voor deze part
+            buildLoopsGridTiles(partBlock, card, cols, rows, false);
         });
     }
+
+    window.refreshLoopsGridForTrack = function (card) {
+        const { cols, rows } = getDocGrid();
+        const parts = card.querySelectorAll('.instrument-part');
+
+        parts.forEach((partBlock) => {
+            // resetToFirstLoop = true → overal weer loop A
+            buildLoopsGridTiles(partBlock, card, cols, rows, true);
+        });
+    };
 
     function syncAllAoIToDocGrid() {
         document.querySelectorAll('#tracks .track-card').forEach((card, i) => {
@@ -358,6 +525,7 @@
 
         // Verwacht: areaOfInterest + targetBinding uit Symfony-prototype
         const areaField   = tmp.querySelector('[name$="[areaOfInterest]"]') || tmp.firstElementChild;
+        const loopsField  = tmp.querySelector('[name$="[loopsToGrid]"]');
         const targetField = tmp.querySelector('[name$="[targetBinding]"]') || (areaField && areaField.nextElementSibling) || null;
         const rangeLowField  = tmp.querySelector('[name$="[targetRangeLow]"]');
         const rangeHighField = tmp.querySelector('[name$="[targetRangeHigh]"]');
@@ -370,27 +538,39 @@
         card.className = 'instrument-part';
         card.dataset.partIndex = String(pIndex);
 
-        card.innerHTML = `
-        <div class="instrument-part-header-row">
-            <div class="instrument-parts-header">
-                <label class="label">Actieve regio delen</label>
-                <label class="label">Wat stuurt deze regio aan</label>
-            </div>
-            <button type="button"
-                    class="btn-mini danger instrument-part-remove"
-                    onclick="removeInstrumentPart(this)">
-                Verwijder
-            </button>
-        </div>
+        const isFirst = (pIndex === 0);
 
-        <div class="instrument-part-grid">
-            <div class="instrument-part-region">
-                <div class="aoi-tiles" data-input-id=""></div>
-                <div class="ld-hidden"></div>
-            </div>
-            <div class="part-effect-target"></div>
-        </div>
-    `;
+        card.innerHTML = `
+            <div class="instrument-part-header-row">
+                    <div class="instrument-parts-header">
+                        <span class="label">Actieve regio delen</span>
+                        <span class="label">Wat stuurt deze regio aan</span>
+                    </div>
+                    <button type="button"
+                            class="btn-mini danger instrument-part-remove"
+                            onclick="removeInstrumentPart(this)">
+                        Verwijder
+                    </button>
+                </div>
+        
+                <div class="instrument-part-grid">
+                    <div class="instrument-part-region">
+        
+                        <div class="aoi-tiles" data-input-id=""></div>
+                        <div class="ld-hidden aoi-hidden"></div>
+                        
+                        ${isFirst ? `
+                            <div class="loops-grid-label">
+                                <span class="label">Geef midi loops in plaats in het grid</span>
+                            </div>
+                            <div class="loops-tiles" data-input-id=""></div>
+                            <div class="ld-hidden loops-hidden"></div>
+                        ` : ''}
+                  
+                    </div>
+                    <div class="part-effect-target"></div>
+                </div>`;
+
 
         // AOI input in hidden wrapper hangen
         const hiddenWrapper = card.querySelector('.instrument-part-region .ld-hidden');
@@ -400,6 +580,22 @@
         tilesDiv.dataset.inputId = areaField.id;
         // optioneel: nog steeds een uniek id geven
         tilesDiv.id = `aoi-tiles-${trackIdx}-${pIndex}`;
+
+        // LoopsToGrid input in eigen hidden wrapper
+        if (loopsField) {
+            const loopsHidden = card.querySelector('.instrument-part-region .loops-hidden');
+            if (loopsHidden) {
+                loopsHidden.appendChild(loopsField);
+            }
+
+            if (isFirst) {
+                const loopsTiles = card.querySelector('.instrument-part-region .loops-tiles');
+                if (loopsTiles) {
+                    loopsTiles.dataset.inputId = loopsField.id;
+                    loopsTiles.id = `loops-tiles-${trackIdx}-${pIndex}`;
+                }
+            }
+        }
 
         // targetBinding hidden + select voor effect/seq
         const targetContainer = card.querySelector('.part-effect-target');

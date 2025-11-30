@@ -267,8 +267,8 @@
                     {# Kopregel: labels links, verwijder-knop rechts #}
                     <div class="instrument-part-header-row">
                         <div class="instrument-parts-header">
-                            <label class="label">Actieve regio delen</label>
-                            <label class="label">Wat stuurt deze regio aan</label>
+                            <span class="label">Actieve regio delen</span>
+                            <span class="label">Wat stuurt deze regio aan</span>
                         </div>
 
                         <button type="button"
@@ -288,6 +288,23 @@
                             <div class="ld-hidden">
                                 {{ form_widget(partForm.areaOfInterest) }}
                             </div>
+
+                            {# LoopsToGrid field: altijd aanwezig maar verborgen #}
+                            <div class="ld-hidden loops-hidden">
+                                {{ form_widget(partForm.loopsToGrid) }}
+                            </div>
+
+                            {# Loops-naar-grid editor: ALLEEN op eerste InstrumentPart #}
+                            {% if loop.first %}
+                                <div class="loops-grid-label">
+                                    <span class="label">Geef midi loops in plaats in het grid</span>
+                                </div>
+
+                                <div id="loops-tiles-{{ index }}-{{ loop.index0 }}"
+                                     class="loops-tiles"
+                                     data-input-id="{{ partForm.loopsToGrid.vars.id }}">
+                                </div>
+                            {% endif %}
                         </div>
 
                         {# RECHTER kolom: target binding #}

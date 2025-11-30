@@ -90,6 +90,9 @@ final class DocumentController extends AbstractController
         $form = $this->createForm(DocumentFormType::class, $doc);
         $form->handleRequest($req);
 
+        // ========================
+        // PREFILL (GET, niet submitted)
+        // ========================
         if (!$form->isSubmitted()) {
 
             $tracksForm = $form->get('tracks');
@@ -99,6 +102,7 @@ final class DocumentController extends AbstractController
                 if (!isset($tracksForm[$index])) { continue; }
                 $trackForm = $tracksForm[$index];
 
+                // LoopLength → textveld (raw JSON) voor loop-editor
                 if ($trackForm->has('loopLength')) {
                     $loop = $track->getLoopLength() ?? [];
                     if (!empty($loop)) {
@@ -128,6 +132,18 @@ final class DocumentController extends AbstractController
                             }
                         }
 
+                        // ✅ LoopsToGrid → string voor het formulier (alleen eerste part heeft editor, maar veld bestaat overal)
+                        if ($partForm->has('loopsToGrid')) {
+                            $loops = $part->getLoopsToGrid() ?? [];
+                            if (!empty($loops)) {
+                                $raw = '[' . implode(',', array_map('intval', $loops)) . ']';
+                                $partForm->get('loopsToGrid')->setData($raw);
+                            } else {
+                                // leeg laten → JS zet default (alles loop A) indien nodig
+                                $partForm->get('loopsToGrid')->setData('');
+                            }
+                        }
+
                         // 🔹 targetBinding → "effect:ID" of "seq:velocity"
                         if ($partForm->has('targetBinding')) {
                             $binding = null;
@@ -149,6 +165,9 @@ final class DocumentController extends AbstractController
             }
         }
 
+        // ========================
+        // SUBMIT + SAVE
+        // ========================
         if ($form->isSubmitted() && $form->isValid()) {
 
             // 1) Slug bijwerken op basis van titel
@@ -176,6 +195,7 @@ final class DocumentController extends AbstractController
                     ? $trackForm->get('instrumentParts')
                     : null;
 
+                // LoopLength uit raw veld → entity
                 if ($trackForm && $trackForm->has('loopLength')) {
                     $rawLoop = $trackForm->get('loopLength')->getData();
                     $t->setLoopLength($rawLoop);
@@ -202,6 +222,12 @@ final class DocumentController extends AbstractController
                         if ($partForm && $partForm->has('areaOfInterest')) {
                             $rawAoi = $partForm->get('areaOfInterest')->getData();
                             $part->setAreaOfInterest($rawAoi);
+                        }
+
+                        // ✅ LoopsToGrid raw → entity
+                        if ($partForm && $partForm->has('loopsToGrid')) {
+                            $rawLoops = $partForm->get('loopsToGrid')->getData();
+                            $part->setLoopsToGrid($rawLoops);
                         }
 
                         // 🔹 targetBinding → targetType + effect/sequencer param
@@ -297,10 +323,14 @@ final class DocumentController extends AbstractController
 
             $this->em->flush();
 
-            // 8) PRG: redirect zodat midiAsset-keuzes zijn ververst
+            // PRG: redirect zodat midiAsset-keuzes zijn ververst
             $this->addFlash('success', 'Document opgeslagen.');
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
+
+        // ========================
+        // VIEW DATA (MIDI + effecten)
+        // ========================
 
         // Load midi info
         $midiInfo = [];
@@ -325,7 +355,7 @@ final class DocumentController extends AbstractController
                 ];
 
                 // Optioneel: opruimen na analyse
-//                @unlink($tmpPath);
+                // @unlink($tmpPath);
 
             } catch (Throwable $e) {
                 $midiInfo[$track->getTrackId()] = [
@@ -648,6 +678,25 @@ final class DocumentController extends AbstractController
 
             $loopLength = array_values(array_map('intval', $loopLength));
 
+            // 1b) LoopsToGrid uit eerste InstrumentPart
+            $loopsToGrid = [];
+            $parts = $t->getInstrumentParts();
+
+            if ($parts && !$parts->isEmpty()) {
+                /** @var InstrumentPart $firstPart */
+                $firstPart = $parts->first();
+                $loopsToGrid = array_values(
+                    array_map('intval', $firstPart->getLoopsToGrid() ?? [])
+                );
+            }
+
+            // 1c) LoopsToLevel: één loop-index per level (nu default: overal loop 0 / A)
+            $levels = $t->getLevels() ?? [];
+            $loopsToLevel = [];
+            if (!empty($levels)) {
+                $loopsToLevel = array_fill(0, count($levels), 0);
+            }
+
             // 2) MIDI-bestanden
             $midi      = [];
             $midiLabel = null;
@@ -663,7 +712,9 @@ final class DocumentController extends AbstractController
                 $midi[] = [
                     'midiFileName' => $name,
                     'midiFileExt'  => $ext,
-                    'loopLength'   => $loopLength,  // bv [56] of [48,48]
+                    'loopLength'   => $loopLength,    // bv [56] of [48,48]
+                    'loopsToGrid'  => $loopsToGrid,   // bv [2,2,2,2,1,1,1,...]
+                    'loopsToLevel' => $loopsToLevel,  // bv [0,0,0,0]
                 ];
             }
 
