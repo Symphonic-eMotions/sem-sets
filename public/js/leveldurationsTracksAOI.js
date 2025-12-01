@@ -561,7 +561,7 @@
                         
                         ${isFirst ? `
                             <div class="loops-grid-label">
-                                <span class="label">Geef midi loops in plaats in het grid</span>
+                                <span class="label">Geef midi loops een plaats in het grid</span>
                             </div>
                             <div class="loops-tiles" data-input-id=""></div>
                             <div class="ld-hidden loops-hidden"></div>

@@ -15,6 +15,7 @@ use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
 use App\Repository\EffectSettingsRepository;
 use App\Service\AssetStorage;
+use App\Service\PayloadBlockFactory;
 use App\Service\VersioningService;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
@@ -38,6 +39,7 @@ final class DocumentController extends AbstractController
         private readonly EntityManagerInterface $em,
         private readonly FilesystemOperator $uploadsStorage, // service-id: uploads.storage
         private readonly AssetRepository $assetRepo,
+        private readonly PayloadBlockFactory $payloadBlockFactory,
     ) {}
 
     #[Route('', name: 'app_dashboard', methods: ['GET'])]
@@ -857,6 +859,10 @@ final class DocumentController extends AbstractController
                 'instrumentParts' => $partsConfig,
                 'effects'         => $effectsConfig,
             ];
+
+            // muted, noteSource, startType, midiGroup en Note number options -> TRACK niveau:
+            $niveauTrack = $this->payloadBlockFactory->build('niveauTrack');
+            $instrumentsConfig = array_merge($instrumentsConfig, $niveauTrack);
         }
 
         $payload = [
@@ -869,6 +875,14 @@ final class DocumentController extends AbstractController
             'levelDurations'    => $levelDurations,
             'instrumentsConfig' => $instrumentsConfig,
         ];
+
+        // fileGroup, setPath, hasTempo, setTimeSignature defaultSkin -> SET niveau:
+        $niveauSet = $this->payloadBlockFactory->build('niveauSet');
+        $payload = array_merge($payload, $niveauSet);
+
+        // Master effects (Nog koppelen aan effect entity)
+        $masterEffectsSet = $this->payloadBlockFactory->build('masterEffects');
+        $payload = array_merge($payload, $masterEffectsSet);
 
         return (string) json_encode(
             $payload,
