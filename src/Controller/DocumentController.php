@@ -22,15 +22,18 @@ use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Ulid;
 use Throwable;
+use ZipArchive;
 
 #[Route('/')]
 final class DocumentController extends AbstractController
@@ -607,6 +610,106 @@ final class DocumentController extends AbstractController
         return $response;
     }
 
+    #[Route('documents/{id}/bundle.zip', name: 'doc_bundle_download', methods: ['GET'])]
+    public function downloadBundleZip(
+        Document $doc,
+        AssetRepository $assetRepo,
+        AssetStorage $assetStorage
+    ): BinaryFileResponse {
+        // 1) JSON payload (dezelfde als je API)
+        $json = $this->buildPayloadJson($doc);
+
+        // 2) Tijdelijk ZIP-bestand aanmaken
+        $tmpZipPath = tempnam(sys_get_temp_dir(), 'set_bundle_');
+        if ($tmpZipPath === false) {
+            throw new \RuntimeException('Kon geen tijdelijk bestand aanmaken voor ZIP.');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tmpZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Kon ZIP-archief niet openen.');
+        }
+
+        // 2a) JSON toevoegen als set.json
+        $zip->addFromString('set.json', $json);
+
+        // 3) Alle MIDI-assets voor dit document toevoegen
+        $assets   = $assetRepo->findForDocument($doc);
+        $tmpFiles = []; // lokale tempbestanden om na afloop op te ruimen
+
+        foreach ($assets as $asset) {
+            // Filter alleen .mid / .midi (op basis van oorspronkelijke bestandsnaam)
+            $origName = $asset->getOriginalName() ?? '';
+            $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+
+            if (!in_array($ext, ['mid', 'midi'], true)) {
+                continue;
+            }
+
+            // Maak een lokaal tijdelijk bestand van deze asset via je bestaande helper
+            $localPath = $assetStorage->createLocalTempFile($asset);
+            if (!is_string($localPath) || !is_file($localPath)) {
+                // defensief: sla deze over als er iets misgaat
+                continue;
+            }
+
+            $tmpFiles[] = $localPath;
+
+            // In de ZIP willen we nette paden, bv. assets/bass.mid
+            // Desnoods fallback naar een generieke naam
+            $safeName = $origName !== '' ? $origName : ('midi_' . $asset->getId() . '.mid');
+
+            $zip->addFile($localPath, 'assets/' . $safeName);
+        }
+
+        // ZIP sluiten zodat hij klaar is voor download
+        $zip->close();
+
+        // 4) Tijdelijke MIDI-tempfiles opruimen (de ZIP is nu compleet)
+        foreach ($tmpFiles as $tmp) {
+            @unlink($tmp);
+        }
+
+        // 5) Download-response opbouwen
+        $filenameBase = $doc->getSlug() ?: ('set-' . $doc->getId());
+        $downloadName = sprintf('%s-bundle.zip', $filenameBase);
+
+        $response = new BinaryFileResponse($tmpZipPath);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $downloadName
+        );
+        $response->headers->set('Content-Type', 'application/zip');
+
+        // Zorg dat het tijdelijke ZIP-bestand na versturen wordt verwijderd
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
+    #[Route('api/published-sets', name: 'api_published_sets', methods: ['GET'])]
+    public function apiPublishedSets(DocumentRepository $repo): Response
+    {
+        $published = $repo->findBy(['published' => true], ['title' => 'ASC']);
+
+        $data = [];
+        foreach ($published as $doc) {
+            $data[] = [
+                'id' => $doc->getId(),
+                'slug' => $doc->getSlug(),
+                'title' => $doc->getTitle(),
+                'semVersion' => $doc->getSemVersion(),
+                'bundleUrl' => $this->generateUrl(
+                    'doc_bundle_download',
+                    ['id' => $doc->getId()],
+                    UrlGeneratorInterface::ABSOLUTE_URL
+                ),
+            ];
+        }
+
+        return $this->json($data);
+    }
+
     #[Route('documents/{id}/versions', name: 'doc_versions', methods: ['GET'])]
     public function versions(Document $doc, DocumentVersionRepository $vr): Response
     {
@@ -874,7 +977,7 @@ final class DocumentController extends AbstractController
                         $damperTarget['parameterRange'] = [$min, $max];
                     }
 
-                    // --- NodeSettings uit entity meenemen ---
+                    // NodeSettings uit entity meenemen
                     // Lezen uit InstrumentPart: getters die je al in de entity hebt toegevoegd
                     $minimal = $part->getMinimalLevel();
                     $rampUp  = $part->getRampSpeed();
