@@ -162,6 +162,32 @@ final class DocumentController extends AbstractController
 
                             $partForm->get('targetBinding')->setData($binding);
                         }
+
+                        // 🔹 Nieuw: damper-extra-settings prefilling
+                        // Alleen overschrijven als de entity een waarde heeft.
+                        if ($partForm->has('minimalLevel')) {
+                            $min = $part->getMinimalLevel();
+                            if ($min !== null) {
+                                $partForm->get('minimalLevel')->setData($min);
+                            }
+                            // als $min === null laten we de default 0.1 uit het FormType intact
+                        }
+
+                        if ($partForm->has('rampSpeed')) {
+                            $up = $part->getRampSpeed();
+                            if ($up !== null && $up !== '') {
+                                $partForm->get('rampSpeed')->setData($up);
+                            }
+                            // null → laat de Choice-default (0.08) staan
+                        }
+
+                        if ($partForm->has('rampSpeedDown')) {
+                            $down = $part->getRampSpeedDown();
+                            if ($down !== null && $down !== '') {
+                                $partForm->get('rampSpeedDown')->setData($down);
+                            }
+                            // null → laat de Choice-default (0.04) staan
+                        }
                     }
                 }
             }
@@ -671,7 +697,14 @@ final class DocumentController extends AbstractController
         $bpm            = (float) $doc->getSetBPM();
         $levelDurations = array_map('intval', $doc->getLevelDurations());
 
+        // ------- niveauTrack (heeft dezelfde vorm als je werkende JSON) -------
+        $niveauTrackDefaults = $this->payloadBlockFactory->build('niveauTrack');
+        if (!is_array($niveauTrackDefaults)) {
+            $niveauTrackDefaults = [];
+        }
+
         $instrumentsConfig = [];
+
         foreach ($doc->getTracks() as $t) {
             // 1) LoopLength ophalen (altijd array<int>)
             $loopLength = method_exists($t, 'getLoopLength')
@@ -750,7 +783,7 @@ final class DocumentController extends AbstractController
             }
 
             // -----------------------------------------------------------------
-            // 4a) Effects-config (zoals je al had) + binding-map voor parts
+            // 4a) Effects-config + binding-map voor parts
             // -----------------------------------------------------------------
             $effectsConfig = [];
             $bindingMap    = [];
@@ -766,7 +799,7 @@ final class DocumentController extends AbstractController
                     $effectsConfig[] = $config;
                 }
 
-                // Effect-naam zoals in Twig (name override via TYPE_NAME)
+                // Effect-naam
                 $effectName = $preset->getName();
                 if (method_exists($preset, 'getKeysValues')) {
                     foreach ($preset->getKeysValues() as $kv) {
@@ -816,6 +849,7 @@ final class DocumentController extends AbstractController
                 $bindingCode  = $part->getTargetBinding() ?: null;
 
                 $damperTarget = null;
+                $parameterKey = null;
                 if ($bindingCode && isset($bindingMap[$bindingCode])) {
                     $meta = $bindingMap[$bindingCode];
 
@@ -839,17 +873,51 @@ final class DocumentController extends AbstractController
 
                         $damperTarget['parameterRange'] = [$min, $max];
                     }
+
+                    // --- NodeSettings uit entity meenemen ---
+                    // Lezen uit InstrumentPart: getters die je al in de entity hebt toegevoegd
+                    $minimal = $part->getMinimalLevel();
+                    $rampUp  = $part->getRampSpeed();
+                    $rampDown = $part->getRampSpeedDown();
+
+                    // Defaults voor oude sets / lege waarden
+                    if ($minimal === null) {
+                        $minimal = 0.10;
+                    }
+                    if ($rampUp === null) {
+                        $rampUp = 0.08;
+                    }
+                    if ($rampDown === null) {
+                        $rampDown = 0.04;
+                    }
+
+                    // Merge met eventuele bestaande nodeSettings (voor het geval niveauTrack of future code daar al iets inzet)
+                    $existingNodeSettings = [];
+                    if (isset($damperTarget['nodeSettings']) && is_array($damperTarget['nodeSettings'])) {
+                        $existingNodeSettings = $damperTarget['nodeSettings'];
+                    }
+
+                    $damperTarget['nodeSettings'] = array_merge(
+                        $existingNodeSettings,
+                        [
+                            'minimalLevel'  => (float) $minimal,
+                            'rampSpeed'     => (float) $rampUp,
+                            'rampSpeedDown' => (float) $rampDown,
+                        ]
+                    );
                 }
+
+                $instrumentPartName = $this->buildPartName($instrumentName, $parameterKey);
 
                 $partsConfig[] = [
                     'areaOfInterest' => $aoi,
                     'damperTarget'   => $damperTarget,
-                    // later: instrumentPartName, dontDrawVisual, mapMaxIndex, ...
+                    'instrumentPartName' => $instrumentPartName,
                 ];
             }
 
-            // 5) Instrument-config entry
-            $instrumentsConfig[] = [
+            // 5) Basis track-config
+            $trackConfig = [
                 'trackId'         => $t->getTrackId(),
                 'levels'          => array_values(array_map('intval', $t->getLevels())),
                 'midiFiles'       => $midi,
@@ -860,11 +928,15 @@ final class DocumentController extends AbstractController
                 'effects'         => $effectsConfig,
             ];
 
-            // muted, noteSource, startType, midiGroup en Note number options -> TRACK niveau:
-            $niveauTrack = $this->payloadBlockFactory->build('niveauTrack');
-            $instrumentsConfig = array_merge($instrumentsConfig, $niveauTrack);
+            // 6) Merge niveauTrack-blok PER TRACK
+            // Defaults eerst, track-specifiek mag overschrijven
+            $trackConfig = array_merge($niveauTrackDefaults, $trackConfig);
+
+            // 7) Track toevoegen aan instrumentsConfig LIST
+            $instrumentsConfig[] = $trackConfig;
         }
 
+        // Basis payload op SET-niveau
         $payload = [
             'gridColumns'       => $doc->getGridColumns(),
             'gridRows'          => $doc->getGridRows(),
@@ -876,18 +948,34 @@ final class DocumentController extends AbstractController
             'instrumentsConfig' => $instrumentsConfig,
         ];
 
-        // fileGroup, setPath, hasTempo, setTimeSignature defaultSkin -> SET niveau:
+        // ------- niveauSet (heeft dezelfde vorm als je werkende JSON) -------
         $niveauSet = $this->payloadBlockFactory->build('niveauSet');
-        $payload = array_merge($payload, $niveauSet);
+        if (is_array($niveauSet)) {
+            $payload = array_merge($payload, $niveauSet);
+        }
 
-        // Master effects (Nog koppelen aan effect entity)
+        // ------- masterEffects (masterTrackEffects-blok) -------
         $masterEffectsSet = $this->payloadBlockFactory->build('masterEffects');
-        $payload = array_merge($payload, $masterEffectsSet);
+        if (is_array($masterEffectsSet)) {
+            $payload = array_merge($payload, $masterEffectsSet);
+        }
 
         return (string) json_encode(
             $payload,
             JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_PRETTY_PRINT
         );
+    }
+
+    private function buildPartName(string $instrumentName, ?string $parameterKey): string
+    {
+        if ($parameterKey === null || $parameterKey === '') {
+            return $instrumentName;
+        }
+
+        // hergebruik je humanizeLabel als die camelCase al netjes omzet
+        $paramLabel = $this->humanizeLabel($parameterKey); // bv "lowPassCutoff" → "Low Pass Cutoff"
+
+        return sprintf('%s – %s', $instrumentName, $paramLabel);
     }
 
     /**

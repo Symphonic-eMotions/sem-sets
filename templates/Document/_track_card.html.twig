@@ -307,29 +307,74 @@
                             {% endif %}
                         </div>
 
-                        {# RECHTER kolom: target binding #}
-                        <div class="part-effect-target">
-                            {{ form_widget(partForm.targetBinding, {
-                                attr: {
-                                    class: (partForm.targetBinding.vars.attr.class|default('') ~ ' js-target-binding-hidden')|trim
-                                }
-                            }) }}
+                        {# RECHTER kolom: alles in één wrapper zodat het in kolom 2 blijft #}
+                        {# RECHTER kolom: alles in één wrapper zodat het in kolom 2 blijft #}
+                        <div class="instrument-part-target-col">
+                            <div class="part-effect-target">
+                                {{ form_widget(partForm.targetBinding, {
+                                    attr: {
+                                        class: (partForm.targetBinding.vars.attr.class|default('') ~ ' js-target-binding-hidden')|trim
+                                    }
+                                }) }}
 
-                            {# Hidden fields voor echte low/high-waarden #}
-                            {{ form_widget(partForm.targetRangeLow, {
-                                attr: { class: 'range-low-hidden' }
-                            }) }}
-                            {{ form_widget(partForm.targetRangeHigh, {
-                                attr: { class: 'range-high-hidden' }
-                            }) }}
+                                {# Hidden fields voor echte low/high-waarden (range-sliders) #}
+                                {{ form_widget(partForm.targetRangeLow, {
+                                    attr: { class: 'range-low-hidden' }
+                                }) }}
+                                {{ form_widget(partForm.targetRangeHigh, {
+                                    attr: { class: 'range-high-hidden' }
+                                }) }}
 
-                            <select
-                                    class="js-target-effect-param"
-                                    data-current-id="{{ bindingCode }}"
-                                    data-bind-input="{{ partForm.targetBinding.vars.id }}"
-                            ></select>
+                                {# Select voor effect/seq-parameter #}
+                                <select
+                                        class="js-target-effect-param"
+                                        data-current-id="{{ bindingCode }}"
+                                        data-bind-input="{{ partForm.targetBinding.vars.id }}"
+                                ></select>
+                            </div>
+
+                            {# Nieuw: extra instellingen voor deze damperTarget, in 1 rij met 3 kolommen #}
+                            <div class="damper-extra-settings">
+                                <div class="damper-row damper-row-3">
+                                    <div class="damper-field">
+                                        <label class="label-small">
+                                            Min. lvl
+                                        </label>
+                                        {{ form_widget(partForm.minimalLevel, {
+                                            attr: partForm.minimalLevel.vars.attr|merge({
+                                                class: ((partForm.minimalLevel.vars.attr.class|default('') ~ ' minimal-level-input')|trim)
+                                            })
+                                        }) }}
+                                    </div>
+
+                                    <div class="damper-field">
+                                        <label class="label-small">
+                                            Ramp-up
+                                        </label>
+                                        {{ form_widget(partForm.rampSpeed, {
+                                            attr: partForm.rampSpeed.vars.attr|merge({
+                                                class: ((partForm.rampSpeed.vars.attr.class|default('') ~ ' ramp-speed-select')|trim)
+                                            })
+                                        }) }}
+                                    </div>
+
+                                    <div class="damper-field">
+                                        <label class="label-small">
+                                            Ramp-dwn
+                                        </label>
+                                        {{ form_widget(partForm.rampSpeedDown, {
+                                            attr: partForm.rampSpeedDown.vars.attr|merge({
+                                                class: ((partForm.rampSpeedDown.vars.attr.class|default('') ~ ' ramp-speed-down-select')|trim)
+                                            })
+                                        }) }}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+
                     </div>
+
                 </div>
 
             {% endfor %}

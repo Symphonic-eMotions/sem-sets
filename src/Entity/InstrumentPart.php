@@ -58,6 +58,15 @@ class InstrumentPart
     #[ORM\Column(type: 'float', nullable: true)]
     private ?float $targetRangeHigh = null;
 
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $minimalLevel = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $rampSpeed = null;
+
+    #[ORM\Column(type: 'float', nullable: true)]
+    private ?float $rampSpeedDown = null;
+
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
 
@@ -72,6 +81,9 @@ class InstrumentPart
         $now = new DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
+        $this->minimalLevel   = 0.10;
+        $this->rampSpeed      = 0.08;
+        $this->rampSpeedDown  = 0.04;
     }
 
     public function getId(): ?int
@@ -288,6 +300,75 @@ class InstrumentPart
         $this->targetRangeHigh = (float) $value;
         return $this;
     }
+
+    public function getMinimalLevel(): ?float
+    {
+        return $this->minimalLevel;
+    }
+
+    public function setMinimalLevel(?float $value): self
+    {
+        if ($value === null) {
+            return $this;
+        }
+
+        $v = (float) $value;
+
+        // Clamp 0–1
+        if ($v < 0.0) {
+            $v = 0.0;
+        } elseif ($v > 1.0) {
+            $v = 1.0;
+        }
+
+        $this->minimalLevel = $v;
+        return $this;
+    }
+
+    public function getRampSpeed(): ?float
+    {
+        return $this->rampSpeed;
+    }
+
+    public function setRampSpeed(?float $value): self
+    {
+        if ($value === null) {
+            return $this;
+        }
+
+        $v = (float) $value;
+        if ($v < 0.0) {
+            $v = 0.0;
+        } elseif ($v > 1.0) {
+            $v = 1.0;
+        }
+
+        $this->rampSpeed = $v;
+        return $this;
+    }
+
+    public function getRampSpeedDown(): ?float
+    {
+        return $this->rampSpeedDown;
+    }
+
+    public function setRampSpeedDown(?float $value): self
+    {
+        if ($value === null) {
+            return $this;
+        }
+
+        $v = (float) $value;
+        if ($v < 0.0) {
+            $v = 0.0;
+        } elseif ($v > 1.0) {
+            $v = 1.0;
+        }
+
+        $this->rampSpeedDown = $v;
+        return $this;
+    }
+
 
     // --- overig ---
 
