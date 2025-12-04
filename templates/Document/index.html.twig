@@ -5,15 +5,26 @@
 {% block body %}
     <div class="wrap">
         <div class="page-header">
-            <div>
-                <h1 class="title">Symphonic eMotions Sets</h1>
-                <p class="subtitle">Beheer je sets, assets en versies</p>
+            {# Linkerzijde: logo + titel + subtitel #}
+            <div style="display:flex; align-items:center; gap:16px;">
+                <img
+                        src="{{ asset('images/logo-sen-sets.webp') }}"
+                        alt="Symphonic eMotions Sets"
+                        class="header-logo"
+                />
+                <div>
+                    <h1 class="title">Symphonic eMotions Sets</h1>
+                    <p class="subtitle">Beheer je sets, assets en versies</p>
+                </div>
             </div>
-            <div style="display:flex; gap:8px">
+
+            {# Rechterzijde: knoppen + logout #}
+            <div style="display:flex; gap:8px;">
                 {% if is_granted('ROLE_ADMIN') %}
                     <a class="btn secondary" href="{{ path('effects_index') }}">Effect presets</a>
                 {% endif %}
                 <a class="btn" href="{{ path('doc_new') }}">+ Nieuwe Set</a>
+                <a class="btn secondary" href="{{ path('app_logout') }}">Uitloggen</a>
             </div>
         </div>
 
@@ -21,14 +32,25 @@
             {% if documents is empty %}
                 <p class="subtle">Er zijn nog geen sets gemaakt.</p>
             {% else %}
+                {# Tellers voor totaal en gepubliceerde sets #}
+                {% set totalSets = documents|length %}
+                {% set publishedSets = 0 %}
+                {% for d in documents %}
+                    {% if d.published %}
+                        {% set publishedSets = publishedSets + 1 %}
+                    {% endif %}
+                {% endfor %}
+
                 <table class="table">
                     <thead>
                     <tr>
                         <th>Titel</th>
                         <th>Tracks</th>
                         <th>Status</th>
-                        <th style="width:280px">Acties</th>
-                    </tr>JSON
+                        <th style="width:280px; text-align:right;">
+                            {{ totalSets }} sets ({{ publishedSets }} gepubliceerd)
+                        </th>
+                    </tr>
                     </thead>
                     <tbody>
                     {% for d in documents %}
@@ -50,9 +72,9 @@
 
                             <td>
                                 <a
-                                    href="{{ path('doc_api_json', { id: d.id }) }}"
-                                    title="Download JSON voor deze set"
-                                    style="text-decoration:none; margin-right: 8px"
+                                        href="{{ path('doc_api_json', { id: d.id }) }}"
+                                        title="Download JSON voor deze set"
+                                        style="text-decoration:none; margin-right: 8px"
                                 >⬇️</a>
                                 {% if d.published %}
                                     <span class="pill">Live</span>
@@ -72,7 +94,15 @@
                                           style="display:inline">
                                         <input type="hidden" name="_token" value="{{ csrf_token('delete-doc-' ~ d.id) }}">
                                         <input type="hidden" name="_method" value="DELETE">
-                                        <button class="btn btn-danger">Verwijder</button>
+                                        <button
+                                                class="btn btn-danger"
+                                                {% if d.published %}
+                                                    disabled="disabled"
+                                                    title="Gepubliceerde sets kunnen niet worden verwijderd"
+                                                {% endif %}
+                                        >
+                                            Verwijder
+                                        </button>
                                     </form>
                                 {% endif %}
                             </td>
