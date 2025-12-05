@@ -1,0 +1,16 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Statische bestanden direct serveren
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Alles anders gaat naar index.php (Symfony)
+    RewriteRule ^ index.php [L]
+</IfModule>
+#<IfModule mod_negotiation.c>
+#    Options -MultiViews
+#</IfModule>
