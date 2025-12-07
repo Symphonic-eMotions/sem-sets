@@ -137,15 +137,23 @@ final class EffectSettingsController extends AbstractController
 
     private function syncKeysValues(EffectSettings $effect): void
     {
-        // explicitly remove old rows
-        foreach ($effect->getKeysValues() as $existing) {
-            $effect->removeKeyValue($existing);
-            $this->em->remove($existing); // extra explicit; rock-solid
+        // 1) Als dit een bestaand effect is, eerst alle oude key-values hard verwijderen
+        if ($effect->getId() !== null) {
+            $this->em->createQuery('
+            DELETE FROM App\Entity\EffectSettingsKeyValue kv
+            WHERE kv.effectSettings = :effect
+        ')
+                ->setParameter('effect', $effect)
+                ->execute();
+
+            // Zorg dat Doctrine-collectie ook leeg is
+            $effect->getKeysValues()->clear();
         }
 
+        // 2) Nieuwe data uit de config halen
         $data = $this->extractor->extract($effect->getConfig());
 
-        if ($data['effectName']) {
+        if (!empty($data['effectName'])) {
             $effect->addKeyValue(
                 new EffectSettingsKeyValue(
                     $effect,
