@@ -964,7 +964,7 @@ final class DocumentController extends AbstractController
                 $damperTarget = null;
                 $parameterKey = null;
 
-                dump($bindingCode, $bindingMap);
+                dd($bindingCode, $bindingMap);
 
                 if ($bindingCode && isset($bindingMap[$bindingCode])) {
                     $meta = $bindingMap[$bindingCode];
