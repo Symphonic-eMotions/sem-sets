@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use Symfony\Component\HttpFoundation\Request;             // ← toevoegen
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -11,8 +12,17 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 final class SecurityController extends AbstractController
 {
     #[Route('/login', name: 'app_login')]
-    public function login(AuthenticationUtils $authenticationUtils): Response
-    {
+    public function login(
+        AuthenticationUtils $authenticationUtils,
+        Request $request
+    ): Response {
+        // 🔍 DEBUG: forceer een sessie
+        $session = $request->getSession();
+        if (!$session->isStarted()) {
+            $session->start();
+            $session->set('debug_login_ts', microtime(true));
+        }
+
         // Haal laatste fout op (kan null zijn)
         $error = $authenticationUtils->getLastAuthenticationError();
 
