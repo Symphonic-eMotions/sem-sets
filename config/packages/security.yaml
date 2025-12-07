@@ -19,13 +19,13 @@ security:
             provider: app_user_provider
 
             # 🔥 TIJDELIJK ALLES UITZETTEN OP DE FIREWALL
-            security: false
+#            security: false
 
             # <-- Gebruik onze custom authenticator (email + 6-cijferige pincode)
-#            custom_authenticator: App\Security\PinCodeAuthenticator
-#            logout:
-#                path: app_logout
-#                target: /
+            custom_authenticator: App\Security\PinCodeAuthenticator
+            logout:
+                path: app_logout
+                target: /
 
     access_control:
         # login mag publiek
