@@ -687,6 +687,16 @@ final class DocumentController extends AbstractController
         return $response;
     }
 
+    #[Route('api/documents/{id}/bundle.zip', name: 'api_doc_bundle_download', methods: ['GET'])]
+    public function apiDownloadBundleZip(
+        Document $doc,
+        AssetRepository $assetRepo,
+        AssetStorage $assetStorage
+    ): BinaryFileResponse {
+        // We hergebruiken gewoon de bestaande method
+        return $this->downloadBundleZip($doc, $assetRepo, $assetStorage);
+    }
+
     #[Route('api/published-sets', name: 'api_published_sets', methods: ['GET'])]
     public function apiPublishedSets(DocumentRepository $repo): Response
     {
@@ -700,7 +710,7 @@ final class DocumentController extends AbstractController
                 'title' => $doc->getTitle(),
                 'semVersion' => $doc->getSemVersion(),
                 'bundleUrl' => $this->generateUrl(
-                    'doc_bundle_download',
+                    'api_doc_bundle_download',
                     ['id' => $doc->getId()],
                     UrlGeneratorInterface::ABSOLUTE_URL
                 ),
