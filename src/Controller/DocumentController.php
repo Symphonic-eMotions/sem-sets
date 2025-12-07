@@ -659,7 +659,7 @@ final class DocumentController extends AbstractController
             // Desnoods fallback naar een generieke naam
             $safeName = $origName !== '' ? $origName : ('midi_' . $asset->getId() . '.mid');
 
-            $zip->addFile($localPath, 'assets/' . $safeName);
+            $zip->addFile($localPath, $safeName);
         }
 
         // ZIP sluiten zodat hij klaar is voor download
