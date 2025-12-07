@@ -22,3 +22,9 @@ when@test:
         test: true
         session:
             storage_factory_id: session.storage.factory.mock_file
+
+when@prod:
+    framework:
+        session:
+            # alleen prod naar /home/symphonic/tmp sturen
+            save_path: '/home/symphonic/tmp'
