@@ -129,7 +129,7 @@
                         required
                         autocomplete="username"
                         spellcheck="false"
-                        value="{{ last_username is defined ? last_username : app.session.get('_security.last_username') }}"
+                        value="{{ last_username }}"
                         {% if not (last_username is defined ? last_username : app.session.get('_security.last_username')) %}autofocus{% endif %}
                 >
             </div>
