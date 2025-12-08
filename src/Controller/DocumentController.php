@@ -898,41 +898,55 @@ final class DocumentController extends AbstractController
             // -----------------------------------------------------------------
             // 4a) Effects-config + binding-map voor parts
             // -----------------------------------------------------------------
-            $effectsConfig = [];
-            $bindingMap    = [];
+            $effectsConfig   = [];
+            $effectParamMeta = [];
 
+// Bouw effect-config + mapping van param-ID -> meta
             foreach ($t->getTrackEffects() as $te) {
                 $preset = $te->getPreset();
                 if (!$preset) {
                     continue;
                 }
 
-                $config = $preset->getConfig(); // Compleet effect uit config
+                $config = $preset->getConfig(); // volledige effect-JSON
                 if (is_array($config)) {
                     $effectsConfig[] = $config;
                 }
 
-                // Effect-naam
-                $effectName = $preset->getName();
+                // Basisnaam
+                $effectLabel = $preset->getName();
+
+                // Zoek een evt. "mooie" naam (TYPE_NAME)
                 if (method_exists($preset, 'getKeysValues')) {
                     foreach ($preset->getKeysValues() as $kv) {
-                        if ($kv->getType() === 'name' && $kv->getValue() !== null) {
-                            $effectName = $kv->getValue();
+                        if ($kv->getType() === EffectSettingsKeyValue::TYPE_NAME && $kv->getValue() !== null) {
+                            $effectLabel = $kv->getValue();
                         }
                     }
 
-                    // Parameters → binding-map
+                    // Verzamel param-meta per EffectSettingsKeyValue-id
                     foreach ($preset->getKeysValues() as $kv) {
-                        if ($kv->getType() !== 'parameter') {
+                        if ($kv->getType() !== EffectSettingsKeyValue::TYPE_PARAM) {
                             continue;
                         }
 
-                        $bindingKey = 'effect:' . $kv->getId();
+                        $keyName = $kv->getKeyName();
+                        $range   = null;
 
-                        $bindingMap[$bindingKey] = [
-                            'nodeType'  => 'effect',
-                            'nodeName'  => $effectName,        // parent van de parameter
-                            'parameter' => $kv->getKeyName(),  // bv "cutoffFrequency"
+                        if (
+                            is_array($config)
+                            && array_key_exists($keyName, $config)
+                            && is_array($config[$keyName])
+                            && isset($config[$keyName]['range'])
+                            && is_array($config[$keyName]['range'])
+                        ) {
+                            $range = array_values($config[$keyName]['range']);
+                        }
+
+                        $effectParamMeta[$kv->getId()] = [
+                            'effectName' => $effectLabel,   // bv. "lowPassFilter"
+                            'parameter'  => $keyName,      // bv. "cutoffFrequency"
+                            'range'      => $range,        // bv. [10, 20000]
                         ];
                     }
                 }
@@ -952,84 +966,80 @@ final class DocumentController extends AbstractController
                 1,
                 (int) $doc->getGridColumns() * (int) $doc->getGridRows()
             );
+
             $partsConfig = [];
 
             foreach ($t->getInstrumentParts() as $part) {
-
                 $aoiRaw = $part->getAreaOfInterest();
-                $aoi = $this->parseAreaOfInterest($aoiRaw, $gridCells);
-
-                $bindingCode  = $part->getTargetBinding() ?: null;
+                $aoi    = $this->parseAreaOfInterest($aoiRaw, $gridCells);
 
                 $damperTarget = null;
                 $parameterKey = null;
 
-                dd($bindingCode, $bindingMap);
+                // EFFECT target
+                if ($part->getTargetType() === InstrumentPart::TARGET_TYPE_EFFECT) {
+                    $kv = $part->getTargetEffectParam();
+                    if ($kv) {
+                        $meta = $effectParamMeta[$kv->getId()] ?? null;
+                        if ($meta) {
+                            $damperTarget = [
+                                'nodeType'  => 'effect',
+                                'parameter' => $meta['parameter'],
+                                'trackId'   => $t->getTrackId(),
+                                'nodeName'  => $meta['effectName'],
+                            ];
 
-                if ($bindingCode && isset($bindingMap[$bindingCode])) {
-                    $meta = $bindingMap[$bindingCode];
+                            if ($meta['range'] !== null) {
+                                $damperTarget['parameterRange'] = $meta['range'];
+                            }
 
-                    $damperTarget = [
-                        'nodeType'  => $meta['nodeType'],       // "effect" of "sequencer"
-                        'parameter' => $meta['parameter'],      // bv "cutoffFrequency" of "velocity"
-                        'trackId'   => $t->getTrackId(),        // track waar de part in zit
-                        'nodeName'  => $meta['nodeName'],       // effectName of "" bij sequencer
-                    ];
-                    // --- ParameterRange uit entity meenemen ---
-                    $low  = $part->getTargetRangeLow();
-                    $high = $part->getTargetRangeHigh();
-
-                    if ($low !== null && $high !== null) {
-                        $lowF  = (float) $low;
-                        $highF = (float) $high;
-
-                        // Zorg dat low <= high in de JSON
-                        $min = min($lowF, $highF);
-                        $max = max($lowF, $highF);
-
-                        $damperTarget['parameterRange'] = [$min, $max];
+                            $parameterKey = $meta['parameter'];
+                        }
                     }
-
-                    // NodeSettings uit entity meenemen
-                    // Lezen uit InstrumentPart: getters die je al in de entity hebt toegevoegd
-                    $minimal = $part->getMinimalLevel();
-                    $rampUp  = $part->getRampSpeed();
-                    $rampDown = $part->getRampSpeedDown();
-
-                    // Defaults voor oude sets / lege waarden
-                    if ($minimal === null) {
-                        $minimal = 0.10;
-                    }
-                    if ($rampUp === null) {
-                        $rampUp = 0.08;
-                    }
-                    if ($rampDown === null) {
-                        $rampDown = 0.04;
-                    }
-
-                    // Merge met eventuele bestaande nodeSettings (voor het geval niveauTrack of future code daar al iets inzet)
-                    $existingNodeSettings = [];
-                    if (isset($damperTarget['nodeSettings']) && is_array($damperTarget['nodeSettings'])) {
-                        $existingNodeSettings = $damperTarget['nodeSettings'];
-                    }
-
-                    $damperTarget['nodeSettings'] = array_merge(
-                        $existingNodeSettings,
-                        [
-                            'minimalLevel'  => (float) $minimal,
-                            'rampSpeed'     => (float) $rampUp,
-                            'rampSpeedDown' => (float) $rampDown,
-                        ]
-                    );
                 }
 
+                // SEQUENCER target (bijv. velocity)
+                elseif (
+                    $part->getTargetType() === InstrumentPart::TARGET_TYPE_SEQUENCER
+                    && $part->getTargetSequencerParam() === 'velocity'
+                ) {
+                    $damperTarget = [
+                        'nodeType'  => 'sequencer',
+                        'parameter' => 'velocity',
+                        'trackId'   => $t->getTrackId(),
+                        'nodeName'  => '',
+                    ];
+
+                    $parameterKey = 'velocity';
+                }
+
+                // Node settings toevoegen als er een target is
+                if ($damperTarget !== null) {
+                    $minimal  = $part->getMinimalLevel()  ?? 0.10;
+                    $rampUp   = $part->getRampSpeed()     ?? 0.08;
+                    $rampDown = $part->getRampSpeedDown() ?? 0.04;
+
+                    $damperTarget['nodeSettings'] = [
+                        'minimalLevel'  => (float) $minimal,
+                        'rampSpeed'     => (float) $rampUp,
+                        'rampSpeedDown' => (float) $rampDown,
+                    ];
+                }
+
+                // Mooie naam voor de part
                 $instrumentPartName = $this->buildPartName($instrumentName, $parameterKey);
 
-                $partsConfig[] = [
-                    'areaOfInterest' => $aoi,
-                    'damperTarget'   => $damperTarget,
+                // Alleen damperTarget in JSON als hij echt bestaat
+                $partConfig = [
+                    'areaOfInterest'     => $aoi,
                     'instrumentPartName' => $instrumentPartName,
                 ];
+
+                if ($damperTarget !== null) {
+                    $partConfig['damperTarget'] = $damperTarget;
+                }
+
+                $partsConfig[] = $partConfig;
             }
 
             // 5) Basis track-config
