@@ -708,7 +708,7 @@ final class DocumentController extends AbstractController
                 'id' => $doc->getId(),
                 'slug' => $doc->getSlug(),
                 'title' => $doc->getTitle(),
-                'semVersion' => $doc->getSemVersion(),
+                'setVersion' => $doc->getHeadVersion()->getVersionNr(),
                 'bundleUrl' => $this->generateUrl(
                     'api_doc_bundle_download',
                     ['id' => $doc->getId()],
