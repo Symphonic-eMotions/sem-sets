@@ -100,8 +100,16 @@ class DocumentTrack
         return $this;
     }
 
-    /** @return int[] */
-    public function getLevels(): array { return $this->levels; }
+    /** @return int[] maar dan allemaal gevuld met 16 */
+    public function getLevels(): array
+    {
+        return array_map(
+            static fn (int $level): int => $level === 16 ? 16 : $level,
+            $this->levels
+        );
+    }
+
+
     /** @param int[] $levels */
     public function setLevels(array $levels): self {
         $this->levels = array_values(array_map(static fn($v)=> (int)$v, $levels));

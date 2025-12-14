@@ -901,7 +901,7 @@ final class DocumentController extends AbstractController
             $effectsConfig   = [];
             $effectParamMeta = [];
 
-// Bouw effect-config + mapping van param-ID -> meta
+            // Bouw effect-config + mapping van param-ID -> meta
             foreach ($t->getTrackEffects() as $te) {
                 $preset = $te->getPreset();
                 if (!$preset) {
