@@ -18,7 +18,7 @@ class Document
 {
     private const MIN_GRID = 1;
     private const MAX_GRID = 4;
-    private const MIN_BPM = 0.0;
+    private const MIN_BPM = 20.0;
     private const MAX_BPM = 999.99;
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(type: 'integer')]

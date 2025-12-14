@@ -64,6 +64,7 @@ final class DocumentController extends AbstractController
             // slugify onder water
             $doc->setSlug($this->slugify($doc->getTitle()));
             $doc->setSemVersion($doc->getSemVersion());
+            $doc->setHeadVersion($doc->getHeadVersion() ?? 1);
             $doc->setGridColumns(2);
             $doc->setGridRows(2);
             $doc->setLevelDurations([32,32]);
@@ -708,7 +709,7 @@ final class DocumentController extends AbstractController
                 'id' => $doc->getId(),
                 'slug' => $doc->getSlug(),
                 'title' => $doc->getTitle(),
-                'setVersion' => $doc->getHeadVersion()->getVersionNr(),
+                'setVersion' => $doc->getHeadVersion()->getVersionNr() ?? 0,
                 'bundleUrl' => $this->generateUrl(
                     'api_doc_bundle_download',
                     ['id' => $doc->getId()],
@@ -1068,7 +1069,7 @@ final class DocumentController extends AbstractController
             'gridRows'          => $doc->getGridRows(),
             'published'         => $doc->isPublished(),
             'semVersion'        => $doc->getSemVersion(),
-            'setVersion'        => $doc->getHeadVersion()->getVersionNr(),
+            'setVersion'        => $doc->getHeadVersion()?->getVersionNr() ?? 1,
             'setName'           => $doc->getTitle(),
             'setBPM'            => $bpm,
             'levelDurations'    => $levelDurations,
