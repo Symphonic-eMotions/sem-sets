@@ -1068,7 +1068,7 @@ final class DocumentController extends AbstractController
             'gridRows'          => $doc->getGridRows(),
             'published'         => $doc->isPublished(),
             'semVersion'        => $doc->getSemVersion(),
-            'setVersion'        => $doc->getHeadVersion(),
+            'setVersion'        => $doc->getHeadVersion()->getVersionNr(),
             'setName'           => $doc->getTitle(),
             'setBPM'            => $bpm,
             'levelDurations'    => $levelDurations,
