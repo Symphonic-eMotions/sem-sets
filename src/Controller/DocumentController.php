@@ -824,13 +824,8 @@ final class DocumentController extends AbstractController
                 ? $t->getLoopLength()
                 : [];
 
-            $loopLength = array_keys(
-                array_filter(
-                    array_map('intval', $loopLength),
-                    fn ($value) => $value === 1
-                )
-            );
-            
+            $loopLength = array_values(array_map('intval', $loopLength));
+
             // 1b) LoopsToGrid uit eerste InstrumentPart
             $loopsToGrid = [];
             $parts = $t->getInstrumentParts();
@@ -1047,10 +1042,18 @@ final class DocumentController extends AbstractController
                 $partsConfig[] = $partConfig;
             }
 
+            $levels = array_values(array_map('intval', $t->getLevels()));
+            $levels = array_keys(
+                array_filter(
+                    array_map('intval', $levels),
+                    fn ($value) => $value === 1
+                )
+            );
+
             // 5) Basis track-config
             $trackConfig = [
                 'trackId'         => $t->getTrackId(),
-                'levels'          => array_values(array_map('intval', $t->getLevels())),
+                'levels'          => $levels,
                 'midiFiles'       => $midi,
                 'instrumentType'  => $instrumentType,   // null of 'exsSampler'
                 'exsFiles'        => $exsFiles,         // null of array
