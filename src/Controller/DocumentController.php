@@ -824,8 +824,13 @@ final class DocumentController extends AbstractController
                 ? $t->getLoopLength()
                 : [];
 
-            $loopLength = array_values(array_map('intval', $loopLength));
-
+            $loopLength = array_keys(
+                array_filter(
+                    array_map('intval', $loopLength),
+                    fn ($value) => $value === 1
+                )
+            );
+            
             // 1b) LoopsToGrid uit eerste InstrumentPart
             $loopsToGrid = [];
             $parts = $t->getInstrumentParts();

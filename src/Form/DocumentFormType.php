@@ -158,7 +158,7 @@ final class DocumentFormType extends AbstractType
             ])
 
             ->add('midiFiles', FileType::class, [
-                'label' => 'Upload MIDI-bestanden (.mid)',
+                'label' => 'Upload MIDI-bestanden (.mid) Geen speciale tekens in de bestandsnaam a.u.b.',
                 'mapped' => false,
                 'required' => false,
                 'multiple' => true,
