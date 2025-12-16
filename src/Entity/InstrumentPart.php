@@ -63,13 +63,13 @@ class InstrumentPart
     private ?float $targetRangeHigh = null;
 
     #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $minimalLevel = null;
+    private ?float $minimalLevel;
 
     #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $rampSpeed = null;
+    private ?float $rampSpeed;
 
     #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $rampSpeedDown = null;
+    private ?float $rampSpeedDown;
 
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
@@ -94,6 +94,11 @@ class InstrumentPart
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getPartId(): string
+    {
+        return $this->partId;
     }
 
     public function getTrack(): ?DocumentTrack
@@ -217,7 +222,7 @@ class InstrumentPart
         $normalized = array_values(array_map(
             static function ($v): int {
                 $n = (int) $v;
-                return $n < 0 ? 0 : $n;
+                return max($n, 0);
             },
             $value
         ));
@@ -286,7 +291,7 @@ class InstrumentPart
             return $this;
         }
 
-        $this->targetRangeLow = (float) $value;
+        $this->targetRangeLow = $value;
         return $this;
     }
 
@@ -302,7 +307,7 @@ class InstrumentPart
             return $this;
         }
 
-        $this->targetRangeHigh = (float) $value;
+        $this->targetRangeHigh = $value;
         return $this;
     }
 
@@ -317,7 +322,7 @@ class InstrumentPart
             return $this;
         }
 
-        $v = (float) $value;
+        $v = $value;
 
         // Clamp 0–1
         if ($v < 0.0) {
@@ -341,7 +346,7 @@ class InstrumentPart
             return $this;
         }
 
-        $v = (float) $value;
+        $v = $value;
         if ($v < 0.0) {
             $v = 0.0;
         } elseif ($v > 1.0) {
@@ -363,7 +368,7 @@ class InstrumentPart
             return $this;
         }
 
-        $v = (float) $value;
+        $v = $value;
         if ($v < 0.0) {
             $v = 0.0;
         } elseif ($v > 1.0) {

@@ -7,6 +7,7 @@ declare(strict_types=1);
 namespace App\Form;
 
 use App\Entity\Document;
+use App\Entity\InstrumentPart;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
@@ -45,6 +46,7 @@ final class DocumentFormType extends AbstractType
                 $levels = array_map(static fn($v) => (int)((int)$v === 1), $levels);
                 $t->setLevels($levels);
 
+                /* @var InstrumentPart $part */
                 foreach ($t->getInstrumentParts() as $part) {
                     $aoi = array_values((array) $part->getAreaOfInterest());
 

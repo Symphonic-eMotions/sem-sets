@@ -5,6 +5,7 @@ namespace App\Controller;
 
 use App\Entity\Asset;
 use App\Entity\Document;
+use App\Entity\DocumentTrack;
 use App\Entity\EffectSettingsKeyValue;
 use App\Entity\InstrumentPart;
 use App\Form\DocumentFormType;
@@ -219,6 +220,7 @@ final class DocumentController extends AbstractController
             $position   = 0;
             $tracks = array_values($doc->getTracks()->toArray());
 
+            /* @var DocumentTrack $t */
             foreach ($tracks as $index => $t) {
                 $trackForm = $tracksForm[$index] ?? null;
 
@@ -247,6 +249,7 @@ final class DocumentController extends AbstractController
                     $partPos = 0;
                     $expectedAreas = $doc->getGridColumns() * $doc->getGridRows();
 
+                    /* @var InstrumentPart $part */
                     foreach ($parts as $pIndex => $part) {
                         $partForm = $partsForm[$pIndex] ?? null;
 
@@ -255,13 +258,13 @@ final class DocumentController extends AbstractController
                             $part->setAreaOfInterest($rawAoi);
                         }
 
-                        // ✅ LoopsToGrid raw → entity
+                        // LoopsToGrid raw → entity
                         if ($partForm && $partForm->has('loopsToGrid')) {
                             $rawLoops = $partForm->get('loopsToGrid')->getData();
                             $part->setLoopsToGrid($rawLoops);
                         }
 
-                        // 🔹 targetBinding → targetType + effect/sequencer param
+                        // targetBinding → targetType + effect/sequencer param
                         if ($partForm && $partForm->has('targetBinding')) {
 
                             /** @var string|null $binding */
@@ -818,6 +821,7 @@ final class DocumentController extends AbstractController
 
         $instrumentsConfig = [];
 
+        /* @var DocumentTrack $t */
         foreach ($doc->getTracks() as $t) {
             // 1) LoopLength ophalen (altijd array<int>)
             $loopLength = method_exists($t, 'getLoopLength')
@@ -969,6 +973,7 @@ final class DocumentController extends AbstractController
 
             $partsConfig = [];
 
+            /* @var InstrumentPart $part */
             foreach ($t->getInstrumentParts() as $part) {
                 $aoiRaw = $part->getAreaOfInterest();
                 $aoi    = $this->parseAreaOfInterest($aoiRaw, $gridCells);
