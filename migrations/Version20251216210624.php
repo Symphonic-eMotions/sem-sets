@@ -9,6 +9,11 @@ use Doctrine\Migrations\AbstractMigration;
 
 final class Version20251216210624 extends AbstractMigration
 {
+    public function isTransactional(): bool
+    {
+        return false;
+    }
+
     public function getDescription(): string
     {
         return 'Add part_id to instrument_parts and backfill unique ULIDs for existing rows';
@@ -24,7 +29,7 @@ final class Version20251216210624 extends AbstractMigration
         // MariaDB: TO_BASE32() exists in recent versions; if yours doesn’t, use the fallback further below.
         $this->addSql("
             UPDATE instrument_parts
-            SET part_id = UPPER(REPLACE(TO_BASE32(RANDOM_BYTES(16)), '=', ''))
+            SET part_id = SUBSTRING(UPPER(REPLACE(UUID(), '-', '')), 1, 26)
             WHERE part_id IS NULL OR part_id = ''
         ");
 
