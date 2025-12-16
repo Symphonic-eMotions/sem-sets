@@ -5,6 +5,7 @@ namespace App\Entity;
 
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Ulid;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'instrument_parts')]
@@ -17,6 +18,11 @@ class InstrumentPart
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(type: 'integer')]
     private ?int $id = null;
+
+    // Id om gegevens terug naar de server te sturen
+    #[ORM\Column(type: 'string', length: 26, unique: true)]
+    private string $partId;
+
 
     #[ORM\ManyToOne(targetEntity: DocumentTrack::class, inversedBy: 'instrumentParts')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -82,8 +88,9 @@ class InstrumentPart
         $this->createdAt = $now;
         $this->updatedAt = $now;
         $this->minimalLevel   = 0.10;
-        $this->rampSpeed      = 0.08;
-        $this->rampSpeedDown  = 0.04;
+        $this->rampSpeed      = 0.04;
+        $this->rampSpeedDown  = 0.02;
+        $this->partId = (new Ulid())->toBase32();
     }
 
     public function getId(): ?int

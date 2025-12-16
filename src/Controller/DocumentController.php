@@ -885,7 +885,7 @@ final class DocumentController extends AbstractController
                         $minimal = 0.10;
                     }
                     if ($rampUp === null) {
-                        $rampUp = 0.08;
+                        $rampUp = 0.02;
                     }
                     if ($rampDown === null) {
                         $rampDown = 0.04;
