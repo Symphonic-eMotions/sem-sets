@@ -1016,7 +1016,7 @@ final class DocumentController extends AbstractController
                 // Node settings toevoegen als er een target is
                 if ($damperTarget !== null) {
                     $minimal  = $part->getMinimalLevel()  ?? 0.10;
-                    $rampUp   = $part->getRampSpeed()     ?? 0.08;
+                    $rampUp   = $part->getRampSpeed()     ?? 0.02;
                     $rampDown = $part->getRampSpeedDown() ?? 0.04;
 
                     $damperTarget['nodeSettings'] = [
@@ -1031,6 +1031,7 @@ final class DocumentController extends AbstractController
 
                 // Alleen damperTarget in JSON als hij echt bestaat
                 $partConfig = [
+                    'onlinePartId'       => $part->getPartId(),
                     'areaOfInterest'     => $aoi,
                     'instrumentPartName' => $instrumentPartName,
                 ];
