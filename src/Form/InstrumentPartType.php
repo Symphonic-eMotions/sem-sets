@@ -71,41 +71,31 @@ final class InstrumentPartType extends AbstractType
                 ],
             ])
 
-            // Nieuw: ramp snelheden (up)
-            ->add('rampSpeed', ChoiceType::class, [
-                'label'       => false,
+            // Ramp snelheden (up)
+            ->add('rampSpeed', NumberType::class, [
+                'label'       => '',
                 'required'    => true,
-                'placeholder' => false,
-                'choices'     => [
-                    '0.02' => 0.02,
-                    '0.04' => 0.04,
-                    '0.08' => 0.08,
-                    '0.16' => 0.16,
-                    '0.32' => 0.32,
-                    '0.64' => 0.64,
-                    '1.00' => 1.00,
-                ],
-                'attr'        => [
-                    'class' => 'ramp-speed-select',
+                'scale'    => 3,
+                'html5'    => true,
+                'attr'     => [
+                    'min'  => 0,
+                    'max'  => 0.2,
+                    'step' => 0.0001,
+                    'class'=> 'ramp-speed-input',
                 ],
             ])
 
-            // Nieuw: ramp snelheden (down)
-            ->add('rampSpeedDown', ChoiceType::class, [
-                'label'       => false,
+            // Ramp snelheden (down)
+            ->add('rampSpeedDown', NumberType::class, [
+                'label'       => '',
                 'required'    => true,
-                'placeholder' => false,
-                'choices'     => [
-                    '0.02' => 0.02,
-                    '0.04' => 0.04,
-                    '0.08' => 0.08,
-                    '0.16' => 0.16,
-                    '0.32' => 0.32,
-                    '0.64' => 0.64,
-                    '1.00' => 1.00,
-                ],
-                'attr'        => [
-                    'class' => 'ramp-speed-down-select',
+                'scale'    => 3,
+                'html5'    => true,
+                'attr'     => [
+                    'min'  => 0,
+                    'max'  => 0.2,
+                    'step' => 0.0001,
+                    'class'=> 'ramp-speed-down-input',
                 ],
             ])
         ;

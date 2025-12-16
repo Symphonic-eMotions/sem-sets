@@ -50,7 +50,10 @@
                                             <button
                                                     type="button"
                                                     class="btn-mini danger"
-                                                    onclick="deleteAsset('{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}', '{{ csrf_token('delete-asset-' ~ a.id) }}', '{{ a.originalName }}')"
+                                                    data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                                    data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
+                                                    data-name="{{ a.originalName }}"
+                                                    onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
                                             >
                                                 Verwijder
                                             </button>

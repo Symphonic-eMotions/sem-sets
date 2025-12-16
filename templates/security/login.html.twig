@@ -44,10 +44,15 @@
         .logo {
             display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
         }
-        .logo-badge {
-            width: 40px; height: 40px; border-radius: 10px;
-            background: conic-gradient(from 120deg, var(--accent), #22d3ee 40%, #06b6d4 60%, var(--accent));
-            box-shadow: 0 0 0 4px #ffffff0f, 0 6px 14px #0008;
+        /* Vervangt het oude logo-badge vierkant */
+        .logo-img {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;                 /* afgeronde hoeken */
+            object-fit: cover;
+            box-shadow:
+                    0 0 0 4px #ffffff0f,
+                    0 6px 14px #0008;                 /* zelfde stijl als oude badge */
         }
         h1 { font-size: 20px; margin: 0 0 4px 0; letter-spacing: .2px; }
         .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
@@ -95,10 +100,14 @@
     <div class="login-wrap">
         <form class="card" method="post" action="{{ path('app_login') }}" autocomplete="on" novalidate>
             <div class="logo">
-                <div class="logo-badge" aria-hidden="true"></div>
-                <div>
-                    <h1>Inloggen</h1>
-                    <div class="subtitle">Toegang tot je sets & versies</div>
+                <img
+                        src="{{ asset('images/logo-sen-sets.webp') }}"
+                        alt="Symphonic eMotions"
+                        class="logo-img"
+                >
+                <div style="padding-left: 5px;">
+                    <h1 style="padding-top: 20px;">Symphonic eMotions Cloud</h1>
+                    <div class="subtitle">Inloggen geeft toegang tot sets & versies</div>
                 </div>
             </div>
 
@@ -120,7 +129,7 @@
                         required
                         autocomplete="username"
                         spellcheck="false"
-                        value="{{ last_username is defined ? last_username : app.session.get('_security.last_username') }}"
+                        value="{{ last_username }}"
                         {% if not (last_username is defined ? last_username : app.session.get('_security.last_username')) %}autofocus{% endif %}
                 >
             </div>
@@ -142,18 +151,18 @@
                         {% if (last_username is defined ? last_username : app.session.get('_security.last_username')) %}autofocus{% endif %}
                 >
                 <button type="button" class="toggle" aria-label="Toon/verberg pincode" data-toggle-pin>Toon</button>
-                <div id="pin-help" class="help">Exact 6 cijfers. Alleen numeriek.</div>
+{#                <div id="pin-help" class="help">Exact 6 cijfers. Alleen numeriek.</div>#}
             </div>
 
             <button type="submit" class="submit">Inloggen</button>
 
             <div class="meta">
-                <span>Vertrouwd apparaat?</span>
-                <span>2FA volgt later</span>
+                <span></span>
+{#                <span>2FA volgt later</span>#}
             </div>
 
             <div class="foot">
-                <a class="brand" href="#" tabindex="-1">Sym-Sets</a>
+                <a class="brand" href="#" tabindex="-1">&copy; Symphonic eMotions</a>
             </div>
         </form>
     </div>

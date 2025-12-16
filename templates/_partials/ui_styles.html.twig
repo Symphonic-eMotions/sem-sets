@@ -100,6 +100,37 @@
     .section { margin-top: 18px; }
     .section-title { font-size: 16px; font-weight: 600; margin: 0 0 10px; color: #dce6f9; }
 
+    /* ===========================
+   Logo styling
+   =========================== */
+    .header-logo {
+        height: 64px;
+        width: auto;
+        border-radius: 12px;     /* afgeronde hoeken */
+        display: block;
+    }
+
+    /* ===========================
+       Buttons: algemene hover
+       =========================== */
+    .btn:hover,
+    .btn.secondary:hover,
+    .btn-danger:hover {
+        cursor: pointer;
+        filter: brightness(1.1);
+    }
+
+    /* ===========================
+       Disabled buttons
+       =========================== */
+    button[disabled],
+    button[disabled]:hover {
+        opacity: 0.45;            /* lichter */
+        cursor: not-allowed;      /* geen pointer bij disabled */
+        filter: none !important;  /* geen hover-effect */
+    }
+
+
     /* ======== Buttons ======== */
     .btn {
         display: inline-flex;

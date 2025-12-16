@@ -47,7 +47,8 @@
         "symphonic-emotions/php-midi": "dev-master",
         "twig/extra-bundle": "^2.12|^3.0",
         "twig/string-extra": "^3.22",
-        "twig/twig": "^2.12|^3.0"
+        "twig/twig": "^2.12|^3.0",
+        "ext-zip": "*"
     },
     "config": {
         "allow-plugins": {

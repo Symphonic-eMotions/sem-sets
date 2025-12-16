@@ -17,6 +17,10 @@ security:
         main:
             lazy: true
             provider: app_user_provider
+
+            # 🔥 TIJDELIJK ALLES UITZETTEN OP DE FIREWALL
+#            security: false
+
             # <-- Gebruik onze custom authenticator (email + 6-cijferige pincode)
             custom_authenticator: App\Security\PinCodeAuthenticator
             logout:

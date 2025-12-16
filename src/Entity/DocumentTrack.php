@@ -102,6 +102,7 @@ class DocumentTrack
 
     /** @return int[] */
     public function getLevels(): array { return $this->levels; }
+
     /** @param int[] $levels */
     public function setLevels(array $levels): self {
         $this->levels = array_values(array_map(static fn($v)=> (int)$v, $levels));

@@ -22,15 +22,18 @@ use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Ulid;
 use Throwable;
+use ZipArchive;
 
 #[Route('/')]
 final class DocumentController extends AbstractController
@@ -607,6 +610,116 @@ final class DocumentController extends AbstractController
         return $response;
     }
 
+    #[Route('documents/{id}/bundle.zip', name: 'doc_bundle_download', methods: ['GET'])]
+    public function downloadBundleZip(
+        Document $doc,
+        AssetRepository $assetRepo,
+        AssetStorage $assetStorage
+    ): BinaryFileResponse {
+        // 1) JSON payload (dezelfde als je API)
+        $json = $this->buildPayloadJson($doc);
+
+        // 2) Tijdelijk ZIP-bestand aanmaken
+        $tmpZipPath = tempnam(sys_get_temp_dir(), 'set_bundle_');
+        if ($tmpZipPath === false) {
+            throw new \RuntimeException('Kon geen tijdelijk bestand aanmaken voor ZIP.');
+        }
+
+        $zip = new ZipArchive();
+        if ($zip->open($tmpZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Kon ZIP-archief niet openen.');
+        }
+
+        // 2a) JSON toevoegen als set.json
+        $zip->addFromString('set.json', $json);
+
+        // 3) Alle MIDI-assets voor dit document toevoegen
+        $assets   = $assetRepo->findForDocument($doc);
+        $tmpFiles = []; // lokale tempbestanden om na afloop op te ruimen
+
+        foreach ($assets as $asset) {
+            // Filter alleen .mid / .midi (op basis van oorspronkelijke bestandsnaam)
+            $origName = $asset->getOriginalName() ?? '';
+            $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+
+            if (!in_array($ext, ['mid', 'midi'], true)) {
+                continue;
+            }
+
+            // Maak een lokaal tijdelijk bestand van deze asset via je bestaande helper
+            $localPath = $assetStorage->createLocalTempFile($asset);
+            if (!is_string($localPath) || !is_file($localPath)) {
+                // defensief: sla deze over als er iets misgaat
+                continue;
+            }
+
+            $tmpFiles[] = $localPath;
+
+            // In de ZIP willen we nette paden, bv. assets/bass.mid
+            // Desnoods fallback naar een generieke naam
+            $safeName = $origName !== '' ? $origName : ('midi_' . $asset->getId() . '.mid');
+
+            $zip->addFile($localPath, $safeName);
+        }
+
+        // ZIP sluiten zodat hij klaar is voor download
+        $zip->close();
+
+        // 4) Tijdelijke MIDI-tempfiles opruimen (de ZIP is nu compleet)
+        foreach ($tmpFiles as $tmp) {
+            @unlink($tmp);
+        }
+
+        // 5) Download-response opbouwen
+        $filenameBase = $doc->getSlug() ?: ('set-' . $doc->getId());
+        $downloadName = sprintf('%s-bundle.zip', $filenameBase);
+
+        $response = new BinaryFileResponse($tmpZipPath);
+        $response->setContentDisposition(
+            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
+            $downloadName
+        );
+        $response->headers->set('Content-Type', 'application/zip');
+
+        // Zorg dat het tijdelijke ZIP-bestand na versturen wordt verwijderd
+        $response->deleteFileAfterSend(true);
+
+        return $response;
+    }
+
+    #[Route('api/documents/{id}/bundle.zip', name: 'api_doc_bundle_download', methods: ['GET'])]
+    public function apiDownloadBundleZip(
+        Document $doc,
+        AssetRepository $assetRepo,
+        AssetStorage $assetStorage
+    ): BinaryFileResponse {
+        // We hergebruiken gewoon de bestaande method
+        return $this->downloadBundleZip($doc, $assetRepo, $assetStorage);
+    }
+
+    #[Route('api/published-sets', name: 'api_published_sets', methods: ['GET'])]
+    public function apiPublishedSets(DocumentRepository $repo): Response
+    {
+        $published = $repo->findBy(['published' => true], ['title' => 'ASC']);
+
+        $data = [];
+        foreach ($published as $doc) {
+            $data[] = [
+                'id' => $doc->getId(),
+                'slug' => $doc->getSlug(),
+                'title' => $doc->getTitle(),
+                'setVersion' => (int) ($doc->getHeadVersion()?->getVersionNr() ?? 0),
+                'bundleUrl' => $this->generateUrl(
+                    'api_doc_bundle_download',
+                    ['id' => $doc->getId()],
+                    UrlGeneratorInterface::ABSOLUTE_URL
+                ),
+            ];
+        }
+
+        return $this->json($data);
+    }
+
     #[Route('documents/{id}/versions', name: 'doc_versions', methods: ['GET'])]
     public function versions(Document $doc, DocumentVersionRepository $vr): Response
     {
@@ -785,41 +898,55 @@ final class DocumentController extends AbstractController
             // -----------------------------------------------------------------
             // 4a) Effects-config + binding-map voor parts
             // -----------------------------------------------------------------
-            $effectsConfig = [];
-            $bindingMap    = [];
+            $effectsConfig   = [];
+            $effectParamMeta = [];
 
+            // Bouw effect-config + mapping van param-ID -> meta
             foreach ($t->getTrackEffects() as $te) {
                 $preset = $te->getPreset();
                 if (!$preset) {
                     continue;
                 }
 
-                $config = $preset->getConfig(); // Compleet effect uit config
+                $config = $preset->getConfig(); // volledige effect-JSON
                 if (is_array($config)) {
                     $effectsConfig[] = $config;
                 }
 
-                // Effect-naam
-                $effectName = $preset->getName();
+                // Basisnaam
+                $effectLabel = $preset->getName();
+
+                // Zoek een evt. "mooie" naam (TYPE_NAME)
                 if (method_exists($preset, 'getKeysValues')) {
                     foreach ($preset->getKeysValues() as $kv) {
-                        if ($kv->getType() === 'name' && $kv->getValue() !== null) {
-                            $effectName = $kv->getValue();
+                        if ($kv->getType() === EffectSettingsKeyValue::TYPE_NAME && $kv->getValue() !== null) {
+                            $effectLabel = $kv->getValue();
                         }
                     }
 
-                    // Parameters → binding-map
+                    // Verzamel param-meta per EffectSettingsKeyValue-id
                     foreach ($preset->getKeysValues() as $kv) {
-                        if ($kv->getType() !== 'parameter') {
+                        if ($kv->getType() !== EffectSettingsKeyValue::TYPE_PARAM) {
                             continue;
                         }
 
-                        $bindingKey = 'effect:' . $kv->getId();
+                        $keyName = $kv->getKeyName();
+                        $range   = null;
 
-                        $bindingMap[$bindingKey] = [
-                            'nodeType'  => 'effect',
-                            'nodeName'  => $effectName,        // parent van de parameter
-                            'parameter' => $kv->getKeyName(),  // bv "cutoffFrequency"
+                        if (
+                            is_array($config)
+                            && array_key_exists($keyName, $config)
+                            && is_array($config[$keyName])
+                            && isset($config[$keyName]['range'])
+                            && is_array($config[$keyName]['range'])
+                        ) {
+                            $range = array_values($config[$keyName]['range']);
+                        }
+
+                        $effectParamMeta[$kv->getId()] = [
+                            'effectName' => $effectLabel,   // bv. "lowPassFilter"
+                            'parameter'  => $keyName,      // bv. "cutoffFrequency"
+                            'range'      => $range,        // bv. [10, 20000]
                         ];
                     }
                 }
@@ -839,87 +966,94 @@ final class DocumentController extends AbstractController
                 1,
                 (int) $doc->getGridColumns() * (int) $doc->getGridRows()
             );
+
             $partsConfig = [];
 
             foreach ($t->getInstrumentParts() as $part) {
-
                 $aoiRaw = $part->getAreaOfInterest();
-                $aoi = $this->parseAreaOfInterest($aoiRaw, $gridCells);
-
-                $bindingCode  = $part->getTargetBinding() ?: null;
+                $aoi    = $this->parseAreaOfInterest($aoiRaw, $gridCells);
 
                 $damperTarget = null;
                 $parameterKey = null;
-                if ($bindingCode && isset($bindingMap[$bindingCode])) {
-                    $meta = $bindingMap[$bindingCode];
 
-                    $damperTarget = [
-                        'nodeType'  => $meta['nodeType'],       // "effect" of "sequencer"
-                        'parameter' => $meta['parameter'],      // bv "cutoffFrequency" of "velocity"
-                        'trackId'   => $t->getTrackId(),        // track waar de part in zit
-                        'nodeName'  => $meta['nodeName'],       // effectName of "" bij sequencer
-                    ];
-                    // --- ParameterRange uit entity meenemen ---
-                    $low  = $part->getTargetRangeLow();
-                    $high = $part->getTargetRangeHigh();
+                // EFFECT target
+                if ($part->getTargetType() === InstrumentPart::TARGET_TYPE_EFFECT) {
+                    $kv = $part->getTargetEffectParam();
+                    if ($kv) {
+                        $meta = $effectParamMeta[$kv->getId()] ?? null;
+                        if ($meta) {
+                            $damperTarget = [
+                                'nodeType'  => 'effect',
+                                'parameter' => $meta['parameter'],
+                                'trackId'   => $t->getTrackId(),
+                                'nodeName'  => $meta['effectName'],
+                            ];
 
-                    if ($low !== null && $high !== null) {
-                        $lowF  = (float) $low;
-                        $highF = (float) $high;
+                            if ($meta['range'] !== null) {
+                                $damperTarget['parameterRange'] = $meta['range'];
+                            }
 
-                        // Zorg dat low <= high in de JSON
-                        $min = min($lowF, $highF);
-                        $max = max($lowF, $highF);
-
-                        $damperTarget['parameterRange'] = [$min, $max];
+                            $parameterKey = $meta['parameter'];
+                        }
                     }
-
-                    // --- NodeSettings uit entity meenemen ---
-                    // Lezen uit InstrumentPart: getters die je al in de entity hebt toegevoegd
-                    $minimal = $part->getMinimalLevel();
-                    $rampUp  = $part->getRampSpeed();
-                    $rampDown = $part->getRampSpeedDown();
-
-                    // Defaults voor oude sets / lege waarden
-                    if ($minimal === null) {
-                        $minimal = 0.10;
-                    }
-                    if ($rampUp === null) {
-                        $rampUp = 0.08;
-                    }
-                    if ($rampDown === null) {
-                        $rampDown = 0.04;
-                    }
-
-                    // Merge met eventuele bestaande nodeSettings (voor het geval niveauTrack of future code daar al iets inzet)
-                    $existingNodeSettings = [];
-                    if (isset($damperTarget['nodeSettings']) && is_array($damperTarget['nodeSettings'])) {
-                        $existingNodeSettings = $damperTarget['nodeSettings'];
-                    }
-
-                    $damperTarget['nodeSettings'] = array_merge(
-                        $existingNodeSettings,
-                        [
-                            'minimalLevel'  => (float) $minimal,
-                            'rampSpeed'     => (float) $rampUp,
-                            'rampSpeedDown' => (float) $rampDown,
-                        ]
-                    );
                 }
 
+                // SEQUENCER target (bijv. velocity)
+                elseif (
+                    $part->getTargetType() === InstrumentPart::TARGET_TYPE_SEQUENCER
+                    && $part->getTargetSequencerParam() === 'velocity'
+                ) {
+                    $damperTarget = [
+                        'nodeType'  => 'sequencer',
+                        'parameter' => 'velocity',
+                        'trackId'   => $t->getTrackId(),
+                        'nodeName'  => '',
+                    ];
+
+                    $parameterKey = 'velocity';
+                }
+
+                // Node settings toevoegen als er een target is
+                if ($damperTarget !== null) {
+                    $minimal  = $part->getMinimalLevel()  ?? 0.10;
+                    $rampUp   = $part->getRampSpeed()     ?? 0.08;
+                    $rampDown = $part->getRampSpeedDown() ?? 0.04;
+
+                    $damperTarget['nodeSettings'] = [
+                        'minimalLevel'  => (float) $minimal,
+                        'rampSpeed'     => (float) $rampUp,
+                        'rampSpeedDown' => (float) $rampDown,
+                    ];
+                }
+
+                // Mooie naam voor de part
                 $instrumentPartName = $this->buildPartName($instrumentName, $parameterKey);
 
-                $partsConfig[] = [
-                    'areaOfInterest' => $aoi,
-                    'damperTarget'   => $damperTarget,
+                // Alleen damperTarget in JSON als hij echt bestaat
+                $partConfig = [
+                    'areaOfInterest'     => $aoi,
                     'instrumentPartName' => $instrumentPartName,
                 ];
+
+                if ($damperTarget !== null) {
+                    $partConfig['damperTarget'] = $damperTarget;
+                }
+
+                $partsConfig[] = $partConfig;
             }
+
+            $levels = array_values(array_map('intval', $t->getLevels()));
+            $levels = array_keys(
+                array_filter(
+                    array_map('intval', $levels),
+                    fn ($value) => $value === 1
+                )
+            );
 
             // 5) Basis track-config
             $trackConfig = [
                 'trackId'         => $t->getTrackId(),
-                'levels'          => array_values(array_map('intval', $t->getLevels())),
+                'levels'          => $levels,
                 'midiFiles'       => $midi,
                 'instrumentType'  => $instrumentType,   // null of 'exsSampler'
                 'exsFiles'        => $exsFiles,         // null of array
@@ -942,6 +1076,7 @@ final class DocumentController extends AbstractController
             'gridRows'          => $doc->getGridRows(),
             'published'         => $doc->isPublished(),
             'semVersion'        => $doc->getSemVersion(),
+            'setVersion'        => $doc->getHeadVersion()?->getVersionNr() ?? 1,
             'setName'           => $doc->getTitle(),
             'setBPM'            => $bpm,
             'levelDurations'    => $levelDurations,
@@ -975,7 +1110,7 @@ final class DocumentController extends AbstractController
         // hergebruik je humanizeLabel als die camelCase al netjes omzet
         $paramLabel = $this->humanizeLabel($parameterKey); // bv "lowPassCutoff" → "Low Pass Cutoff"
 
-        return sprintf('%s – %s', $instrumentName, $paramLabel);
+        return sprintf('%s', $paramLabel);
     }
 
     /**

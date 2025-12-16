@@ -26,33 +26,33 @@ import fnmatch
 EXTENSIONS = (".php", ".twig", ".yaml", ".yml", ".json", ".js", ".css", ".scss", ".ts", ".md")
 
 # ---- Optioneel ruis verwijderen om tokens te besparen -----------------------
-STRIP_NOISE = False  # op False laten voor volledige inhoud
+STRIP_NOISE = True  # op False laten voor volledige inhoud
 # ---------------------------------------------------------------------------
 
 # ---- WHITELIST: alleen deze bestanden komen in de samenvatting ----
 # Gebruik relatieve paden t.o.v. project_root.
 WHITELIST = [
 #     "public/js/effectsSettings.js",
-    "public/js/leveldurationsTracksAOI.js",
-    "public/js/loopLengthEditor.js",
-#     "src/Controller/DocumentController.php",
+#     "public/js/leveldurationsTracksAOI.js",
+#     "public/js/loopLengthEditor.js",
+    "src/Controller/DocumentController.php",
 #     "src/Controller/EffectSettingsController.php",
 #     "src/Entity/Document.php",
     "src/Entity/DocumentTrack.php",
-#     "src/Entity/DocumentTrackEffect.php",
-#     "src/Entity/EffectSettings.php",
-#     "src/Entity/EffectSettingsKeyValue.php",
+    "src/Entity/DocumentTrackEffect.php",
+    "src/Entity/EffectSettings.php",
+    "src/Entity/EffectSettingsKeyValue.php",
     "src/Entity/InstrumentPart.php",
-#     "src/Form/DocumentFormType.php",
-#     "src/Form/DocumentTrackEffectType.php,"
+    "src/Form/DocumentFormType.php",
+    "src/Form/DocumentTrackEffectType.php,"
     "src/Form/DocumentTrackType.php",
-#     "src/Form/EffectSettingsType.php",
+    "src/Form/EffectSettingsType.php",
     "src/Form/InstrumentPartType.php",
-#     "src/Repository/EffectSettingsKeyValueRepository.php",
-#     "src/Repository/EffectSettingsRepository.php",
-#     "src/Service/TrackEffectParamChoicesBuilder.php",
+    "src/Repository/EffectSettingsKeyValueRepository.php",
+    "src/Repository/EffectSettingsRepository.php",
+    "src/Service/TrackEffectParamChoicesBuilder.php",
 #     "templates/_partials/ui_styles.html.twig",
-    "templates/Document/_track_card.html.twig",
+#     "templates/Document/_track_card.html.twig",
 #     "templates/Document/edit.html.twig"
 #     "templates/Effect/edit.html.twig",
 #     "templates/Effect/index.html.twig"
