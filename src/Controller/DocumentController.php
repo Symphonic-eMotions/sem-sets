@@ -1110,7 +1110,7 @@ final class DocumentController extends AbstractController
         // hergebruik je humanizeLabel als die camelCase al netjes omzet
         $paramLabel = $this->humanizeLabel($parameterKey); // bv "lowPassCutoff" → "Low Pass Cutoff"
 
-        return sprintf('%s – %s', $instrumentName, $paramLabel);
+        return sprintf('%s', $paramLabel);
     }
 
     /**

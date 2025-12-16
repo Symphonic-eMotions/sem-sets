@@ -353,7 +353,7 @@
                                         </label>
                                         {{ form_widget(partForm.rampSpeed, {
                                             attr: partForm.rampSpeed.vars.attr|merge({
-                                                class: ((partForm.rampSpeed.vars.attr.class|default('') ~ ' ramp-speed-select')|trim)
+                                                class: ((partForm.rampSpeed.vars.attr.class|default('') ~ ' ramp-speed-input')|trim)
                                             })
                                         }) }}
                                     </div>
@@ -364,7 +364,7 @@
                                         </label>
                                         {{ form_widget(partForm.rampSpeedDown, {
                                             attr: partForm.rampSpeedDown.vars.attr|merge({
-                                                class: ((partForm.rampSpeedDown.vars.attr.class|default('') ~ ' ramp-speed-down-select')|trim)
+                                                class: ((partForm.rampSpeedDown.vars.attr.class|default('') ~ ' ramp-speed-down-input')|trim)
                                             })
                                         }) }}
                                     </div>
