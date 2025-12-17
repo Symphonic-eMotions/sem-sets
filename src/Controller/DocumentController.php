@@ -1058,6 +1058,7 @@ final class DocumentController extends AbstractController
 
             // 5) Basis track-config
             $trackConfig = [
+                'onlineTrackId'   => $t->getId(),
                 'trackId'         => $t->getTrackId(),
                 'levels'          => $levels,
                 'midiFiles'       => $midi,
@@ -1078,6 +1079,7 @@ final class DocumentController extends AbstractController
 
         // Basis payload op SET-niveau
         $payload = [
+            'onlineDocumentId'  => $doc->getId(),
             'gridColumns'       => $doc->getGridColumns(),
             'gridRows'          => $doc->getGridRows(),
             'published'         => $doc->isPublished(),

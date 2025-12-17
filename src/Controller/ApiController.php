@@ -5,17 +5,26 @@ namespace App\Controller;
 
 use App\Entity\Document;
 use App\Repository\DocumentRepository;
+use App\Service\VersioningService;
 use DateTimeInterface;
+use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Throwable;
 
 #[Route('/api')]
 final class ApiController extends AbstractController
 {
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+    ){
+    }
+
     #[Route('/sets', name: 'api_sets', methods: ['GET'])]
     public function listSets(DocumentRepository $repo): JsonResponse
     {
@@ -89,4 +98,97 @@ final class ApiController extends AbstractController
 
         return $response;
     }
+
+    #[Route('api/documents/{id}/tracks/{trackId}/parts/{partId}', name: 'api_part_ramp_patch', methods: ['PATCH'])]
+    public function patchPartRamp(
+        Document $doc,
+        string $trackId,
+        string $partId,
+        Request $req,
+        VersioningService $vs,
+    ): JsonResponse
+    {
+        // TODO: secure with token-based auth
+//        $this->denyAccessUnlessGranted('ROLE_ADMIN');
+
+        $data = json_decode((string) $req->getContent(), true);
+        if (!is_array($data)) {
+            return $this->json(['error' => 'Invalid JSON'], 400);
+        }
+
+        $rampUp = $data['rampSpeed'] ?? null;
+        $rampDown = $data['rampSpeedDown'] ?? null;
+        $baseVersion = $data['baseSetVersion'] ?? null;
+
+        if (!is_numeric($rampUp) || !is_numeric($rampDown) || !is_numeric($baseVersion)) {
+            return $this->json(['error' => 'Missing/invalid fields'], 422);
+        }
+
+        $rampUp = (float) $rampUp;
+        $rampDown = (float) $rampDown;
+        $baseVersion = (int) $baseVersion;
+
+        if ($rampUp < 0.0 || $rampUp > 2.0 || $rampDown < 0.0 || $rampDown > 2.0) {
+            return $this->json(['error' => 'Ramp out of range'], 422);
+        }
+
+        $currentHead = (int) ($doc->getHeadVersion()?->getVersionNr() ?? 0);
+        if ($baseVersion !== $currentHead) {
+            return $this->json([
+                'error' => 'Version conflict',
+                'serverSetVersion' => $currentHead,
+            ], 409);
+        }
+
+        // Track vinden
+        $track = null;
+        foreach ($doc->getTracks() as $t) {
+            if ($t->getTrackId() === $trackId) { $track = $t; break; }
+        }
+        if (!$track) {
+            return $this->json(['error' => 'Track not found'], 404);
+        }
+
+        // Part vinden (op partId; jij moet dit veld dan hebben)
+        $part = null;
+        foreach ($track->getInstrumentParts() as $p) {
+            if (method_exists($p, 'getPartId') && $p->getPartId() === $partId) {
+                $part = $p; break;
+            }
+        }
+        if (!$part) {
+            return $this->json(['error' => 'Part not found'], 404);
+        }
+
+        $this->em->beginTransaction();
+        try {
+            $part->setRampSpeed($rampUp);
+            $part->setRampSpeedDown($rampDown);
+
+            $doc->setUpdatedBy($this->getUser());
+            $this->em->flush();
+
+            // TODO Service maken
+            $this->createSnapshot($vs, $doc);
+            $this->em->flush();
+
+            $this->em->commit();
+
+            $newHead = (int) ($doc->getHeadVersion()?->getVersionNr() ?? $currentHead);
+
+            return $this->json([
+                'ok' => true,
+                'setVersion' => $newHead,
+                'trackId' => $trackId,
+                'partId' => $partId,
+                'rampSpeed' => $rampUp,
+                'rampSpeedDown' => $rampDown,
+            ], 200);
+
+        } catch (Throwable $e) {
+            $this->em->rollback();
+            return $this->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
 }
