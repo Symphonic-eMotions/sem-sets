@@ -5,6 +5,7 @@ namespace App\Entity;
 
 use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Uid\Ulid;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'instrument_parts')]
@@ -17,6 +18,9 @@ class InstrumentPart
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column(type: 'integer')]
     private ?int $id = null;
+
+    #[ORM\Column(type: 'string', length: 26, unique: true)]
+    private string $partId;
 
     #[ORM\ManyToOne(targetEntity: DocumentTrack::class, inversedBy: 'instrumentParts')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -59,13 +63,13 @@ class InstrumentPart
     private ?float $targetRangeHigh = null;
 
     #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $minimalLevel = null;
+    private ?float $minimalLevel;
 
     #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $rampSpeed = null;
+    private ?float $rampSpeed;
 
     #[ORM\Column(type: 'float', nullable: true)]
-    private ?float $rampSpeedDown = null;
+    private ?float $rampSpeedDown;
 
     #[ORM\Column(type: 'smallint', options: ['unsigned' => true, 'default' => 0])]
     private int $position = 0;
@@ -82,13 +86,19 @@ class InstrumentPart
         $this->createdAt = $now;
         $this->updatedAt = $now;
         $this->minimalLevel   = 0.10;
-        $this->rampSpeed      = 0.08;
-        $this->rampSpeedDown  = 0.04;
+        $this->rampSpeed      = 0.04;
+        $this->rampSpeedDown  = 0.02;
+        $this->partId = (new Ulid())->toBase32();
     }
 
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getPartId(): string
+    {
+        return $this->partId;
     }
 
     public function getTrack(): ?DocumentTrack
@@ -212,7 +222,7 @@ class InstrumentPart
         $normalized = array_values(array_map(
             static function ($v): int {
                 $n = (int) $v;
-                return $n < 0 ? 0 : $n;
+                return max($n, 0);
             },
             $value
         ));
@@ -281,7 +291,7 @@ class InstrumentPart
             return $this;
         }
 
-        $this->targetRangeLow = (float) $value;
+        $this->targetRangeLow = $value;
         return $this;
     }
 
@@ -297,7 +307,7 @@ class InstrumentPart
             return $this;
         }
 
-        $this->targetRangeHigh = (float) $value;
+        $this->targetRangeHigh = $value;
         return $this;
     }
 
@@ -312,7 +322,7 @@ class InstrumentPart
             return $this;
         }
 
-        $v = (float) $value;
+        $v = $value;
 
         // Clamp 0–1
         if ($v < 0.0) {
@@ -336,7 +346,7 @@ class InstrumentPart
             return $this;
         }
 
-        $v = (float) $value;
+        $v = $value;
         if ($v < 0.0) {
             $v = 0.0;
         } elseif ($v > 1.0) {
@@ -358,7 +368,7 @@ class InstrumentPart
             return $this;
         }
 
-        $v = (float) $value;
+        $v = $value;
         if ($v < 0.0) {
             $v = 0.0;
         } elseif ($v > 1.0) {

@@ -184,8 +184,6 @@ class DocumentTrack
             return $this;
         }
 
-        $value = (int) $value;
-
         // clamp op >= 1
         if ($value < 1) {
             $value = 1;
