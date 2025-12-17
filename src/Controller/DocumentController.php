@@ -888,12 +888,10 @@ final class DocumentController extends AbstractController
             // 4) Track / instrument naam opbouwen
             $instrumentName = null;
 
-            if ($midiLabel && $exsLabel) {
-                $instrumentName = sprintf('%s – %s', $midiLabel, $exsLabel);
+            if ($exsLabel) {
+                $instrumentName = $exsLabel;
             } elseif ($midiLabel) {
                 $instrumentName = $midiLabel;
-            } elseif ($exsLabel) {
-                $instrumentName = $exsLabel;
             } else {
                 // fallback: trackId humanizen
                 $instrumentName = $this->humanizeLabel($t->getTrackId() ?? '') ?? $t->getTrackId();
