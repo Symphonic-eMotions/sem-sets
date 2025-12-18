@@ -232,7 +232,6 @@ class InstrumentPart
         return $this;
     }
 
-
     // --- nieuwe target-velden ---
     public function getTargetType(): string
     {
@@ -408,4 +407,13 @@ class InstrumentPart
     {
         $this->updatedAt = new DateTimeImmutable();
     }
+
+    #[ORM\PrePersist]
+    public function ensurePartId(): void
+    {
+        if (!isset($this->partId) || $this->partId === '') {
+            $this->partId = (new Ulid())->toBase32();
+        }
+    }
+
 }

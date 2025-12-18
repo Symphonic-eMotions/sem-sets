@@ -4,8 +4,9 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Document;
+use App\Entity\InstrumentPart;
 use App\Repository\DocumentRepository;
-use App\Service\VersioningService;
+use App\Service\DocumentSnapshotService;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use League\Flysystem\FilesystemException;
@@ -99,13 +100,13 @@ final class ApiController extends AbstractController
         return $response;
     }
 
-    #[Route('api/documents/{id}/tracks/{trackId}/parts/{partId}', name: 'api_part_ramp_patch', methods: ['PATCH'])]
+    #[Route('/documents/{id}/tracks/{trackId}/parts/{partId}', name: 'api_part_ramp_patch', methods: ['PATCH'])]
     public function patchPartRamp(
         Document $doc,
         string $trackId,
-        string $partId,
+        string $onlinePartId,
         Request $req,
-        VersioningService $vs,
+        DocumentSnapshotService $snapshotService,
     ): JsonResponse
     {
         // TODO: secure with token-based auth
@@ -149,16 +150,23 @@ final class ApiController extends AbstractController
             return $this->json(['error' => 'Track not found'], 404);
         }
 
-        // Part vinden (op partId; jij moet dit veld dan hebben)
+        /** @var ?InstrumentPart $part */
         $part = null;
         foreach ($track->getInstrumentParts() as $p) {
-            if (method_exists($p, 'getPartId') && $p->getPartId() === $partId) {
-                $part = $p; break;
+            // Dwing string-vergelijking af (partId kan Ulid/string zijn)
+            if ((string) $p->getPartId() === (string) $onlinePartId) {
+                $part = $p;
+                break;
             }
         }
+
         if (!$part) {
-            return $this->json(['error' => 'Part not found'], 404);
+            return $this->json([
+                'error' => 'Part not found',
+                'hint' => 'Use instrumentParts[].onlinePartId from set.json as {onlinePartId} in the URL',
+            ], 404);
         }
+
 
         $this->em->beginTransaction();
         try {
@@ -168,13 +176,12 @@ final class ApiController extends AbstractController
             $doc->setUpdatedBy($this->getUser());
             $this->em->flush();
 
-            // TODO Service maken
-            $this->createSnapshot($vs, $doc);
+            $snapshotService->createSnapshot($doc, 'api_patch_part_ramp', $this->getUser());
             $this->em->flush();
 
             $this->em->commit();
 
-            $newHead = (int) ($doc->getHeadVersion()?->getVersionNr() ?? $currentHead);
+            $newHead = ($doc->getHeadVersion()?->getVersionNr() ?? $currentHead);
 
             return $this->json([
                 'ok' => true,
