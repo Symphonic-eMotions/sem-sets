@@ -792,12 +792,12 @@ final class DocumentController extends AbstractController
 
     private function newTrackId(): string
     {
-        return 'trk_'.(new Ulid())->toBase32();
+        return (new Ulid())->toBase32();
     }
 
     private function newPartId(): string
     {
-        return 'prt_'.(new Ulid())->toBase32();
+        return (new Ulid())->toBase32();
     }
 
     private function slugify(string $text): string

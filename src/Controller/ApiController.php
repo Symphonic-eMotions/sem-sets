@@ -104,7 +104,7 @@ final class ApiController extends AbstractController
     public function patchPartRamp(
         Document $doc,
         string $trackId,
-        string $onlinePartId,
+        string $partId,
         Request $req,
         DocumentSnapshotService $snapshotService,
     ): JsonResponse
@@ -129,7 +129,7 @@ final class ApiController extends AbstractController
         $rampDown = (float) $rampDown;
         $baseVersion = (int) $baseVersion;
 
-        if ($rampUp < 0.0 || $rampUp > 2.0 || $rampDown < 0.0 || $rampDown > 2.0) {
+        if ($rampUp < 0.0 || $rampUp > 1.0 || $rampDown < 0.0 || $rampDown > 1.0) {
             return $this->json(['error' => 'Ramp out of range'], 422);
         }
 
@@ -154,7 +154,7 @@ final class ApiController extends AbstractController
         $part = null;
         foreach ($track->getInstrumentParts() as $p) {
             // Dwing string-vergelijking af (partId kan Ulid/string zijn)
-            if ((string) $p->getPartId() === (string) $onlinePartId) {
+            if ((string) $p->getPartId() === (string) $partId) {
                 $part = $p;
                 break;
             }
