@@ -295,12 +295,42 @@
 
     /* ======== Tracks ======== */
     .tracks { display: grid; gap: 12px; margin-top: 12px;}
+    /* ======== Tracks ======== */
+    /* ======== Tracks ======== */
     .track-card {
-        background: linear-gradient(180deg, #0f182bcc, #0f182bf2);
+        /* A visible “track slab” from top to bottom */
+        background:
+            /* soft top glow */
+                radial-gradient(1100px 380px at 12% 0%, rgba(88, 101, 242, 0.28), transparent 58%),
+                    /* subtle wash through the whole card (this is the missing bit) */
+                linear-gradient(180deg, rgba(88, 101, 242, 0.10), rgba(88, 101, 242, 0.04)),
+                    /* base */
+                linear-gradient(180deg, #0f182bcc, #0f182bf2);
+
         border: 1px solid #1f2937;
         border-radius: 12px;
         padding: 16px;
     }
+
+    /* === Instrument Parts UI === */
+    .instrument-part {
+        /* Make parts clearly different from the surrounding track area */
+        background:
+            /* a crisp-ish highlight so it doesn't disappear */
+                radial-gradient(900px 320px at 10% 0%, rgba(59, 205, 247, 0.22), transparent 60%),
+                    /* overall tint wash (so the whole part reads as “its own card”) */
+                linear-gradient(180deg, rgba(59, 205, 247, 0.10), rgba(59, 205, 247, 0.03)),
+                    /* base slightly different from #0b1224 to create separation */
+                linear-gradient(180deg, #0a1327, #070f1f);
+
+        border: 1px solid #243148;
+        border-radius: 10px;
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+        margin-bottom: 8px;
+    }
+
     .track-head {
         display: flex;
         justify-content: space-between;
@@ -692,17 +722,6 @@
     .instrument-parts {
         display: grid;
         gap: 10px;
-    }
-
-    /* Elke instrument-part als card (zelfde feel als .effect-card) */
-    .instrument-part {
-        background: #0b1224;
-        border: 1px solid #243148;
-        border-radius: 10px;
-        padding: 12px;
-        display: grid;
-        gap: 10px;
-        margin-bottom: 8px;
     }
 
     .instrument-part-grid {

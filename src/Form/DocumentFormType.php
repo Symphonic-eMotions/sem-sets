@@ -128,6 +128,24 @@ final class DocumentFormType extends AbstractType
                 ],
             ])
 
+            ->add('timeSignature', ChoiceType::class, [
+                'label' => 'Maatsoort',
+                'choices' => [
+                    '4/4' => '4/4',
+                    '3/4' => '3/4',
+                    '6/8' => '6/8',
+                    '2/4' => '2/4',
+                ],
+                'required' => true,
+                'constraints' => [
+                    new Assert\NotBlank(),
+                    new Assert\Regex([
+                        'pattern' => '~^\d+\s*/\s*\d+$~',
+                        'message' => 'Gebruik formaat zoals 3/4 of 4/4.',
+                    ]),
+                ],
+                'help' => 'De maatsoort is bepalend voor de berekening van de loop lengten',
+            ])
 
             ->add('levelDurations', CollectionType::class, [
                 'label' => 'Aantal levels',

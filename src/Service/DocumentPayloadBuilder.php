@@ -29,12 +29,16 @@ final class DocumentPayloadBuilder
 
         /* @var DocumentTrack $t */
         foreach ($doc->getTracks() as $t) {
+
             // 1) LoopLength ophalen (altijd array<int>)
-            $loopLength = method_exists($t, 'getLoopLength')
+            $loopLengthBars = method_exists($t, 'getLoopLength')
                 ? $t->getLoopLength()
                 : [];
 
-            $loopLength = array_values(array_map('intval', $loopLength));
+            $loopLengthBars = array_values(array_map('intval', $loopLengthBars));
+
+            $beatsPerBar = (int) ($doc->getTimeSignatureNumerator() ?? 4);
+            $loopLengthBeats = $this->loopLengthBarsToBeats($loopLengthBars, $beatsPerBar);
 
             // 1b) LoopsToGrid uit eerste InstrumentPart
             $loopsToGrid = [];
@@ -70,9 +74,9 @@ final class DocumentPayloadBuilder
                 $midi[] = [
                     'midiFileName' => $name,
                     'midiFileExt'  => $ext,
-                    'loopLength'   => $loopLength,    // bv [56] of [48,48]
-                    'loopsToGrid'  => $loopsToGrid,   // bv [2,2,2,2,1,1,1,...]
-                    'loopsToLevel' => $loopsToLevel,  // bv [0,0,0,0]
+                    'loopLength'   => $loopLengthBeats,
+                    'loopsToGrid'  => $loopsToGrid,
+                    'loopsToLevel' => $loopsToLevel,
                 ];
             }
 
@@ -292,6 +296,7 @@ final class DocumentPayloadBuilder
             'setVersion'        => $doc->getHeadVersion()?->getVersionNr() ?? 1,
             'setName'           => $doc->getTitle(),
             'setBPM'            => $bpm,
+            'setTimeSignature'  => $doc->getTimeSignatureNumerator(),
             'levelDurations'    => $levelDurations,
             'instrumentsConfig' => $instrumentsConfig,
         ];
@@ -415,4 +420,15 @@ final class DocumentPayloadBuilder
 
         return sprintf('%s', $paramLabel);
     }
+
+    private function loopLengthBarsToBeats(array $bars, int $beatsPerBar): array
+    {
+        $beatsPerBar = max(1, $beatsPerBar);
+
+        return array_values(array_map(
+            static fn (int $barCount): int => max(0, $barCount) * $beatsPerBar,
+            array_map('intval', $bars)
+        ));
+    }
+
 }

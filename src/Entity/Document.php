@@ -64,6 +64,9 @@ class Document
     #[ORM\Column(type: 'decimal', precision: 5, scale: 2, options: ['unsigned' => true, 'default' => '90.00'])]
     private string $setBPM = '90.00';
 
+    #[ORM\Column(type: 'string', length: 8, options: ['default' => '4/4'])]
+    private string $timeSignature = '4/4';
+
     #[ORM\OneToMany(
         targetEntity: DocumentTrack::class,
         mappedBy: 'document',
@@ -171,6 +174,56 @@ class Document
         $num = max(self::MIN_BPM, min(self::MAX_BPM, $num));
         $this->setBPM = number_format($num, 2, '.', '');
         return $this;
+    }
+
+    public function getTimeSignature(): string
+    {
+        return $this->timeSignature ?: '4/4';
+    }
+
+    public function setTimeSignature(string $ts): self
+    {
+        $ts = trim($ts);
+        if ($ts === '') {
+            $this->timeSignature = '4/4';
+            return $this;
+        }
+
+        // accepteer bv "3/4", " 3 / 4 "
+        if (!preg_match('~^(\d+)\s*/\s*(\d+)$~', $ts, $m)) {
+            // fallback defensief: hou het safe
+            $this->timeSignature = '4/4';
+            return $this;
+        }
+
+        $num = max(1, (int) $m[1]);
+        $den = max(1, (int) $m[2]);
+
+        // Je kunt hem later strakker maken (2/4/8/16), nu bewaren we wat binnenkomt.
+        $this->timeSignature = sprintf('%d/%d', $num, $den);
+
+        return $this;
+    }
+
+    /**
+     * Teller (beats per maat) voor export (jouw gewenste gedrag)
+     */
+    public function getTimeSignatureNumerator(): int
+    {
+        $ts = $this->getTimeSignature();
+        if (preg_match('~^(\d+)\s*/\s*(\d+)$~', $ts, $m)) {
+            return max(1, (int) $m[1]);
+        }
+        return 4;
+    }
+
+    public function getTimeSignatureDenominator(): int
+    {
+        $ts = $this->getTimeSignature();
+        if (preg_match('~^(\d+)\s*/\s*(\d+)$~', $ts, $m)) {
+            return max(1, (int) $m[2]);
+        }
+        return 4;
     }
 
     public function getTracks(): Collection { return $this->tracks;}
