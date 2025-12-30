@@ -26,7 +26,7 @@ import fnmatch
 EXTENSIONS = (".php", ".twig", ".yaml", ".yml", ".json", ".js", ".css", ".scss", ".ts", ".md")
 
 # ---- Optioneel ruis verwijderen om tokens te besparen -----------------------
-STRIP_NOISE = True  # op False laten voor volledige inhoud
+STRIP_NOISE = False  # op False laten voor volledige inhoud
 # ---------------------------------------------------------------------------
 
 # ---- WHITELIST: alleen deze bestanden komen in de samenvatting ----
@@ -35,30 +35,62 @@ WHITELIST = [
 #     "public/js/effectsSettings.js",
 #     "public/js/leveldurationsTracksAOI.js",
 #     "public/js/loopLengthEditor.js",
-    "src/Controller/ApiController.php",
-    "src/Controller/DocumentController.php",
+#     "src/Command/CreateUserCommand.php",
+#     "src/Controller/ApiController.php",
+#     "src/Controller/DocumentController.php",
 #     "src/Controller/EffectSettingsController.php",
+#     "src/Controller/SecurityController.php",
+#     "src/Controller/SessionDebugController.php",
+#     "src/Entity/Asset.php",
 #     "src/Entity/Document.php",
 #     "src/Entity/DocumentTrack.php",
 #     "src/Entity/DocumentTrackEffect.php",
+#     "src/Entity/DocumentVersion.php",
 #     "src/Entity/EffectSettings.php",
 #     "src/Entity/EffectSettingsKeyValue.php",
 #     "src/Entity/InstrumentPart.php",
+#     "src/Entity/PayloadBlock.php",
+#     "src/Entity/User.php",
+#     "src/Enum/SemVersion.php",
 #     "src/Form/DocumentFormType.php",
 #     "src/Form/DocumentTrackEffectType.php,"
 #     "src/Form/DocumentTrackType.php",
 #     "src/Form/EffectSettingsType.php",
 #     "src/Form/InstrumentPartType.php",
+#     "src/Form/MidiFileRefType.php",
+#     "src/Form/NewDocumentFormType.php",
+#     "src/Midi/Dto/MidiSummary.php",
+#     "src/Midi/MidiAnalyzer.php",
+#     "src/Midi/MidiFileInterface.php",
+#     "src/Midi/PhpMidiFile.php",
+#     "src/Repository/AssetRepository.php",
+#     "src/Repository/DocumentRepository.php",
+#     "src/Repository/DocumentTrackRepository.php",
+#     "src/Repository/DocumentVersionRepository.php",
 #     "src/Repository/EffectSettingsKeyValueRepository.php",
 #     "src/Repository/EffectSettingsRepository.php",
-    "src/Service/DocumentPayloadBuilder.php",
-    "src/Service/DocumentSnapshotService.php",
+#     "src/Repository/PayloadBlockRepository.php",
+#     "src/Repository/UserRepository.php",
+#     "src/Security/PinCodeAuthenticator.php",
+#     "src/Service/AssetStorage.php",
+#     "src/Service/DocumentPayloadBuilder.php",
+#     "src/Service/DocumentSnapshotService.php",
+#     "src/Service/EffectConfigExtractor.php",
+#     "src/Service/PayloadBlockFactory.php",
 #     "src/Service/TrackEffectParamChoicesBuilder.php",
+#     "src/Service/VersioningService.php",
 #     "templates/_partials/ui_styles.html.twig",
 #     "templates/Document/_track_card.html.twig",
 #     "templates/Document/edit.html.twig"
+#     "templates/Document/index.html.twig",
+#     "templates/Document/new.html.twig",
+#     "templates/Document/versions.html.twig",
 #     "templates/Effect/edit.html.twig",
 #     "templates/Effect/index.html.twig"
+#     "templates/forms/_theme.html.twig",
+#     "templates/security/login.html.twig",
+#     "templates/base.html.twig",
+#     "translations/security.nl.yaml"
 ]
 # ------------------------------------------------------------------
 
