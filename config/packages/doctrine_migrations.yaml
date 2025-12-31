@@ -9,3 +9,4 @@ doctrine_migrations:
             execution_time_column_name: execution_time
             version_column_length: 191
     enable_profiler: false
+    transactional: false
