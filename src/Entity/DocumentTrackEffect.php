@@ -20,6 +20,13 @@ class DocumentTrackEffect
     #[ORM\JoinColumn(nullable: false, onDelete: 'RESTRICT')]
     private ?EffectSettings $preset = null;
 
+    /**
+     * Track-specifieke parameter values voor dit effect.
+     * Structuur (full copy): ["cutoffFrequency" => ["value" => 12000], "resonance" => ["value" => -6]]
+     */
+    #[ORM\Column(type: 'json', nullable: true)]
+    private ?array $overrides = null;
+
     #[ORM\Column(type: 'integer')]
     private int $position = 0;
 
@@ -36,6 +43,17 @@ class DocumentTrackEffect
     public function setPreset(?EffectSettings $preset): self
     {
         $this->preset = $preset;
+        return $this;
+    }
+
+    public function getOverrides(): ?array
+    {
+        return $this->overrides;
+    }
+
+    public function setOverrides(?array $overrides): self
+    {
+        $this->overrides = $overrides;
         return $this;
     }
 
