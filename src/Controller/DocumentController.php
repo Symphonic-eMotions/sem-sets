@@ -422,21 +422,25 @@ final class DocumentController extends AbstractController
                 if ($kv->getType() === EffectSettingsKeyValue::TYPE_PARAM) {
                     $key   = $kv->getKeyName();
                     $range = null;
+                    $defaultValue = null;
 
                     if (is_array($config)
                         && array_key_exists($key, $config)
                         && is_array($config[$key])
-                        && isset($config[$key]['range'])
-                        && is_array($config[$key]['range'])
                     ) {
-                        // Zorg dat we altijd [min, max] als "platte" array hebben
-                        $range = array_values($config[$key]['range']);
+                        if (isset($config[$key]['range']) && is_array($config[$key]['range'])) {
+                            $range = array_values($config[$key]['range']); // [min,max]
+                        }
+                        if (array_key_exists('value', $config[$key])) {
+                            $defaultValue = $config[$key]['value']; // bv 20000 of -20
+                        }
                     }
 
                     $params[] = [
-                        'id'    => $kv->getId(),
-                        'key'   => $key,
-                        'range' => $range,
+                        'id'           => $kv->getId(),
+                        'key'          => $key,
+                        'range'        => $range,
+                        'defaultValue' => $defaultValue,
                     ];
                 }
             }

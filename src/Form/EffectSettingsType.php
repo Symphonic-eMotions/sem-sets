@@ -49,8 +49,10 @@ final class EffectSettingsType extends AbstractType
             ])
             // Be compatible with position
             ->add('position', HiddenType::class, [
-                'mapped' => false,
                 'required' => false,
+                'attr' => [
+                    'class' => 'effect-position',
+                ],
             ])
         ;
     }

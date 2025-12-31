@@ -125,6 +125,21 @@ final class DocumentTrackType extends AbstractType
             'label'        => false,
             'attr'         => ['class' => 'effects-collection'],
         ]);
+
+        $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $e) {
+            /** @var DocumentTrack|null $track */
+            $track = $e->getData();
+            if (!$track) return;
+
+            $effects = $track->getTrackEffects()->toArray();
+            usort($effects, fn($a, $b) => ($a->getPosition() ?? 0) <=> ($b->getPosition() ?? 0));
+
+            // reset collection in sorted order
+            $track->getTrackEffects()->clear();
+            foreach ($effects as $te) {
+                $track->addTrackEffect($te);
+            }
+        });
     }
 
     public function configureOptions(OptionsResolver $resolver): void

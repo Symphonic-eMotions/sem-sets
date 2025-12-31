@@ -106,6 +106,189 @@ function refreshTrackPartSelects(trackCard) {
         .forEach(sel => fillPartSelect(sel, grouped));
 }
 
+//Override slider renderen
+function parseOverridesJson(effectCard) {
+    const input = effectCard.querySelector('input.js-effect-overrides-json');
+    if (!input) return { input: null, data: {} };
+
+    const raw = (input.value || '').trim();
+    if (!raw) return { input, data: {} };
+
+    try {
+        const decoded = JSON.parse(raw);
+        if (decoded && typeof decoded === 'object') {
+            return { input, data: decoded };
+        }
+    } catch (e) {}
+
+    return { input, data: {} };
+}
+
+function writeOverridesJson(input, data) {
+    if (!input) return;
+    input.value = JSON.stringify(data);
+}
+
+function clamp01(x) {
+    const n = Number(x);
+    if (!Number.isFinite(n)) return 0;
+    return Math.max(0, Math.min(1, n));
+}
+
+function rawFromNorm(norm, minVal, maxVal) {
+    const n = clamp01(norm);
+    return minVal + (maxVal - minVal) * n;
+}
+
+function normFromRaw(raw, minVal, maxVal) {
+    const r = Number(raw);
+    if (!Number.isFinite(r) || maxVal === minVal) return 0;
+    return clamp01((r - minVal) / (maxVal - minVal));
+}
+
+// Sliders renderen in de effect-card voor overrides
+function ensureOverridesUI(effectCard) {
+    let ui = effectCard.querySelector('.effect-overrides-ui');
+    if (!ui) {
+        ui = document.createElement('div');
+        ui.className = 'effect-overrides-ui';
+        ui.style.marginTop = '10px';
+        ui.style.paddingTop = '10px';
+        ui.style.borderTop = '1px solid rgba(255,255,255,0.08)';
+        effectCard.appendChild(ui);
+    }
+    return ui;
+}
+
+function renderOverridesSliders(effectCard, presetInfo) {
+    const ui = ensureOverridesUI(effectCard);
+
+    // Lees huidige overridesJson
+    const { input, data } = parseOverridesJson(effectCard);
+
+    // Zorg dat overrides exact dezelfde keys heeft als preset params:
+    const wantedKeys = (presetInfo.params || []).map(pi => String(pi.key));
+    const hasAllKeys = wantedKeys.every(k => data[k] && typeof data[k] === 'object' && ('value' in data[k]));
+
+    let overrides = data;
+
+    // Als leeg / incompleet: maak defaults
+    if (!hasAllKeys) {
+        overrides = buildDefaultOverridesForPreset(presetInfo);
+        writeOverridesJson(input, overrides);
+    } else {
+        // Ruim keys op die niet meer bestaan (effect gewijzigd / preset update)
+        Object.keys(overrides).forEach(k => {
+            if (!wantedKeys.includes(k)) delete overrides[k];
+        });
+        // En voeg eventuele ontbrekende toe (bij effect update)
+        wantedKeys.forEach(k => {
+            if (!overrides[k]) {
+                const def = buildDefaultOverridesForPreset(presetInfo);
+                overrides[k] = def[k];
+            }
+        });
+        writeOverridesJson(input, overrides);
+    }
+
+    // UI leegmaken en opnieuw opbouwen
+    ui.innerHTML = '';
+
+    (presetInfo.params || []).forEach(p => {
+        const key = p.key;
+        const metaRange = Array.isArray(p.range) && p.range.length === 2 ? p.range : null;
+
+        // Range is verplicht voor slider; als geen range, dan tonen we geen slider (of disabled)
+        const minVal = metaRange ? Number(metaRange[0]) : 0;
+        const maxVal = metaRange ? Number(metaRange[1]) : 1;
+
+        const row = document.createElement('div');
+        row.className = 'effect-override-row';
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '140px 1fr 80px';
+        row.style.gap = '10px';
+        row.style.alignItems = 'center';
+        row.style.marginTop = '8px';
+
+        const label = document.createElement('div');
+        label.textContent = key;
+        label.style.fontSize = '12px';
+        label.style.opacity = '0.9';
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.min = '0';
+        slider.max = '1';
+        slider.step = '0.001';
+        slider.disabled = !metaRange;
+
+        const valueBadge = document.createElement('div');
+        valueBadge.style.fontSize = '12px';
+        valueBadge.style.textAlign = 'right';
+        valueBadge.style.opacity = metaRange ? '0.95' : '0.5';
+
+        // init
+        const currentRaw = overrides[key]?.value;
+        slider.value = String(normFromRaw(currentRaw, minVal, maxVal));
+        valueBadge.textContent = metaRange ? formatRangeValue(currentRaw) : '—';
+
+        slider.addEventListener('input', () => {
+            if (!metaRange) return;
+
+            const raw = rawFromNorm(slider.value, minVal, maxVal);
+            overrides[key] = overrides[key] || {};
+            overrides[key].value = raw;
+            overrides[key].range = metaRange;
+
+            valueBadge.textContent = formatRangeValue(raw);
+            writeOverridesJson(input, overrides);
+        });
+
+        row.appendChild(label);
+        row.appendChild(slider);
+        row.appendChild(valueBadge);
+        ui.appendChild(row);
+    });
+}
+
+// Bouw defaults voor een preset, op basis van presetInfo.params
+function buildDefaultOverridesForPreset(presetInfo) {
+    const out = {};
+    (presetInfo.params || []).forEach(p => {
+        const key = p.key;
+        const range = Array.isArray(p.range) && p.range.length === 2 ? p.range : null;
+
+        let value = p.defaultValue;
+
+        // Fallbacks als defaultValue ontbreekt:
+        if (value === null || value === undefined) {
+            if (range) {
+                // midden van range als neutraal startpunt
+                value = (Number(range[0]) + Number(range[1])) / 2;
+            } else {
+                value = 0;
+            }
+        }
+
+        out[key] = {
+            value: value,
+            range: range, // opslaan mag, is handig voor debug/export
+        };
+    });
+    return out;
+}
+
+function resetOverridesToPresetDefaults(effectCard, presetInfo) {
+    const { input } = parseOverridesJson(effectCard);
+    if (!input) return;
+
+    const defaults = buildDefaultOverridesForPreset(presetInfo);
+    writeOverridesJson(input, defaults);
+
+    // UI direct laten matchen met defaults
+    renderOverridesSliders(effectCard, presetInfo);
+}
+
 /**
  * Recompute data-effects based on current preset selects in the UI.
  * Nodig voor prototype/new cards waar data-effects leeg is.
@@ -131,16 +314,18 @@ function rebuildEffectsDataFromUI(trackCard) {
 function canRemoveEffectCard(trackCard, presetIdToRemove) {
     if (!presetIdToRemove) return true;
 
-    // alle gekozen target params in parts
-    // alleen effect-bindings meenemen: "effect:<id>"
+    // Alle gekozen target params in parts (alleen effect-bindings)
     const usedParamIds = new Set(
         Array.from(trackCard.querySelectorAll('select.js-target-effect-param'))
             .map(s => s.value)
             .filter(v => v && v.startsWith('effect:'))
-            .map(v => v.substring('effect:'.length))
+            .map(v => v.substring('effect:'.length)) // p.id als string
     );
 
     if (!usedParamIds.size) return true;
+
+    const presetInfo = window.EFFECT_PRESET_MAP?.[presetIdToRemove];
+    if (!presetInfo) return true; // als we de preset niet kennen: laat verwijderen toe
 
     const presetParamIds = new Set(
         (presetInfo.params || []).map(p => String(p.id))
@@ -151,7 +336,6 @@ function canRemoveEffectCard(trackCard, presetIdToRemove) {
             return false;
         }
     }
-
     return true;
 }
 
@@ -234,6 +418,16 @@ function wireEffectCard(card, container) {
         renumberEffectPositions(container);
     };
 
+    const initOverridesUI = () => {
+        const presetSelect = card.querySelector('select');
+        const presetId = presetSelect?.value;
+        const presetInfo = presetId ? window.EFFECT_PRESET_MAP?.[presetId] : null;
+        if (presetInfo) {
+            renderOverridesSliders(card, presetInfo);
+        }
+    };
+
+    // Remove
     card.querySelector('.js-effect-remove')?.addEventListener('click', () => {
         const presetSelect = card.querySelector('select');
         const presetId = presetSelect?.value;
@@ -249,6 +443,7 @@ function wireEffectCard(card, container) {
         resync();
     });
 
+    // Move up
     card.querySelector('.js-effect-up')?.addEventListener('click', () => {
         const prev = card.previousElementSibling;
         if (prev) {
@@ -257,6 +452,7 @@ function wireEffectCard(card, container) {
         }
     });
 
+    // Move down
     card.querySelector('.js-effect-down')?.addEventListener('click', () => {
         const next = card.nextElementSibling;
         if (next) {
@@ -264,6 +460,9 @@ function wireEffectCard(card, container) {
             resync();
         }
     });
+
+    // Initial render (bij bestaande cards)
+    initOverridesUI();
 }
 
 // ------------ Effect toevoegen (Symfony collection) ------------
@@ -321,6 +520,13 @@ function attachEffectsWatcher(trackCard) {
         if (e.target.matches('select')) {
             rebuildEffectsDataFromUI(trackCard);
             refreshTrackPartSelects(trackCard);
+            //overrides
+            const effectCard = e.target.closest('.effect-card');
+            const presetId = e.target.value;
+            const presetInfo = window.EFFECT_PRESET_MAP?.[presetId];
+            if (effectCard && presetInfo) {
+                resetOverridesToPresetDefaults(effectCard, presetInfo);
+            }
         }
     });
 }
