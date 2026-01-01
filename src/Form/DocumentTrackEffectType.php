@@ -32,7 +32,7 @@ final class DocumentTrackEffectType extends AbstractType
                 'attr' => ['class' => 'effect-position'],
             ])
             ->add('overrides', HiddenType::class, [
-                // ✅ mapped (default). Dus Symfony leest uit DocumentTrackEffect::$overrides
+                // mapped (default). Symfony leest uit DocumentTrackEffect::$overrides
                 'required'   => false,
                 'empty_data' => '', // zodat leeg ook echt leeg blijft
                 'attr'       => [
