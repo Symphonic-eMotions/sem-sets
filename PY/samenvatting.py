@@ -76,6 +76,7 @@ WHITELIST = [
     "src/Service/DocumentPayloadBuilder.php",
     "src/Service/DocumentSnapshotService.php",
     "src/Service/EffectConfigExtractor.php",
+    "src/Service/EffectConfigMerger.php",
     "src/Service/PayloadBlockFactory.php",
     "src/Service/TrackEffectParamChoicesBuilder.php",
     "src/Service/VersioningService.php",
