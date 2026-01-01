@@ -41,18 +41,43 @@
                     {% endif %}
                 {% endfor %}
 
-                <table class="table">
+{#                {% set showOwnerEmail = is_granted('ROLE_ADMIN') %}#}
+                {% set showOwnerEmail = true %}
+
+                <table class="table" id="docs-table">
                     <thead>
                     <tr>
-                        <th>Titel</th>
+                        <th>
+                            <button type="button"
+                                    class="sort-btn"
+                                    data-sort="title"
+                                    data-default-order="asc"
+                                    title="Sorteer op titel">
+                                Titel <span class="sort-indicator" data-indicator-for="title"></span>
+                            </button>
+                        </th>
+
                         <th>Tracks</th>
+
                         <th>Status</th>
-                        <th style="width:280px; text-align:right;">
+
+                        <th>
+                            <button type="button"
+                                    class="sort-btn"
+                                    data-sort="updatedAt"
+                                    data-default-order="desc"
+                                    title="Sorteer op bewerkingsdatum">
+                                Bewerkingsdatum <span class="sort-indicator" data-indicator-for="updatedAt"></span>
+                            </button>
+                        </th>
+
+                        <th style="width:220px; text-align:right;">
                             {{ totalSets }} sets ({{ publishedSets }} gepubliceerd)
                         </th>
                     </tr>
                     </thead>
-                    <tbody>
+
+                    <tbody id="docs-tbody">
                     {% for d in documents %}
                         {% set exsCount = 0 %}
                         {% for t in d.tracks %}
@@ -61,13 +86,31 @@
                             {% endif %}
                         {% endfor %}
 
-                        <tr>
-                            <td><strong>{{ d.title }}</strong></td>
+                        {# Permissies:
+                           - Admin: delete disabled als gepubliceerd
+                           - Editor: alleen eigen sets (createdBy == current user) bewerken/verwijderen
+                        #}
+                        {% set isOwner = app.user and d.createdBy and d.createdBy.id == app.user.id %}
+                        {% set canManage = is_granted('ROLE_ADMIN') or (is_granted('ROLE_EDITOR') and isOwner) %}
+
+                        {# Owner email (alleen admin), liever createdBy, fallback updatedBy #}
+                        {% set ownerEmail = (d.createdBy ? d.createdBy.email : (d.updatedBy ? d.updatedBy.email : '')) %}
+
+                        <tr
+                                data-title="{{ d.title|lower }}"
+                                data-updated-at="{{ d.updatedAt ? d.updatedAt|date('U') : 0 }}"
+                        >
+                            <td>
+                                <div class="doc-title">
+                                    <strong class="doc-title__main">{{ d.title }}</strong>
+                                    {% if showOwnerEmail and ownerEmail %}
+                                        <div class="doc-title__meta">{{ ownerEmail }}</div>
+                                    {% endif %}
+                                </div>
+                            </td>
 
                             <td>
-                                <span class="pill">
-                                    {{ exsCount }}
-                                </span>
+                                <span class="pill">{{ exsCount }}</span>
                             </td>
 
                             <td>
@@ -76,6 +119,7 @@
                                         title="Download JSON voor deze set"
                                         style="text-decoration:none; margin-right: 8px"
                                 >⬇️</a>
+
                                 {% if d.published %}
                                     <span class="pill">Live</span>
                                 {% else %}
@@ -83,33 +127,237 @@
                                 {% endif %}
                             </td>
 
-                            <td class="actions" style="display:flex; gap:8px; flex-wrap:nowrap; align-items:center">
-                                <a class="btn secondary" href="{{ path('doc_edit', {id: d.id}) }}">Bewerken</a>
-                                <a class="btn secondary" href="{{ path('doc_versions', {id: d.id}) }}">Versies</a>
+                            {# Bewerkingsdatum relatief via JS, met absolute datum als tooltip #}
+                            <td>
+                                {% if d.updatedAt %}
+                                    <span
+                                            class="rel-time"
+                                            data-ts="{{ d.updatedAt|date('U') }}"
+                                            title="{{ d.updatedAt|date('d-m-Y H:i') }}"
+                                    >{{ d.updatedAt|date('d-m-Y H:i') }}</span>
+                                {% else %}
+                                    <span class="subtle">–</span>
+                                {% endif %}
+                            </td>
 
-                                {% if is_granted('ROLE_ADMIN') %}
+                            <td class="actions" style="display:flex; gap:8px; flex-wrap:nowrap; align-items:center; justify-content:flex-end;">
+                                {% if canManage %}
+                                    {# Bewerk #}
+                                    <a class="icon-btn"
+                                       href="{{ path('doc_edit', {id: d.id}) }}"
+                                       title="Bewerken"
+                                       aria-label="Bewerken">
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"
+                                                  stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        </svg>
+                                    </a>
+
+                                    {# Versies #}
+                                    <a class="icon-btn"
+                                       href="{{ path('doc_versions', {id: d.id}) }}"
+                                       title="Versies"
+                                       aria-label="Versies">
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path d="M7 7h10M7 12h10M7 17h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+                                                  stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        </svg>
+                                    </a>
+
+                                    {# Verwijder #}
                                     <form action="{{ path('doc_delete', {id: d.id}) }}"
                                           method="post"
                                           onsubmit="return confirm('Set \'{{ d.title }}\' en alle gekoppelde assets verwijderen? Dit kan niet ongedaan worden gemaakt.');"
                                           style="display:inline">
                                         <input type="hidden" name="_token" value="{{ csrf_token('delete-doc-' ~ d.id) }}">
                                         <input type="hidden" name="_method" value="DELETE">
-                                        <button
-                                                class="btn btn-danger"
-                                                {% if d.published %}
-                                                    disabled="disabled"
-                                                    title="Gepubliceerde sets kunnen niet worden verwijderd"
-                                                {% endif %}
-                                        >
-                                            Verwijder
+
+                                        <button type="submit"
+                                                class="icon-btn icon-btn--danger"
+                                                title="{% if d.published %}Gepubliceerde sets kunnen niet worden verwijderd{% else %}Verwijderen{% endif %}"
+                                                aria-label="Verwijderen"
+                                                {% if d.published %}disabled="disabled"{% endif %}>
+                                            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                                <path d="M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                                <path d="M6 7l1 14h10l1-14" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                                <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                            </svg>
                                         </button>
                                     </form>
+                                {% else %}
+                                    {# Editor ziet andermans sets: toon dezelfde iconen, maar disabled #}
+                                    <span class="icon-btn is-disabled" title="Je kunt alleen je eigen sets bewerken" aria-hidden="true">
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none">
+                                            <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"
+                                                  stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        </svg>
+                                    </span>
+
+                                    <span class="icon-btn is-disabled" title="Je kunt alleen je eigen sets beheren" aria-hidden="true">
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none">
+                                            <path d="M7 7h10M7 12h10M7 17h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M6 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+                                                  stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        </svg>
+                                    </span>
+
+                                    <span class="icon-btn icon-btn--danger is-disabled" title="Je kunt alleen je eigen sets verwijderen" aria-hidden="true">
+                                        <svg class="icon" viewBox="0 0 24 24" fill="none">
+                                            <path d="M4 7h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                            <path d="M6 7l1 14h10l1-14" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                            <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                                        </svg>
+                                    </span>
                                 {% endif %}
                             </td>
                         </tr>
                     {% endfor %}
                     </tbody>
                 </table>
+
+                <style>
+                    .sort-btn {
+                        all: unset;
+                        cursor: pointer;
+                        font-weight: 600;
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 6px;
+                    }
+                    .sort-indicator { opacity: .7; font-size: .9em; }
+
+                    .doc-title { display:flex; flex-direction:column; gap:4px; }
+                    .doc-title__main { line-height: 1.1; }
+                    .doc-title__meta { font-size: 12px; opacity: .75; }
+
+                    /* Icon buttons */
+                    .icon-btn {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 10px;
+                        border: 1px solid rgba(255,255,255,.14);
+                        background: rgba(255,255,255,.06);
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        padding: 0;
+                        color: rgba(255,255,255,.92);
+                        transition: transform .08s ease, background .12s ease, border-color .12s ease, opacity .12s ease;
+                    }
+                    .icon-btn:hover { transform: translateY(-1px); background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.22); }
+                    .icon-btn:active { transform: translateY(0px); }
+                    .icon-btn .icon { width: 18px; height: 18px; }
+
+                    .icon-btn--danger {
+                        color: rgba(255, 90, 90, .95);
+                        border-color: rgba(255, 90, 90, .28);
+                        background: rgba(255, 90, 90, .08);
+                    }
+                    .icon-btn--danger:hover { background: rgba(255, 90, 90, .12); border-color: rgba(255, 90, 90, .40); }
+
+                    .icon-btn[disabled] {
+                        opacity: .45;
+                        cursor: not-allowed;
+                        transform: none !important;
+                    }
+                    .is-disabled {
+                        opacity: .45;
+                        cursor: not-allowed;
+                        pointer-events: none;
+                    }
+                </style>
+
+                <script>
+                    (function () {
+                        const table = document.getElementById('docs-table');
+                        const tbody = document.getElementById('docs-tbody');
+                        if (!table || !tbody) return;
+
+                        // -------- Relative time rendering --------
+                        const rtf = new Intl.RelativeTimeFormat('nl', { numeric: 'auto' });
+
+                        function renderRelativeTimes() {
+                            const now = Date.now() / 1000;
+                            const nodes = table.querySelectorAll('.rel-time[data-ts]');
+                            nodes.forEach(el => {
+                                const ts = Number(el.dataset.ts || '0');
+                                if (!ts) return;
+
+                                const diff = ts - now; // seconds
+                                const abs = Math.abs(diff);
+
+                                let value, unit;
+                                if (abs < 60) { value = Math.round(diff); unit = 'second'; }
+                                else if (abs < 3600) { value = Math.round(diff / 60); unit = 'minute'; }
+                                else if (abs < 86400) { value = Math.round(diff / 3600); unit = 'hour'; }
+                                else if (abs < 86400 * 30) { value = Math.round(diff / 86400); unit = 'day'; }
+                                else if (abs < 86400 * 365) { value = Math.round(diff / (86400 * 30)); unit = 'month'; }
+                                else { value = Math.round(diff / (86400 * 365)); unit = 'year'; }
+
+                                el.textContent = rtf.format(value, unit);
+                            });
+                        }
+
+                        renderRelativeTimes();
+
+                        // -------- Client-side sorting --------
+                        let currentSort = null;
+                        let currentOrder = null;
+
+                        function setIndicator(sortKey, order) {
+                            table.querySelectorAll('.sort-indicator').forEach(el => el.textContent = '');
+                            const indicator = table.querySelector(`[data-indicator-for="${sortKey}"]`);
+                            if (!indicator) return;
+                            indicator.textContent = order === 'asc' ? '▲' : '▼';
+                        }
+
+                        function sortRows(sortKey, order) {
+                            const rows = Array.from(tbody.querySelectorAll('tr'));
+                            const dir = order === 'asc' ? 1 : -1;
+
+                            rows.sort((a, b) => {
+                                if (sortKey === 'title') {
+                                    const av = (a.dataset.title || '').toString();
+                                    const bv = (b.dataset.title || '').toString();
+                                    return av.localeCompare(bv, 'nl') * dir;
+                                }
+
+                                // updatedAt
+                                const av = Number(a.dataset.updatedAt || 0);
+                                const bv = Number(b.dataset.updatedAt || 0);
+                                return (av - bv) * dir;
+                            });
+
+                            rows.forEach(r => tbody.appendChild(r));
+                            currentSort = sortKey;
+                            currentOrder = order;
+                            setIndicator(sortKey, order);
+                        }
+
+                        table.querySelectorAll('.sort-btn[data-sort]').forEach(btn => {
+                            btn.addEventListener('click', () => {
+                                const sortKey = btn.dataset.sort;
+                                const defaultOrder = btn.dataset.defaultOrder || 'asc';
+
+                                let nextOrder = defaultOrder;
+                                if (currentSort === sortKey) {
+                                    nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                                }
+
+                                sortRows(sortKey, nextOrder);
+                            });
+                        });
+
+                        // Default indicator: controller levert meestal updatedAt desc
+                        setIndicator('updatedAt', 'desc');
+                    })();
+                </script>
             {% endif %}
         </div>
     </div>
