@@ -27,14 +27,14 @@
 
             {# --- Assets --- #}
             <div class="section">
-                <h2 class="section-title">Bestanden</h2>
+                <h2 class="section-title">Upload midi bestand</h2>
                 <div class="grid grid-2">
                     <div>
                         {{ form_row(form.midiFiles) }}
                     </div>
 
                     <div>
-                        <label class="label">MIDI bestanden op server</label>
+                        <label class="label">MIDI bestanden in project</label>
                         {% if assets is defined and assets|length %}
                             <div class="chips" style="margin-top:8px">
                                 {% for a in assets %}

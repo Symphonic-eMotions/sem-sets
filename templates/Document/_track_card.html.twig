@@ -98,7 +98,7 @@
 
         {# -- Midi bestand selecteren -- #}
         <div class="subsection midi-panel">
-            <label class="label midi-label">MIDI bestand</label>
+            <label class="label midi-label">Door track bespeeld midi-bestand</label>
             {{ form_widget(trackForm.midiAsset, { attr: { class: 'midi-select' } }) }}
 
             {% set info = midiInfo[trackForm.trackId.vars.value] ?? null %}
@@ -227,7 +227,7 @@
                             </div>
                         </div>
                         {{ form_widget(effectForm.position) }}
-                        {{ form_widget(effectForm.overridesJson) }}
+                        {{ form_widget(effectForm.overrides) }}
                     </div>
                 {% endfor %}
             </div>
