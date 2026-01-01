@@ -12,6 +12,7 @@ final class DocumentPayloadBuilder
 {
     public function __construct(
         private readonly PayloadBlockFactory $payloadBlockFactory,
+        private readonly EffectConfigMerger  $effectConfigMerger,
     ) {}
 
     public function buildPayloadJson(Document $doc): string
@@ -37,7 +38,7 @@ final class DocumentPayloadBuilder
 
             $loopLengthBars = array_values(array_map('intval', $loopLengthBars));
 
-            $beatsPerBar = (int) ($doc->getTimeSignatureNumerator() ?? 4);
+            $beatsPerBar     = (int) ($doc->getTimeSignatureNumerator() ?? 4);
             $loopLengthBeats = $this->loopLengthBarsToBeats($loopLengthBars, $beatsPerBar);
 
             // 1b) LoopsToGrid uit eerste InstrumentPart
@@ -112,20 +113,42 @@ final class DocumentPayloadBuilder
             // -----------------------------------------------------------------
             $effectsConfig   = [];
             $effectParamMeta = [];
+            $bindingMap      = []; // ✅ was missing in je snippet
+
+            // Track effects sorteren op position (zodat export volgorde klopt)
+            $trackEffects = $t->getTrackEffects();
+            $trackEffectsSorted = is_iterable($trackEffects) ? $trackEffects->toArray() : [];
+            usort(
+                $trackEffectsSorted,
+                fn ($a, $b) => ($a->getPosition() ?? 0) <=> ($b->getPosition() ?? 0)
+            );
 
             // Bouw effect-config + mapping van param-ID -> meta
-            foreach ($t->getTrackEffects() as $te) {
+            foreach ($trackEffectsSorted as $te) {
                 $preset = $te->getPreset();
                 if (!$preset) {
                     continue;
                 }
 
-                $config = $preset->getConfig(); // volledige effect-JSON
-                if (is_array($config)) {
-                    $effectsConfig[] = $config;
+                // 1) Preset config (volledige effect-JSON)
+                $presetConfig = $preset->getConfig();
+                if (!is_array($presetConfig)) {
+                    $presetConfig = [];
                 }
 
-                // Basisnaam
+                // 2) Overrides (per track effect)
+                $overrides = $te->getOverrides();
+                if (!is_array($overrides)) {
+                    $overrides = null;
+                }
+
+                // 3) Merge: preset + overrides (met clamp binnen preset range)
+                $mergedConfig = $this->effectConfigMerger->merge($presetConfig, $overrides);
+
+                // ✅ Export: voeg de gemergede config toe (niet de preset-only config)
+                $effectsConfig[] = $mergedConfig;
+
+                // Basisnaam (fallback)
                 $effectLabel = $preset->getName();
 
                 // Zoek een evt. "mooie" naam (TYPE_NAME)
@@ -145,26 +168,32 @@ final class DocumentPayloadBuilder
                         $keyName = $kv->getKeyName();
                         $range   = null;
 
+                        // range liever uit mergedConfig/presetConfig halen (zelfde range), beide ok.
                         if (
-                            is_array($config)
-                            && array_key_exists($keyName, $config)
-                            && is_array($config[$keyName])
-                            && isset($config[$keyName]['range'])
-                            && is_array($config[$keyName]['range'])
+                            array_key_exists($keyName, $mergedConfig)
+                            && is_array($mergedConfig[$keyName])
+                            && isset($mergedConfig[$keyName]['range'])
+                            && is_array($mergedConfig[$keyName]['range'])
                         ) {
-                            $range = array_values($config[$keyName]['range']);
+                            $range = array_values($mergedConfig[$keyName]['range']);
+                        } elseif (
+                            array_key_exists($keyName, $presetConfig)
+                            && is_array($presetConfig[$keyName])
+                            && isset($presetConfig[$keyName]['range'])
+                            && is_array($presetConfig[$keyName]['range'])
+                        ) {
+                            $range = array_values($presetConfig[$keyName]['range']);
                         }
 
                         $effectParamMeta[$kv->getId()] = [
-                            'effectName' => $effectLabel,   // bv. "lowPassFilter"
-                            'parameter'  => $keyName,      // bv. "cutoffFrequency"
-                            'range'      => $range,        // bv. [10, 20000]
+                            'effectName' => $effectLabel, // bv. "lowPassFilter"
+                            'parameter'  => $keyName,     // bv. "cutoffFrequency"
+                            'range'      => $range,       // bv. [10, 20000]
                         ];
                     }
                 }
             }
 
-            // TODO Binding voor velocity weer fixen?
             // Vaste sequencer-binding (voor "Velocity")
             $bindingMap['seq:velocity'] = [
                 'nodeType'  => 'sequencer',
