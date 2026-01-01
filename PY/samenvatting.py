@@ -35,6 +35,7 @@ WHITELIST = [
     "public/js/effectsSettings.js",
     "public/js/leveldurationsTracksAOI.js",
     "public/js/loopLengthEditor.js",
+    "public/js/midiAssetSaveNotice.js",
     "src/Command/CreateUserCommand.php",
     "src/Controller/ApiController.php",
     "src/Controller/DocumentController.php",
