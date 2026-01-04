@@ -8,7 +8,7 @@ final class MidiSummary
 {
     public function __construct(
         public readonly int   $tempoMicrosecondsPerQuarter,
-        public readonly int   $bpm,
+        public readonly float $bpm,
         public readonly int   $timebase,
         public readonly int   $trackCount,
         public readonly float $durationSeconds,

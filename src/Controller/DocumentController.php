@@ -371,7 +371,10 @@ final class DocumentController extends AbstractController
         // VIEW DATA (MIDI + effecten)
         // ========================
 
-        // Load midi info
+        // 0) Assets voor chips (en om summaries op te bouwen)
+        $assetsList = $this->assetRepo->findForDocument($doc);
+
+        // 1) midiInfo per trackId
         $midiInfo = [];
         foreach ($doc->getTracks() as $track) {
             $asset = $track->getMidiAsset();
@@ -392,14 +395,33 @@ final class DocumentController extends AbstractController
                     'duration'   => $summary->getDurationFormatted(),
                     'rawSeconds' => $summary->durationSeconds,
                 ];
-
-                // Optioneel: opruimen na analyse
-                // @unlink($tmpPath);
-
             } catch (Throwable $e) {
-                $midiInfo[$track->getTrackId()] = [
-                    'error' => $e->getMessage(),
-                ];
+                $midiInfo[$track->getTrackId()] = ['error' => $e->getMessage()];
+            } finally {
+                @unlink($tmpPath);
+            }
+        }
+
+        // 2) midiSummariesByAssetId voor de chips-lijst
+        $midiSummariesByAssetId = [];
+        foreach ($assetsList as $a) {
+
+            $origName = $a->getOriginalName() ?? '';
+            $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+
+            // alleen mid/midi analyseren
+            if (!in_array($ext, ['mid', 'midi'], true)) {
+                continue;
+            }
+
+            $tmpPath = $assets->createLocalTempFile($a);
+
+            try {
+                $midiSummariesByAssetId[$a->getId()] = $midiAnalyzer->summarize($tmpPath);
+            } catch (Throwable $e) {
+                $midiSummariesByAssetId[$a->getId()] = ['error' => $e->getMessage()];
+            } finally {
+                @unlink($tmpPath);
             }
         }
 
@@ -457,6 +479,7 @@ final class DocumentController extends AbstractController
             'form'     => $form->createView(),
             'assets'   => $this->assetRepo->findForDocument($doc),
             'midiInfo' => $midiInfo,
+            'midiSummariesByAssetId' => $midiSummariesByAssetId,
             'allEffectPresetsMap' => $allEffectPresetsMap,
         ]);
     }

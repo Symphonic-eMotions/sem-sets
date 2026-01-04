@@ -38,16 +38,46 @@
                         {% if assets is defined and assets|length %}
                             <div class="chips" style="margin-top:8px">
                                 {% for a in assets %}
+
+                                    {% set summary = midiSummariesByAssetId[a.id] ?? null %}
+                                    {% set summaryError = (summary is iterable and summary.error is defined) ? summary.error : null %}
+
                                     <div class="chip">
                                         <div class="chip-main">
                                             <span class="chip-name">{{ a.originalName }}</span>
                                             <span class="chip-meta subtle">
-                                              ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %})
+                                                ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %}
+
+                                                {% if summary and not summaryError %}
+                                                    · {{ summary.trackCount }} track{{ summary.trackCount == 1 ? '' : 's' }}
+                                                    · {{ summary.getDurationFormatted() }}
+                                                {% endif %})
                                             </span>
                                         </div>
 
                                         <div class="chip-actions">
-                                            <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}" class="btn-mini">Download</a>
+                                            <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}"
+                                               class="btn-mini">Download</a>
+
+                                            {% if summary and not summaryError and summary.trackCount > 1 %}
+                                                <button
+                                                        type="button"
+                                                        class="btn-mini"
+                                                        data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
+                                                        data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
+                                                        onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
+                                                >
+                                                    Split tracks
+                                                </button>
+                                            {% endif %}
+
+                                            {% if summaryError %}
+                                                <span class="subtle">midi-analyse mislukt</span>
+                                                {% if is_granted('ROLE_ADMIN') %}
+                                                    <code class="subtle">{{ summaryError }}</code>
+                                                {% endif %}
+                                            {% endif %}
+
                                             <button
                                                     type="button"
                                                     class="btn-mini danger"
@@ -60,6 +90,8 @@
                                             </button>
                                         </div>
                                     </div>
+
+
                                 {% endfor %}
                             </div>
                         {% else %}
@@ -73,7 +105,7 @@
 
             {# --- LevelDurations custom UI (tegels) --- #}
             <div class="section">
-                    <h2 class="section-title">Aantal levels voor deze set</h2>
+                <h2 class="section-title">Aantal levels voor deze set</h2>
 
                 <div class="ld-row align-items-center">
                     {# 1. Tegels #}
@@ -194,7 +226,7 @@
     <script src="{{ asset('js/semLoopConfig.js?v=1') }}"></script>
     <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js?v=1') }}" defer></script>
-    <script src="{{ asset('js/midiAssetSaveNotice.js?v=1') }}" defer></script>
+    <script src="{{ asset('js/midiAssetSaveNotice.js?v=2') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};

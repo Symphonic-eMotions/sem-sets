@@ -29,3 +29,25 @@
         onMidiChange(el);
     });
 })();
+
+async function splitTracks(url, csrf) {
+    try {
+        const body = new URLSearchParams({ csrf });
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+            alert(data.error || 'Split mislukt');
+            return;
+        }
+
+        // Simpel: reload zodat nieuwe assets in de lijst staan
+        location.reload();
+    } catch (e) {
+        alert('Split mislukt: ' + e);
+    }
+}

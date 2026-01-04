@@ -13,7 +13,7 @@ interface MidiFileInterface
 
     public function getTempoMicrosecondsPerQuarter(): int;
 
-    public function getBpm(): int;
+    public function getBpm(): float;
 
     public function getTimebase(): int;
 

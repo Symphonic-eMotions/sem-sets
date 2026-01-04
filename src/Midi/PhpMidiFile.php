@@ -36,7 +36,7 @@ class PhpMidiFile implements MidiFileInterface
         return $this->midi->getTempo();
     }
 
-    public function getBpm(): int
+    public function getBpm(): float
     {
         return $this->midi->getBpm();
     }
