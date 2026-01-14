@@ -33,66 +33,128 @@
                         {{ form_row(form.midiFiles) }}
                     </div>
 
+                    {# ---------------------------
+                   MIDI bestanden in project
+                   - Parents bovenaan
+                   - Gesplitste tracks (children) direct eronder
+                   --------------------------- #}
+
+                    {% macro render_chip(a, document, midiSummariesByAssetId, isChild, childLabel) %}
+                        {% set summary = midiSummariesByAssetId[a.id] ?? null %}
+                        {% set summaryError = (summary is iterable and summary.error is defined) ? summary.error : null %}
+
+                        <div class="chip{{ isChild ? ' chip-child' : '' }}">
+                            <div class="chip-main chip-main-stack">
+                                <span class="chip-name">
+                                    {% if isChild %}
+                                        <span class="subtle" style="margin-right:6px;">↳</span>
+                                        {% if childLabel %}<span class="subtle">{{ childLabel }}</span>{% endif %}
+                                    {% endif %}
+                                    {{ a.originalName }}
+                                </span>
+
+                                <span class="chip-meta subtle chip-meta-below">
+                                    ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %}
+                                    {% if summary and not summaryError %}
+                                    · {{ summary.trackCount }} track{{ summary.trackCount == 1 ? '' : 's' }}
+                                    · {{ summary.getDurationFormatted() }}
+                                    {% endif %})
+                                 </span>
+                            </div>
+
+                            <div class="chip-actions">
+                                <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}"
+                                   class="btn-mini">Download</a>
+
+                                {% if (not isChild) and summary and not summaryError and summary.trackCount > 1 %}
+                                    <button
+                                            type="button"
+                                            class="btn-mini"
+                                            data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
+                                            data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
+                                            onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
+                                    >
+                                        Split tracks
+                                    </button>
+                                {% endif %}
+
+                                {% if summaryError %}
+                                    <span class="subtle">midi-analyse mislukt</span>
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        <code class="subtle">{{ summaryError }}</code>
+                                    {% endif %}
+                                {% endif %}
+
+                                <button
+                                        type="button"
+                                        class="btn-mini danger"
+                                        data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                        data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
+                                        data-name="{{ a.originalName }}"
+                                        onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
+                                >
+                                    Verwijder
+                                </button>
+                            </div>
+                        </div>
+                    {% endmacro %}
+
+                    {% import _self as midiui %}
+
                     <div>
                         <label class="label">MIDI bestanden in project</label>
-                        {% if assets is defined and assets|length %}
+
+                        {% set parents = assetsParents ?? [] %}
+
+                        {% if parents|length %}
                             <div class="chips" style="margin-top:8px">
-                                {% for a in assets %}
 
-                                    {% set summary = midiSummariesByAssetId[a.id] ?? null %}
-                                    {% set summaryError = (summary is iterable and summary.error is defined) ? summary.error : null %}
+                                <style>
+                                    .chip-child {
+                                        margin-left: 18px;
+                                        opacity: 0.96;
+                                    }
+                                    .chip-child .chip-name {
+                                        font-size: 0.95em;
+                                    }
 
-                                    <div class="chip">
-                                        <div class="chip-main">
-                                            <span class="chip-name">{{ a.originalName }}</span>
-                                            <span class="chip-meta subtle">
-                                                ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %}
+                                    /* Info midi file onder naam, compact */
+                                    .chip-main-stack{
+                                        display: flex;
+                                        flex-direction: column;
+                                        align-items: flex-start; /* ← dit is de sleutel */
+                                        gap: 2px;
+                                        min-width: 0;
+                                        line-height: 1.1;
+                                    }
+                                    .chip-meta-below{
+                                        text-align: left;        /* extra expliciet */
+                                        align-self: flex-start;  /* belt + suspenders */
+                                    }
 
-                                                {% if summary and not summaryError %}
-                                                    · {{ summary.trackCount }} track{{ summary.trackCount == 1 ? '' : 's' }}
-                                                    · {{ summary.getDurationFormatted() }}
-                                                {% endif %})
-                                            </span>
-                                        </div>
+                                    /* optioneel maar handig: lange namen niet alles laten oprekken */
+                                    .chip-name{
+                                        white-space: nowrap;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        max-width: 100%;
+                                    }
+                                </style>
 
-                                        <div class="chip-actions">
-                                            <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}"
-                                               class="btn-mini">Download</a>
+                                {% for a in parents %}
+                                    {{ midiui.render_chip(a, document, midiSummariesByAssetId, false, null) }}
 
-                                            {% if summary and not summaryError and summary.trackCount > 1 %}
-                                                <button
-                                                        type="button"
-                                                        class="btn-mini"
-                                                        data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
-                                                        data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
-                                                        onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
-                                                >
-                                                    Split tracks
-                                                </button>
-                                            {% endif %}
-
-                                            {% if summaryError %}
-                                                <span class="subtle">midi-analyse mislukt</span>
-                                                {% if is_granted('ROLE_ADMIN') %}
-                                                    <code class="subtle">{{ summaryError }}</code>
-                                                {% endif %}
-                                            {% endif %}
-
-                                            <button
-                                                    type="button"
-                                                    class="btn-mini danger"
-                                                    data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                                                    data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
-                                                    data-name="{{ a.originalName }}"
-                                                    onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
-                                            >
-                                                Verwijder
-                                            </button>
-                                        </div>
-                                    </div>
-
+                                    {% set kids = (assetsChildrenById[a.id] ?? []) %}
+                                    {% if kids|length %}
+                                        {% for c in kids %}
+                                            {# Je kunt childLabel ook null laten. Dit is een compact labeltje. #}
+                                            {% set childLabel = 'track' %}
+                                            {{ midiui.render_chip(c, document, midiSummariesByAssetId, true, childLabel) }}
+                                        {% endfor %}
+                                    {% endif %}
 
                                 {% endfor %}
+
                             </div>
                         {% else %}
                             <p class="subtle" style="margin-top:6px">
@@ -100,6 +162,7 @@
                             </p>
                         {% endif %}
                     </div>
+
                 </div>
             </div>
 

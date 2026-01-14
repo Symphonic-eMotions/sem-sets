@@ -371,8 +371,109 @@ final class DocumentController extends AbstractController
         // VIEW DATA (MIDI + effecten)
         // ========================
 
-        // 0) Assets voor chips (en om summaries op te bouwen)
+        // ========================
+        // 0b) Groepeer assets: "parent" + "children" (gesplitste tracks onder origineel)
+        // ========================
+        $assetsParents = [];
+        $assetsChildrenById = [];
+
         $assetsList = $this->assetRepo->findForDocument($doc);
+
+        // helper: alleen midi?
+        $isMidi = static function (Asset $a): bool {
+            $name = (string) $a->getOriginalName();
+            $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            return in_array($ext, ['mid', 'midi'], true);
+        };
+
+        // helper: is child?
+        $isChild = static function (Asset $a): bool {
+            $name = (string) $a->getOriginalName();
+            // child detect: eindigt op -NN.mid|midi  (NN=2 digits)
+            return (bool) preg_match('/-(\d{2})\.(mid|midi)$/i', $name);
+        };
+
+        // helper: parent base uit child naam halen
+        $parentBaseFromChild = static function (Asset $child): string {
+            $nameNoExt = pathinfo((string) $child->getOriginalName(), PATHINFO_FILENAME);
+
+            // 1) meest gebruikelijk: "<base>-<label>-NN"
+            $try = preg_replace('/-[^-]+-(\d{2})$/', '', $nameNoExt);
+            if (is_string($try) && $try !== $nameNoExt) {
+                return $try;
+            }
+
+            // 2) fallback: "<base>-NN"
+            $try2 = preg_replace('/-(\d{2})$/', '', $nameNoExt);
+            return is_string($try2) ? $try2 : $nameNoExt;
+        };
+
+        // 1) start: alles wat midi is, is parent
+        foreach ($assetsList as $a) {
+            if (!$isMidi($a)) {
+                continue;
+            }
+            $assetsParents[$a->getId()] = $a;
+        }
+
+        // 2) maak lookup van echte parents (dus géén children) op base filename
+        $parentsByBase = [];
+        foreach ($assetsList as $a) {
+            if (!$isMidi($a)) {
+                continue;
+            }
+            if ($isChild($a)) {
+                continue; // belangrijk: children niet als parent opnemen
+            }
+
+            $base = pathinfo((string) $a->getOriginalName(), PATHINFO_FILENAME);
+            $parentsByBase[$base] = $a;
+        }
+
+        // 3) koppel children onder parent
+        foreach ($assetsList as $a) {
+            if (!$isMidi($a)) {
+                continue;
+            }
+            if (!$isChild($a)) {
+                continue;
+            }
+
+            $parentBase = $parentBaseFromChild($a);
+            $parent = $parentsByBase[$parentBase] ?? null;
+            if (!$parent) {
+                continue; // geen parent gevonden => laat hem als losse parent staan
+            }
+
+            unset($assetsParents[$a->getId()]);
+            $assetsChildrenById[$parent->getId()][] = $a;
+        }
+
+        // 4) sorteer children per parent op NN
+        foreach ($assetsChildrenById as &$children) {
+            usort($children, static function (Asset $a, Asset $b): int {
+                $ia = 0; $ib = 0;
+                if (preg_match('/-(\d{2})\.(mid|midi)$/i', (string) $a->getOriginalName(), $ma)) {
+                    $ia = (int) $ma[1];
+                }
+                if (preg_match('/-(\d{2})\.(mid|midi)$/i', (string) $b->getOriginalName(), $mb)) {
+                    $ib = (int) $mb[1];
+                }
+                return $ia <=> $ib;
+            });
+        }
+        unset($children);
+
+        // 5) parents → lijst in repository-volgorde (behoud volgorde van $assetsList)
+        $assetsParentsOrdered = [];
+        foreach ($assetsList as $a) {
+            if (isset($assetsParents[$a->getId()])) {
+                $assetsParentsOrdered[] = $assetsParents[$a->getId()];
+            }
+        }
+        $assetsParents = $assetsParentsOrdered;
+
+
 
         // 1) midiInfo per trackId
         $midiInfo = [];
@@ -477,7 +578,9 @@ final class DocumentController extends AbstractController
         return $this->render('Document/edit.html.twig', [
             'document' => $doc,
             'form'     => $form->createView(),
-            'assets'   => $this->assetRepo->findForDocument($doc),
+            'assets'   => $assetsList,
+            'assetsParents'      => $assetsParents,
+            'assetsChildrenById' => $assetsChildrenById,
             'midiInfo' => $midiInfo,
             'midiSummariesByAssetId' => $midiSummariesByAssetId,
             'allEffectPresetsMap' => $allEffectPresetsMap,

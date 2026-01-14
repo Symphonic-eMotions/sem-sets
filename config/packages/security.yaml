@@ -1,14 +1,30 @@
 security:
+    # -------------------------------------------------
+    # Password hashing
+    # -------------------------------------------------
     password_hashers:
-        App\Entity\User:
-            algorithm: auto
+        App\Entity\User: 'auto'
 
+    # -------------------------------------------------
+    # Rollen & hiërarchie
+    # -------------------------------------------------
+    role_hierarchy:
+        ROLE_ADMIN:    [ROLE_EDITOR, ROLE_VIEWER, ROLE_CUSTOMER]
+        ROLE_EDITOR:   [ROLE_VIEWER]
+        ROLE_CUSTOMER: [ROLE_VIEWER]
+
+    # -------------------------------------------------
+    # User provider
+    # -------------------------------------------------
     providers:
         app_user_provider:
             entity:
                 class: App\Entity\User
                 property: email
 
+    # -------------------------------------------------
+    # Firewalls
+    # -------------------------------------------------
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js)/
@@ -18,23 +34,32 @@ security:
             lazy: true
             provider: app_user_provider
 
-            # 🔥 TIJDELIJK ALLES UITZETTEN OP DE FIREWALL
-#            security: false
-
-            # <-- Gebruik onze custom authenticator (email + 6-cijferige pincode)
+            # Gebruik custom PIN-code authenticator
             custom_authenticator: App\Security\PinCodeAuthenticator
+
             logout:
                 path: app_logout
                 target: /
 
+    # -------------------------------------------------
+    # Access control
+    # -------------------------------------------------
     access_control:
-        # login mag publiek
+        # Login zelf is publiek
         - { path: ^/login, roles: PUBLIC_ACCESS }
-        # public API mag publiek (alleen READ routes in onze controllers)
-        - { path: ^/api, roles: PUBLIC_ACCESS }
-        # rest vereist ingelogde gebruiker
-        - { path: ^/, roles: ROLE_USER }
 
+        # Public API endpoints (read-only, enforced in controller)
+        - { path: ^/api, roles: PUBLIC_ACCESS }
+
+        # Admin / CMS gedeelte
+        - { path: ^/admin, roles: ROLE_EDITOR }
+
+        # Alles daarbuiten: minimaal Viewer
+        - { path: ^/, roles: ROLE_VIEWER }
+
+# -------------------------------------------------
+# Test environment tweaks (snellere hashing)
+# -------------------------------------------------
 when@test:
     security:
         password_hashers:

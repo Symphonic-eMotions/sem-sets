@@ -39,47 +39,40 @@ final class MidiTrackSplitter
         }
 
         $track0 = $midi->getTrack(0);
-        $track0HasNotes = $this->trackHasNotes($track0);
 
         // Basisnaam zonder extensie
-        $baseName = pathinfo($asset->getOriginalName(), PATHINFO_FILENAME);
+        $baseName = pathinfo((string) $asset->getOriginalName(), PATHINFO_FILENAME);
+
+        // Header/meta die we uit track0 willen behouden (tempo/maat/key)
+        $headerMeta = $this->extractHeaderMeta($track0);
 
         $created = [];
 
-        // Meestal wil je tracks 1…N-1 splitsen.
-        // Als track 0 ook noten bevat, nemen we die ook mee als "track_0".
-        $start = $track0HasNotes ? 0 : 1;
-
-        for ($tn = $start; $tn < $trackCount; $tn++) {
+        // We splitten alleen "muziektracks" (meestal 1..N-1)
+        for ($tn = 0; $tn < $trackCount; $tn++) {
             $track = $midi->getTrack($tn);
 
-            // Skip lege tracks (behalve als je ze juist wil forceren)
-            if ($this->isEffectivelyEmptyTrack($track)) {
+            // Skip tracks zonder hoorbare noten
+            if (!$this->trackHasNotes($track)) {
                 continue;
             }
 
             $label = $this->extractTrackLabel($track) ?? ('track_' . $tn);
             $safeLabel = $this->slugForFilename($label);
 
-            // Voorbeeld: "SongName__02__Piano_RH.mid"
-            $prettyIndex = str_pad((string)$tn, 2, '0', STR_PAD_LEFT);
-            $newOriginalName = sprintf('%s__%s__%s.mid', $baseName, $prettyIndex, $safeLabel);
+            // Voorbeeld: "SongName-Right_Hand-01.mid"
+            $prettyIndex = str_pad((string) $tn, 2, '0', STR_PAD_LEFT);
+            $newOriginalName = sprintf('%s-%s-%s.mid', $baseName, $safeLabel, $prettyIndex);
 
-            // Bouw nieuwe MidiDuration met track0 (optioneel) + deze track
+            // Bouw 1-track MIDI: header-meta + track events
+            $mergedTrack = $this->mergeHeaderMetaIntoTrack($headerMeta, $track);
+
             $out = new MidiDuration();
             $out->open($midi->getTimebase());
+            $out->tracks = [
+                $this->ensureTrkEnd($mergedTrack),
+            ];
 
-            // Belangrijk: tracks-array direct zetten (library gebruikt public var $tracks)
-            $outTracks = [];
-
-            if (!$track0HasNotes) {
-                $outTracks[] = $this->ensureTrkEnd($track0);
-            }
-            $outTracks[] = $this->ensureTrkEnd($track);
-
-            $out->tracks = $outTracks;
-
-            // Schrijf naar tijdelijk bestand en store als Asset
             $tmpOut = tempnam(sys_get_temp_dir(), 'midi_split_');
             if ($tmpOut === false) {
                 throw new RuntimeException('Kon geen tijdelijk bestand aanmaken voor gesplitste MIDI.');
@@ -88,6 +81,8 @@ final class MidiTrackSplitter
             $out->saveMidFile($tmpOut);
 
             $binary = file_get_contents($tmpOut);
+            @unlink($tmpOut);
+
             if ($binary === false || $binary === '') {
                 throw new RuntimeException('Kon gesplitste MIDI niet lezen uit tmp bestand.');
             }
@@ -95,7 +90,7 @@ final class MidiTrackSplitter
             $created[] = $this->assetStorage->store(
                 doc: $doc,
                 originalName: $newOriginalName,
-                mime: 'audio/midi', // of 'audio/mid' / 'application/octet-stream' als je wilt
+                mime: 'audio/midi',
                 size: strlen($binary),
                 binary: $binary,
                 user: $user
@@ -105,34 +100,106 @@ final class MidiTrackSplitter
         return $created;
     }
 
+    private function extractHeaderMeta(array $track0): array
+    {
+        $wanted = ['Tempo', 'TimeSig', 'KeySig'];
+        $picked = [];
+
+        foreach ($track0 as $line) {
+            if (!str_contains($line, ' Meta ')) {
+                continue;
+            }
+
+            $parts = explode(' ', trim($line));
+            $type  = $parts[2] ?? null;
+            if (!$type || !in_array($type, $wanted, true)) {
+                continue;
+            }
+
+            // forceer tijd 0
+            $parts[0] = '0';
+            $picked[] = implode(' ', $parts);
+        }
+
+        // Dedup op type: eerste wint
+        $out = [];
+        $seen = [];
+        foreach ($picked as $l) {
+            $p = explode(' ', $l);
+            $t = $p[2] ?? '';
+            if ($t === '' || isset($seen[$t])) {
+                continue;
+            }
+            $seen[$t] = true;
+            $out[] = $l;
+        }
+
+        return $out;
+    }
+
+    private function mergeHeaderMetaIntoTrack(array $headerMeta, array $track): array
+    {
+        if (empty($headerMeta)) {
+            return $track;
+        }
+
+        $stripTypes = ['Tempo', 'TimeSig', 'KeySig'];
+        $clean = [];
+
+        foreach ($track as $line) {
+            if (str_contains($line, ' Meta ')) {
+                $parts = explode(' ', trim($line));
+                $type  = $parts[2] ?? null;
+                if ($type && in_array($type, $stripTypes, true)) {
+                    continue;
+                }
+            }
+            $clean[] = $line;
+        }
+
+        return array_values(array_merge($headerMeta, $clean));
+    }
+
     private function trackHasNotes(array $track): bool
     {
         foreach ($track as $line) {
-            // "123 On ch=1 n=60 v=100"
             $parts = explode(' ', $line);
-            if (($parts[1] ?? null) === 'On' || ($parts[1] ?? null) === 'Off') {
+            $type  = $parts[1] ?? null;
+
+            if ($type === 'Off') {
+                return true;
+            }
+
+            if ($type === 'On') {
+                // zoek v=...
+                foreach ($parts as $p) {
+                    if (str_starts_with($p, 'v=')) {
+                        return ((int)substr($p, 2)) > 0;
+                    }
+                }
+                // als er geen v= is: beschouw als noot (defensief)
                 return true;
             }
         }
         return false;
     }
 
-    private function isEffectivelyEmptyTrack(array $track): bool
-    {
-        // Lege track of alleen TrkEnd/meta zonder inhoud
-        foreach ($track as $line) {
-            $parts = explode(' ', $line);
-            $type = $parts[1] ?? null;
-
-            if ($type === 'On' || $type === 'Off' || $type === 'Par' || $type === 'PrCh' || $type === 'Pb') {
-                return false;
-            }
-            if ($type === 'Meta' && ($parts[2] ?? null) !== 'TrkEnd') {
-                return false;
-            }
-        }
-        return true;
-    }
+//    private function isEffectivelyEmptyTrack(array $track): bool
+//    {
+//        // Lege track of alleen TrkEnd/meta zonder inhoud
+//        foreach ($track as $line) {
+//            $parts = explode(' ', $line);
+//            $type = $parts[1] ?? null;
+//
+//            if ($type === 'On' || $type === 'Off' || $type === 'Par' || $type === 'PrCh' || $type === 'Pb') {
+//                return false;
+//            }
+//            if ($type === 'Meta' && ($parts[2] ?? null) !== 'TrkEnd') {
+//                return false;
+//            }
+//        }
+//        return true;
+//    }
 
     private function extractTrackLabel(array $track): ?string
     {
