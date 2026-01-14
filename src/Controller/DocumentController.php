@@ -394,18 +394,44 @@ final class DocumentController extends AbstractController
         };
 
         // helper: parent base uit child naam halen
-        $parentBaseFromChild = static function (Asset $child): string {
+        // helper: parent base uit child naam halen (dash-proof)
+        $parentBaseFromChild = static function (Asset $child, array $parentsByBase): ?string {
             $nameNoExt = pathinfo((string) $child->getOriginalName(), PATHINFO_FILENAME);
 
-            // 1) meest gebruikelijk: "<base>-<label>-NN"
-            $try = preg_replace('/-[^-]+-(\d{2})$/', '', $nameNoExt);
-            if (is_string($try) && $try !== $nameNoExt) {
-                return $try;
+            // Verwacht altijd een "-NN" suffix (2 digits) bij children
+            if (!preg_match('/^(.*)-(\d{2})$/', $nameNoExt, $m)) {
+                return null;
             }
 
-            // 2) fallback: "<base>-NN"
-            $try2 = preg_replace('/-(\d{2})$/', '', $nameNoExt);
-            return is_string($try2) ? $try2 : $nameNoExt;
+            // Strip alleen het nummer eraf: "<base>-<label>"
+            $withoutIndex = $m[1];
+
+            // 1) Ideaal geval: exact match (soms is label leeg of zonder extra stuk)
+            if (isset($parentsByBase[$withoutIndex])) {
+                return $withoutIndex;
+            }
+
+            // 2) Dash-proof: zoek de langste parent-base die prefix is van "<base>-<label>"
+            //    Voorbeeld: "Whats Going On One" is prefix van "Whats Going On One-8-Bit_Sawtooth"
+            $best = null;
+            $bestLen = 0;
+
+            foreach ($parentsByBase as $base => $_parentAsset) {
+                if ($base === '') {
+                    continue;
+                }
+
+                // moet beginnen met "<base>-"
+                if (str_starts_with($withoutIndex, $base . '-')) {
+                    $len = strlen($base);
+                    if ($len > $bestLen) {
+                        $best = $base;
+                        $bestLen = $len;
+                    }
+                }
+            }
+
+            return $best;
         };
 
         // 1) start: alles wat midi is, is parent
@@ -439,8 +465,9 @@ final class DocumentController extends AbstractController
                 continue;
             }
 
-            $parentBase = $parentBaseFromChild($a);
-            $parent = $parentsByBase[$parentBase] ?? null;
+            $parentBase = $parentBaseFromChild($a, $parentsByBase);
+            $parent = ($parentBase !== null) ? ($parentsByBase[$parentBase] ?? null) : null;
+
             if (!$parent) {
                 continue; // geen parent gevonden => laat hem als losse parent staan
             }
