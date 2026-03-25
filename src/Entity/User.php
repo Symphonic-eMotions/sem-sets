@@ -8,8 +8,11 @@ use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Validator\Constraints as Assert;
+use function bin2hex;
 use function in_array;
+use function random_bytes;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'users')]
@@ -39,6 +42,17 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]
     private ?DateTimeImmutable $lastFailedAt = null;
+
+    /**
+     * Unieke API-sleutel voor de sem-sym koppeling (64-char hex).
+     * Gegenereerd bij account-aanmaak via generateApiKey().
+     */
+    #[ORM\Column(type: 'string', length: 64, unique: true, nullable: true)]
+    private ?string $apiKey = null;
+
+    /** UUID v4 die als instanceId dient in sem-sym requests. */
+    #[ORM\Column(type: 'string', length: 36, unique: true, nullable: true)]
+    private ?string $instanceId = null;
 
     public function getId(): ?int { return $this->id; }
 
@@ -71,4 +85,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function getLastFailedAt(): ?DateTimeImmutable { return $this->lastFailedAt; }
     public function setLastFailedAt(?DateTimeImmutable $d): self { $this->lastFailedAt = $d; return $this; }
+
+    public function getApiKey(): ?string { return $this->apiKey; }
+    public function setApiKey(?string $key): self { $this->apiKey = $key; return $this; }
+
+    public function getInstanceId(): ?string { return $this->instanceId; }
+    public function setInstanceId(?string $id): self { $this->instanceId = $id; return $this; }
+
+    /** Genereer een cryptografisch veilige API-sleutel (64-char hex). */
+    public static function generateApiKey(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+
+    /** Genereer een UUID v4 als instanceId. */
+    public static function generateInstanceId(): string
+    {
+        return (string) Uuid::v4();
+    }
 }

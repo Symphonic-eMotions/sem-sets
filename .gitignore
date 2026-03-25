@@ -21,3 +21,5 @@
 
 /.idea
 project_samenvatting.txt
+phpunit.dist.xml
+PY/samenvatting.py

@@ -16,6 +16,7 @@ use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
 use App\Repository\EffectSettingsRepository;
 use App\Service\AssetStorage;
+use App\Service\DocumentExportService;
 use App\Service\DocumentPayloadBuilder;
 use App\Service\DocumentSnapshotService;
 use App\Service\VersioningService;
@@ -42,20 +43,22 @@ final class DocumentController extends AbstractController
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly FilesystemOperator     $uploadsStorage, // service-id: uploads.storage
-        private readonly AssetRepository        $assetRepo,
+        private readonly FilesystemOperator $uploadsStorage, // service-id: uploads.storage
+        private readonly AssetRepository $assetRepo,
         private readonly DocumentPayloadBuilder $payloadBuilder,
-    ) {}
+        private readonly DocumentExportService $exportService,
+    ) {
+    }
 
     #[Route('', name: 'app_dashboard', methods: ['GET'])]
     public function index(DocumentRepository $repo): Response
     {
         return $this->render('Document/index.html.twig', [
-            'documents' => $repo->findBy([], ['updatedAt'=>'DESC']),
+            'documents' => $repo->findBy([], ['updatedAt' => 'DESC']),
         ]);
     }
 
-    #[Route('documents/new', name: 'doc_new', methods: ['GET','POST'])]
+    #[Route('documents/new', name: 'doc_new', methods: ['GET', 'POST'])]
     public function new(Request $req): Response
     {
         $doc = new Document();
@@ -68,7 +71,7 @@ final class DocumentController extends AbstractController
             $doc->setSemVersion($doc->getSemVersion());
             $doc->setGridColumns(2);
             $doc->setGridRows(2);
-            $doc->setLevelDurations([32,32]);
+            $doc->setLevelDurations([32, 32]);
 
             $doc->setCreatedBy($this->getUser());
             $doc->setUpdatedBy($this->getUser());
@@ -85,7 +88,7 @@ final class DocumentController extends AbstractController
     /**
      * @throws FilesystemException
      */
-    #[Route('documents/{id}/edit', name: 'doc_edit', methods: ['GET','POST'])]
+    #[Route('documents/{id}/edit', name: 'doc_edit', methods: ['GET', 'POST'])]
     public function edit(
         Document $doc,
         Request $req,
@@ -106,7 +109,9 @@ final class DocumentController extends AbstractController
             $tracks = array_values($doc->getTracks()->toArray());
 
             foreach ($tracks as $index => $track) {
-                if (!isset($tracksForm[$index])) { continue; }
+                if (!isset($tracksForm[$index])) {
+                    continue;
+                }
                 $trackForm = $tracksForm[$index];
 
                 // LoopLength → textveld (raw JSON) voor loop-editor
@@ -159,11 +164,13 @@ final class DocumentController extends AbstractController
                         if ($partForm->has('targetBinding')) {
                             $binding = null;
 
-                            if ($part->getTargetType() === InstrumentPart::TARGET_TYPE_EFFECT
+                            if (
+                                $part->getTargetType() === InstrumentPart::TARGET_TYPE_EFFECT
                                 && $part->getTargetEffectParam()
                             ) {
                                 $binding = 'effect:' . $part->getTargetEffectParam()->getId();
-                            } elseif ($part->getTargetType() === InstrumentPart::TARGET_TYPE_SEQUENCER
+                            } elseif (
+                                $part->getTargetType() === InstrumentPart::TARGET_TYPE_SEQUENCER
                                 && $part->getTargetSequencerParam()
                             ) {
                                 $binding = 'seq:' . $part->getTargetSequencerParam(); // "seq:velocity"
@@ -222,7 +229,7 @@ final class DocumentController extends AbstractController
 
             // 3) Tracks (DocumentTrack-collectie) normaliseren en relationeel goedzetten
             $tracksForm = $form->get('tracks');
-            $position   = 0;
+            $position = 0;
             $tracks = array_values($doc->getTracks()->toArray());
 
             /* @var DocumentTrack $t */
@@ -295,9 +302,7 @@ final class DocumentController extends AbstractController
                                             $part->setTargetEffectParam($kv);
                                         }
                                     }
-                                }
-
-                                elseif (str_starts_with($binding, 'seq:')) {
+                                } elseif (str_starts_with($binding, 'seq:')) {
                                     $param = substr($binding, 4) ?: null;
                                     if ($param === 'velocity') {
                                         $part->setTargetType(InstrumentPart::TARGET_TYPE_SEQUENCER);
@@ -317,7 +322,7 @@ final class DocumentController extends AbstractController
                             } elseif (count($aoi) < $expectedAreas) {
                                 $aoi = array_merge($aoi, array_fill(0, $expectedAreas - count($aoi), 0));
                             }
-                            $aoi = array_map(static fn($v) => (int)((int)$v === 1), $aoi);
+                            $aoi = array_map(static fn($v) => (int) ((int) $v === 1), $aoi);
                             $part->setAreaOfInterest($aoi);
                         }
 
@@ -335,7 +340,7 @@ final class DocumentController extends AbstractController
                     $t->setTrackId($this->newTrackId());
                 }
 
-                $levels = array_values(array_map(static fn($v) => (int)$v, (array)$t->getLevels()));
+                $levels = array_values(array_map(static fn($v) => (int) $v, (array) $t->getLevels()));
                 $t->setLevels($levels);
 
                 $t->setPosition($position++);
@@ -382,7 +387,7 @@ final class DocumentController extends AbstractController
         // helper: alleen midi?
         $isMidi = static function (Asset $a): bool {
             $name = (string) $a->getOriginalName();
-            $ext  = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
             return in_array($ext, ['mid', 'midi'], true);
         };
 
@@ -479,7 +484,8 @@ final class DocumentController extends AbstractController
         // 4) sorteer children per parent op NN
         foreach ($assetsChildrenById as &$children) {
             usort($children, static function (Asset $a, Asset $b): int {
-                $ia = 0; $ib = 0;
+                $ia = 0;
+                $ib = 0;
                 if (preg_match('/-(\d{2})\.(mid|midi)$/i', (string) $a->getOriginalName(), $ma)) {
                     $ia = (int) $ma[1];
                 }
@@ -515,12 +521,12 @@ final class DocumentController extends AbstractController
             try {
                 $summary = $midiAnalyzer->summarize($tmpPath);
                 $midiInfo[$track->getTrackId()] = [
-                    'bpm'        => $summary->bpm,
-                    'timeSig'    => $summary->hasTimeSignature()
+                    'bpm' => $summary->bpm,
+                    'timeSig' => $summary->hasTimeSignature()
                         ? sprintf('%d/%d', $summary->timeSignatureNumerator, $summary->timeSignatureDenominator)
                         : null,
-                    'bars'       => $summary->barCount,
-                    'duration'   => $summary->getDurationFormatted(),
+                    'bars' => $summary->barCount,
+                    'duration' => $summary->getDurationFormatted(),
                     'rawSeconds' => $summary->durationSeconds,
                 ];
             } catch (Throwable $e) {
@@ -570,11 +576,12 @@ final class DocumentController extends AbstractController
                 }
 
                 if ($kv->getType() === EffectSettingsKeyValue::TYPE_PARAM) {
-                    $key   = $kv->getKeyName();
+                    $key = $kv->getKeyName();
                     $range = null;
                     $defaultValue = null;
 
-                    if (is_array($config)
+                    if (
+                        is_array($config)
                         && array_key_exists($key, $config)
                         && is_array($config[$key])
                     ) {
@@ -587,26 +594,26 @@ final class DocumentController extends AbstractController
                     }
 
                     $params[] = [
-                        'id'           => $kv->getId(),
-                        'key'          => $key,
-                        'range'        => $range,
+                        'id' => $kv->getId(),
+                        'key' => $key,
+                        'range' => $range,
                         'defaultValue' => $defaultValue,
                     ];
                 }
             }
 
             $allEffectPresetsMap[$preset->getId()] = [
-                'presetId'   => $preset->getId(),
+                'presetId' => $preset->getId(),
                 'effectName' => $effectName,
-                'params'     => $params,
+                'params' => $params,
             ];
         }
 
         return $this->render('Document/edit.html.twig', [
             'document' => $doc,
-            'form'     => $form->createView(),
-            'assets'   => $assetsList,
-            'assetsParents'      => $assetsParents,
+            'form' => $form->createView(),
+            'assets' => $assetsList,
+            'assetsParents' => $assetsParents,
             'assetsChildrenById' => $assetsChildrenById,
             'midiInfo' => $midiInfo,
             'midiSummariesByAssetId' => $midiSummariesByAssetId,
@@ -634,7 +641,7 @@ final class DocumentController extends AbstractController
             }
 
             // extra: forceer strikt 0/1
-            $levels = array_map(static fn($v) => (int)((int)$v === 1), $levels);
+            $levels = array_map(static fn($v) => (int) ((int) $v === 1), $levels);
 
             $t->setLevels($levels);
         }
@@ -705,7 +712,7 @@ final class DocumentController extends AbstractController
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
-        $response = new StreamedResponse(function() use ($stream) {
+        $response = new StreamedResponse(function () use ($stream) {
             fpassthru($stream);
             fclose($stream);
         });
@@ -717,7 +724,7 @@ final class DocumentController extends AbstractController
 
         $response->headers->set('Content-Type', $asset->getMimeType() ?: 'application/octet-stream');
         if ($asset->getSize()) {
-            $response->headers->set('Content-Length', (string)$asset->getSize());
+            $response->headers->set('Content-Length', (string) $asset->getSize());
         }
         $response->headers->set('Content-Disposition', $disposition);
 
@@ -733,7 +740,7 @@ final class DocumentController extends AbstractController
         AssetStorage $storage
     ): Response {
         $token = $req->request->get('_token');
-        if (!$this->isCsrfTokenValid('delete-asset-'.$assetId, $token)) {
+        if (!$this->isCsrfTokenValid('delete-asset-' . $assetId, $token)) {
             $this->addFlash('danger', 'Ongeldige CSRF token.');
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
@@ -748,7 +755,7 @@ final class DocumentController extends AbstractController
             $storage->delete($asset); // zie storage helper hieronder
             $this->addFlash('success', 'Bestand verwijderd.');
         } catch (Throwable $e) {
-            $this->addFlash('danger', 'Verwijderen mislukt: '.$e->getMessage());
+            $this->addFlash('danger', 'Verwijderen mislukt: ' . $e->getMessage());
         }
 
         return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
@@ -780,63 +787,9 @@ final class DocumentController extends AbstractController
      */
     #[Route('documents/{id}/bundle.zip', name: 'doc_bundle_download', methods: ['GET'])]
     public function downloadBundleZip(
-        Document $doc,
-        AssetRepository $assetRepo,
-        AssetStorage $assetStorage
+        Document $doc
     ): BinaryFileResponse {
-        // 1) JSON payload (dezelfde als je API)
-        $json = $this->payloadBuilder->buildPayloadJson($doc);
-
-        // 2) Tijdelijk ZIP-bestand aanmaken
-        $tmpZipPath = tempnam(sys_get_temp_dir(), 'set_bundle_');
-        if ($tmpZipPath === false) {
-            throw new \RuntimeException('Kon geen tijdelijk bestand aanmaken voor ZIP.');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($tmpZipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new \RuntimeException('Kon ZIP-archief niet openen.');
-        }
-
-        // 2a) JSON toevoegen als set.json
-        $zip->addFromString('set.json', $json);
-
-        // 3) Alle MIDI-assets voor dit document toevoegen
-        $assets   = $assetRepo->findForDocument($doc);
-        $tmpFiles = []; // lokale tempbestanden om na afloop op te ruimen
-
-        foreach ($assets as $asset) {
-            // Filter alleen .mid / .midi (op basis van oorspronkelijke bestandsnaam)
-            $origName = $asset->getOriginalName() ?? '';
-            $ext      = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
-
-            if (!in_array($ext, ['mid', 'midi'], true)) {
-                continue;
-            }
-
-            // Maak een lokaal tijdelijk bestand van deze asset via je bestaande helper
-            $localPath = $assetStorage->createLocalTempFile($asset);
-            if (!is_file($localPath)) {
-                // defensief: sla deze over als er iets misgaat
-                continue;
-            }
-
-            $tmpFiles[] = $localPath;
-
-            // In de ZIP willen we nette paden, bv. assets/bass.mid
-            // Desnoods fallback naar een generieke naam
-            $safeName = $origName !== '' ? $origName : ('midi_' . $asset->getId() . '.mid');
-
-            $zip->addFile($localPath, $safeName);
-        }
-
-        // ZIP sluiten zodat hij klaar is voor download
-        $zip->close();
-
-        // 4) Tijdelijke MIDI-tempfiles opruimen (de ZIP is nu compleet)
-        foreach ($tmpFiles as $tmp) {
-            @unlink($tmp);
-        }
+        $tmpZipPath = $this->exportService->createBundleZip($doc);
 
         // 5) Download-response opbouwen
         $filenameBase = $doc->getSlug() ?: ('set-' . $doc->getId());
@@ -857,12 +810,10 @@ final class DocumentController extends AbstractController
 
     #[Route('api/documents/{id}/bundle.zip', name: 'api_doc_bundle_download', methods: ['GET'])]
     public function apiDownloadBundleZip(
-        Document $doc,
-        AssetRepository $assetRepo,
-        AssetStorage $assetStorage
+        Document $doc
     ): BinaryFileResponse {
         // We hergebruiken gewoon de bestaande method
-        return $this->downloadBundleZip($doc, $assetRepo, $assetStorage);
+        return $this->downloadBundleZip($doc);
     }
 
     #[Route('api/published-sets', name: 'api_published_sets', methods: ['GET'])]
@@ -909,7 +860,7 @@ final class DocumentController extends AbstractController
     ): Response {
         // CSRF check (token komt uit je form in de template)
         $token = $request->request->get('_token');
-        if (!$this->isCsrfTokenValid('restore_version_'.$document->getId().'_'.$version, $token)) {
+        if (!$this->isCsrfTokenValid('restore_version_' . $document->getId() . '_' . $version, $token)) {
             throw $this->createAccessDeniedException('Ongeldig CSRF token.');
         }
 
@@ -942,7 +893,7 @@ final class DocumentController extends AbstractController
             echo $json;
         });
         $response->headers->set('Content-Type', 'application/json');
-        $response->headers->set('Content-Disposition', 'attachment; filename="'.$filename.'"');
+        $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
 
         return $response;
     }

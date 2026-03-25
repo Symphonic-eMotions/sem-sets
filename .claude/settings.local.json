@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh cloudtest:*)",
+      "Bash(ssh:*)",
+      "Bash(curl -sI https://cloud.symphonic-emotions.nl)",
+      "Bash(docker compose:*)",
+      "Read(//usr/local/bin/**)",
+      "Read(//Volumes/Storage/Active/GitHub/sem-sets/$HOME/.docker/bin/**)",
+      "Bash(/Applications/Docker.app/Contents/Resources/bin/docker compose:*)",
+      "Bash(php bin/console doctrine:migrations:migrate --no-interaction)",
+      "Bash(/Applications/Docker.app/Contents/Resources/bin/docker compose exec database mariadb -u root -proot app -e \":*)",
+      "Bash(php bin/console doctrine:schema:validate)"
+    ]
+  }
+}
