@@ -44,7 +44,7 @@ final class Version20251216210624 extends AbstractMigration
                 GROUP BY part_id
                 HAVING COUNT(*) > 1
             ) d ON d.part_id = p.part_id
-            SET p.part_id = UPPER(REPLACE(TO_BASE32(RANDOM_BYTES(16)), '=', ''))
+            SET p.part_id = SUBSTRING(UPPER(REPLACE(UUID(), '-', '')), 1, 26)
         ");
 
         // 3) Make it NOT NULL
