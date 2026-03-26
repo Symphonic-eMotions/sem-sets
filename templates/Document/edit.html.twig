@@ -28,7 +28,7 @@
             {# --- Assets --- #}
             <div class="section">
                 <h2 class="section-title">Upload midi bestand</h2>
-                <div class="grid grid-2">
+                <div class="grid">
                     <div>
                         {{ form_row(form.midiFiles) }}
                     </div>
@@ -43,59 +43,105 @@
                         {% set summary = midiSummariesByAssetId[a.id] ?? null %}
                         {% set summaryError = (summary is iterable and summary.error is defined) ? summary.error : null %}
 
+                        {% set midiUrl = path('doc_asset_download', { id: document.id, assetId: a.id }) %}
+                        {% set previewId = 'midi-preview-' ~ a.id %}
+                        {% set vizId     = 'midi-viz-' ~ a.id %}
+
                         <div class="chip{{ isChild ? ' chip-child' : '' }}">
-                            <div class="chip-main chip-main-stack">
-                                <span class="chip-name">
-                                    {% if isChild %}
-                                        <span class="subtle" style="margin-right:6px;">↳</span>
-                                        {% if childLabel %}<span class="subtle">{{ childLabel }}</span>{% endif %}
-                                    {% endif %}
-                                    {{ a.originalName }}
-                                </span>
 
-                                <span class="chip-meta subtle chip-meta-below">
-                                    ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %}
-                                    {% if summary and not summaryError %}
-                                    · {{ summary.trackCount }} track{{ summary.trackCount == 1 ? '' : 's' }}
-                                    · {{ summary.getDurationFormatted() }}
-                                    {% endif %})
-                                 </span>
-                            </div>
+                            {# ── Bovenste rij: naam + knoppen ── #}
+                            <div class="chip-row">
+                                <div class="chip-main chip-main-stack">
+                                    <span class="chip-name">
+                                        {% if isChild %}
+                                            <span class="subtle" style="margin-right:6px;">↳</span>
+                                            {% if childLabel %}<span class="subtle">{{ childLabel }}</span>{% endif %}
+                                        {% endif %}
+                                        {{ a.originalName }}
+                                    </span>
 
-                            <div class="chip-actions">
-                                <a href="{{ path('doc_asset_download', { id: document.id, assetId: a.id }) }}"
-                                   class="btn-mini">Download</a>
+                                    <span class="chip-meta subtle chip-meta-below">
+                                        ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %}
+                                        {% if summary and not summaryError %}
+                                        · {{ summary.trackCount }} track{{ summary.trackCount == 1 ? '' : 's' }}
+                                        · {{ summary.getDurationFormatted() }}
+                                        {% endif %})
+                                        {% if summary and not summaryError %}
+                                            {% if summary.simultaneousNoteCount > 0 %}
+                                                <span class="badge-warning" title="{{ summary.simultaneousNoteCount }} noten starten gelijktijdig">
+                                                    ⚠ {{ summary.simultaneousNoteCount }} gelijktijdig
+                                                </span>
+                                            {% else %}
+                                                <span class="subtle" style="font-size:0.78em">(geen gelijktijdige noten)</span>
+                                            {% endif %}
+                                        {% endif %}
+                                     </span>
+                                </div>
 
-                                {% if (not isChild) and summary and not summaryError and summary.trackCount > 1 %}
+                                <div class="chip-actions">
                                     <button
                                             type="button"
                                             class="btn-mini"
-                                            data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
-                                            data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
-                                            onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
-                                    >
-                                        Split tracks
-                                    </button>
-                                {% endif %}
+                                            data-preview-id="{{ previewId }}"
+                                            onclick="toggleMidiPreview('{{ previewId }}', this)"
+                                            title="Preview en piano roll"
+                                    >▶ Preview</button>
 
-                                {% if summaryError %}
-                                    <span class="subtle">midi-analyse mislukt</span>
-                                    {% if is_granted('ROLE_ADMIN') %}
-                                        <code class="subtle">{{ summaryError }}</code>
+                                    <a href="{{ midiUrl }}" class="btn-mini">Download</a>
+
+                                    {% if (not isChild) and summary and not summaryError and summary.trackCount > 1 %}
+                                        <button
+                                                type="button"
+                                                class="btn-mini"
+                                                data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
+                                                data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
+                                                onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
+                                        >Split tracks</button>
                                     {% endif %}
-                                {% endif %}
 
-                                <button
-                                        type="button"
-                                        class="btn-mini danger"
-                                        data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                                        data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
-                                        data-name="{{ a.originalName }}"
-                                        onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
-                                >
-                                    Verwijder
-                                </button>
+                                    {% if summary and not summaryError and summary.simultaneousNoteCount > 0 %}
+                                        <button
+                                                type="button"
+                                                class="btn-mini warning"
+                                                data-url="{{ path('doc_asset_stagger_notes', { id: document.id, assetId: a.id }) }}"
+                                                data-csrf="{{ csrf_token('stagger-notes-' ~ a.id) }}"
+                                                onclick="staggerNotes(this.dataset.url, this.dataset.csrf)"
+                                                title="Verschuif gelijktijdige noten elk 1 tick naar achteren"
+                                        >Stagger noten</button>
+                                    {% endif %}
+
+                                    {% if summaryError %}
+                                        <span class="subtle">midi-analyse mislukt</span>
+                                        {% if is_granted('ROLE_ADMIN') %}
+                                            <code class="subtle">{{ summaryError }}</code>
+                                        {% endif %}
+                                    {% endif %}
+
+                                    <button
+                                            type="button"
+                                            class="btn-mini danger"
+                                            data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                            data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
+                                            data-name="{{ a.originalName }}"
+                                            onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
+                                    >Verwijder</button>
+                                </div>
                             </div>
+
+                            {# ── Preview: midi-player + piano roll (verborgen tot toggle) ── #}
+                            <div class="chip-preview" id="{{ previewId }}" hidden>
+                                <midi-player
+                                        src="{{ midiUrl }}"
+                                        sound-font
+                                        visualizer="#{{ vizId }}"
+                                ></midi-player>
+                                <midi-visualizer
+                                        id="{{ vizId }}"
+                                        type="piano-roll"
+                                        src="{{ midiUrl }}"
+                                ></midi-visualizer>
+                            </div>
+
                         </div>
                     {% endmacro %}
 
@@ -138,6 +184,74 @@
                                         overflow: hidden;
                                         text-overflow: ellipsis;
                                         max-width: 100%;
+                                    }
+
+                                    /* Chip herstructurering: rij + uitklapbare preview */
+                                    .chip {
+                                        flex-direction: column;
+                                        align-items: stretch;
+                                        gap: 0;
+                                        white-space: normal; /* override zodat preview niet op 1 regel wordt geperst */
+                                    }
+                                    .chip-row {
+                                        display: flex;
+                                        justify-content: space-between;
+                                        align-items: center;
+                                        white-space: nowrap;
+                                        width: 100%;
+                                    }
+                                    .chip-preview {
+                                        margin-top: 10px;
+                                        width: 100%;
+                                        white-space: normal;
+                                    }
+                                    .chip-preview[hidden] { display: none; }
+
+                                    /* midi-player: aanpassen aan donker thema */
+                                    midi-player {
+                                        display: block;
+                                        width: 100%;
+                                        --player-button-size: 28px;
+                                        --color-primary: #5865f2;
+                                        --color-secondary: #3bcdf7;
+                                    }
+                                    /* Pianorol: donkere achtergrond + accent kleuren */
+                                    midi-visualizer {
+                                        display: block;
+                                        width: 100%;
+                                        margin-top: 6px;
+                                        border-radius: 8px;
+                                        overflow: hidden;
+                                        --background-color: #070f1f;
+                                        --black-key-color:  #1a2540;
+                                        --white-key-color:  #0f1a30;
+                                        --note-color:       #5865f2;
+                                        --active-note-color: #3bcdf7;
+                                    }
+                                    /* Hoogte van de pianorol beperken */
+                                    midi-visualizer svg {
+                                        max-height: 220px;
+                                        width: 100%;
+                                    }
+
+                                    .badge-warning {
+                                        display: inline-block;
+                                        font-size: 0.78em;
+                                        color: #92400e;
+                                        background: #fef3c7;
+                                        border: 1px solid #f59e0b;
+                                        border-radius: 4px;
+                                        padding: 1px 5px;
+                                        margin-top: 2px;
+                                    }
+
+                                    .btn-mini.warning {
+                                        background: #fef3c7;
+                                        border-color: #f59e0b;
+                                        color: #92400e;
+                                    }
+                                    .btn-mini.warning:hover {
+                                        background: #fde68a;
                                     }
                                 </style>
 
@@ -286,13 +400,34 @@
 
         </div>
     </div>
+    {# html-midi-player: Tone.js + Magenta core + player component #}
+    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14,npm/@magenta/music@1.23.1/es6/core.js,npm/html-midi-player@1.5.0"></script>
+
     <script src="{{ asset('js/semLoopConfig.js?v=1') }}"></script>
     <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js?v=1') }}" defer></script>
-    <script src="{{ asset('js/midiAssetSaveNotice.js?v=2') }}" defer></script>
+    <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
+
+        function toggleMidiPreview(previewId, btn) {
+            const panel = document.getElementById(previewId);
+            if (!panel) return;
+            const isHidden = panel.hasAttribute('hidden');
+            if (isHidden) {
+                panel.removeAttribute('hidden');
+                btn.textContent = '■ Sluit';
+                btn.classList.add('active');
+            } else {
+                // Pauzeer de player als die bestaat
+                const player = panel.querySelector('midi-player');
+                if (player && typeof player.stop === 'function') player.stop();
+                panel.setAttribute('hidden', '');
+                btn.textContent = '▶ Preview';
+                btn.classList.remove('active');
+            }
+        }
     </script>
 
 {% endblock %}

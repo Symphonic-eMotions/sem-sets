@@ -15,6 +15,7 @@ final class MidiSummary
         public readonly ?int  $timeSignatureNumerator   = null,
         public readonly ?int  $timeSignatureDenominator = null,
         public readonly ?int  $barCount                 = null,
+        public readonly int   $simultaneousNoteCount    = 0,
     ) {
     }
 

@@ -51,3 +51,31 @@ async function splitTracks(url, csrf) {
         alert('Split mislukt: ' + e);
     }
 }
+
+async function staggerNotes(url, csrf) {
+    const offsetTicks = parseInt(
+        prompt('Hoeveel ticks verschuiven per noot? (standaard: 1)', '1'),
+        10
+    );
+    if (isNaN(offsetTicks) || offsetTicks < 1) return;
+
+    try {
+        const body = new URLSearchParams({ csrf, offsetTicks });
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+            alert(data.error || 'Stagger mislukt');
+            return;
+        }
+
+        // Reload zodat het nieuwe bestand in de lijst staat
+        location.reload();
+    } catch (e) {
+        alert('Stagger mislukt: ' + e);
+    }
+}
