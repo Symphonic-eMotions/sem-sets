@@ -27,6 +27,14 @@ class MidiAnalyzer
         $timeSig = $this->midiFile->getTimeSignature();
         $barCount = $this->midiFile->getBarCount();
 
+        $simultaneousNoteCount = 0;
+        if ($this->midiFile instanceof PhpMidiFile) {
+            $midi = $this->midiFile->getInnerMidi();
+            for ($tn = 0; $tn < $midi->getTrackCount(); $tn++) {
+                $simultaneousNoteCount += $this->countSimultaneousInTrack($midi->getTrack($tn));
+            }
+        }
+
         return new MidiSummary(
             tempoMicrosecondsPerQuarter: $this->midiFile->getTempoMicrosecondsPerQuarter(),
             bpm:                          $this->midiFile->getBpm(),
@@ -36,6 +44,38 @@ class MidiAnalyzer
             timeSignatureNumerator:       $timeSig['numerator']   ?? null,
             timeSignatureDenominator:     $timeSig['denominator'] ?? null,
             barCount:                     $barCount,
+            simultaneousNoteCount:        $simultaneousNoteCount,
         );
+    }
+
+    private function countSimultaneousInTrack(array $track): int
+    {
+        $onsByTime = [];
+        foreach ($track as $line) {
+            $parts = explode(' ', trim($line));
+            if (($parts[1] ?? '') !== 'On') {
+                continue;
+            }
+            $vel = 127; // default als er geen v= staat
+            foreach ($parts as $p) {
+                if (str_starts_with($p, 'v=')) {
+                    $vel = (int) substr($p, 2);
+                    break;
+                }
+            }
+            if ($vel <= 0) {
+                continue; // v=0 = note-off in disguise
+            }
+            $t = (int) $parts[0];
+            $onsByTime[$t] = ($onsByTime[$t] ?? 0) + 1;
+        }
+
+        $count = 0;
+        foreach ($onsByTime as $n) {
+            if ($n > 1) {
+                $count += $n;
+            }
+        }
+        return $count;
     }
 }

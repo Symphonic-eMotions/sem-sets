@@ -59,6 +59,15 @@
                                     · {{ summary.trackCount }} track{{ summary.trackCount == 1 ? '' : 's' }}
                                     · {{ summary.getDurationFormatted() }}
                                     {% endif %})
+                                    {% if summary and not summaryError %}
+                                        {% if summary.simultaneousNoteCount > 0 %}
+                                            <span class="badge-warning" title="{{ summary.simultaneousNoteCount }} noten starten gelijktijdig">
+                                                ⚠ {{ summary.simultaneousNoteCount }} gelijktijdig
+                                            </span>
+                                        {% else %}
+                                            <span class="subtle" style="font-size:0.78em">(geen gelijktijdige noten)</span>
+                                        {% endif %}
+                                    {% endif %}
                                  </span>
                             </div>
 
@@ -75,6 +84,19 @@
                                             onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
                                     >
                                         Split tracks
+                                    </button>
+                                {% endif %}
+
+                                {% if summary and not summaryError and summary.simultaneousNoteCount > 0 %}
+                                    <button
+                                            type="button"
+                                            class="btn-mini warning"
+                                            data-url="{{ path('doc_asset_stagger_notes', { id: document.id, assetId: a.id }) }}"
+                                            data-csrf="{{ csrf_token('stagger-notes-' ~ a.id) }}"
+                                            onclick="staggerNotes(this.dataset.url, this.dataset.csrf)"
+                                            title="Verschuif gelijktijdige noten elk {{ 1 }} tick naar achteren"
+                                    >
+                                        Stagger noten
                                     </button>
                                 {% endif %}
 
@@ -138,6 +160,26 @@
                                         overflow: hidden;
                                         text-overflow: ellipsis;
                                         max-width: 100%;
+                                    }
+
+                                    .badge-warning {
+                                        display: inline-block;
+                                        font-size: 0.78em;
+                                        color: #92400e;
+                                        background: #fef3c7;
+                                        border: 1px solid #f59e0b;
+                                        border-radius: 4px;
+                                        padding: 1px 5px;
+                                        margin-top: 2px;
+                                    }
+
+                                    .btn-mini.warning {
+                                        background: #fef3c7;
+                                        border-color: #f59e0b;
+                                        color: #92400e;
+                                    }
+                                    .btn-mini.warning:hover {
+                                        background: #fde68a;
                                     }
                                 </style>
 
@@ -289,7 +331,7 @@
     <script src="{{ asset('js/semLoopConfig.js?v=1') }}"></script>
     <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js?v=1') }}" defer></script>
-    <script src="{{ asset('js/midiAssetSaveNotice.js?v=2') }}" defer></script>
+    <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};

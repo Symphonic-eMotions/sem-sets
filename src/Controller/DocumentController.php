@@ -355,7 +355,7 @@ final class DocumentController extends AbstractController
             $snapshotService->createSnapshot($doc, 'update', $this->getUser());
 
             // 7) Nieuwe uploads verwerken (maakt Asset entities aan)
-            $this->handleMidiUploads($form, $doc, $assets);
+            $this->handleMidiUploads($form, $doc, $assets, $midiAnalyzer);
 
             // 8) Level lengten
             $this->syncTrackLevelsToSet($doc);
@@ -967,10 +967,14 @@ final class DocumentController extends AbstractController
 
     /**
      * Verwerkt de MIDI-uploads vanaf het formulier en slaat assets op.
-     * Verzorgt ook flash-meldingen.
+     * Verzorgt ook flash-meldingen, inclusief waarschuwing bij gelijktijdige noten.
      */
-    private function handleMidiUploads(FormInterface $form, Document $doc, AssetStorage $assets): void
-    {
+    private function handleMidiUploads(
+        FormInterface $form,
+        Document      $doc,
+        AssetStorage  $assets,
+        MidiAnalyzer  $midiAnalyzer,
+    ): void {
         /** @var UploadedFile[]|null $files */
         $files = $form->get('midiFiles')->getData();
         if (!$files) {
@@ -1018,6 +1022,21 @@ final class DocumentController extends AbstractController
                 ));
                 $fail++;
                 continue;
+            }
+
+            // Controleer op gelijktijdige noten vóór opslaan
+            try {
+                $uploadSummary = $midiAnalyzer->summarize((string) $file->getRealPath());
+                if ($uploadSummary->simultaneousNoteCount > 0) {
+                    $this->addFlash('warning', sprintf(
+                        '%s bevat %d noten die op exact hetzelfde moment starten. '
+                        . 'Gebruik de knop "Stagger noten" om dit automatisch op te lossen.',
+                        $file->getClientOriginalName(),
+                        $uploadSummary->simultaneousNoteCount,
+                    ));
+                }
+            } catch (Throwable) {
+                // analyse-fout is niet fataal; upload gaat gewoon door
             }
 
             try {
