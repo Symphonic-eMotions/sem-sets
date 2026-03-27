@@ -33,6 +33,75 @@ Het deploy script voert automatisch uit:
 
 ---
 
+## Lokale ontwikkeling
+
+De Docker setup biedt **MariaDB 10.5** en **Mailpit** als services. De PHP-app zelf draait via de Symfony CLI, omdat de server Apache + PHP gebruikt zonder aparte PHP-container in Docker.
+
+### Wat Docker levert
+
+| Container | Doel | Poort |
+|---|---|---|
+| MariaDB 10.5 | Database (zelfde versie als server) | `3308` |
+| Mailpit | E-mail opvangen tijdens ontwikkeling | `8025` (webinterface) |
+
+### Opstarten
+
+```bash
+# 1. Docker containers starten (database + mail)
+docker compose up -d
+
+# 2. PHP-app starten via Symfony CLI
+symfony server:start
+```
+
+De app is dan bereikbaar op `https://localhost:8000` (of de poort die Symfony aangeeft).
+
+### Stoppen
+
+```bash
+symfony server:stop
+docker compose down
+```
+
+### Eerste keer opzetten
+
+```bash
+# 1. Docker starten
+docker compose up -d
+
+# 2. Dependencies installeren
+composer install
+
+# 3. Database migraties draaien
+php bin/console doctrine:migrations:migrate --no-interaction
+
+# 4. App starten
+symfony server:start
+```
+
+### .env.local
+
+De lokale databaseverbinding staat in `.env.local` (niet in git):
+
+```dotenv
+APP_ENV=dev
+APP_DEBUG=1
+DATABASE_URL="mysql://app:app@127.0.0.1:3308/app?serverVersion=10.5.29-MariaDB&charset=utf8mb4"
+```
+
+### Mailpit
+
+Alle uitgaande e-mails worden lokaal onderschept door Mailpit. Bekijk ze via:
+`http://localhost:8025`
+
+### Database direct benaderen
+
+```bash
+docker compose exec database mariadb -u app -papp app
+```
+
+---
+
 ## Workflow
 
 De bedoeling is dat nieuwe code eerst op **cloudtest** wordt getest voordat het naar **productie** gaat:

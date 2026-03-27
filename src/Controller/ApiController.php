@@ -32,13 +32,18 @@ final class ApiController extends AbstractController
         $docs = $repo->findPublished();
         $items = [];
         foreach ($docs as $d) {
+            $assetPlaceholder = '__filename__';
             $items[] = [
                 'slug'       => $d->getSlug(),
                 'title'      => $d->getTitle(),
                 'semVersion' => $d->getSemVersion(),
                 'updatedAt'  => $d->getUpdatedAt()->format(DateTimeInterface::ATOM),
                 'jsonUrl'    => $this->generateUrl('api_set_json', ['slug' => $d->getSlug()], 0),
-                'assetsBase' => rtrim($this->generateUrl('api_set_asset', ['slug' => $d->getSlug(), 'filename' => ''], 0), '/'),
+                'assetsBase' => str_replace(
+                    '/' . $assetPlaceholder,
+                    '',
+                    $this->generateUrl('api_set_asset', ['slug' => $d->getSlug(), 'filename' => $assetPlaceholder], 0)
+                ),
             ];
         }
 

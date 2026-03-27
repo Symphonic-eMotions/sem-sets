@@ -10,7 +10,10 @@
       "Bash(/Applications/Docker.app/Contents/Resources/bin/docker compose:*)",
       "Bash(php bin/console doctrine:migrations:migrate --no-interaction)",
       "Bash(/Applications/Docker.app/Contents/Resources/bin/docker compose exec database mariadb -u root -proot app -e \":*)",
-      "Bash(php bin/console doctrine:schema:validate)"
+      "Bash(php bin/console doctrine:schema:validate)",
+      "Bash(plutil:*)",
+      "Bash(rsync -av --progress cloudtest:/home/symphonic/apps/sem-sets-test/var/uploads/ /Volumes/Storage/Active/GitHub/sem-sets/var/uploads/)",
+      "Bash(git show:*)"
     ]
   }
 }
