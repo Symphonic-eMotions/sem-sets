@@ -24,7 +24,7 @@ final class MidiFileRefType extends AbstractType
         $builder
             ->add('assetId', EntityType::class, [
                 'class' => Asset::class,
-                'choice_label' => fn(Asset $a) => $a->getOriginalName(),
+                'choice_label' => fn(Asset $a) => $a->getDisplayName() ?? $a->getOriginalName(),
                 'choice_value' => 'id',
                 'placeholder' => $doc
                     ? '— Kies MIDI bestand uit assets van deze set —'

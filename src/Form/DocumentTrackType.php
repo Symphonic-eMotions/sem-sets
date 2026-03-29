@@ -93,7 +93,7 @@ final class DocumentTrackType extends AbstractType
             // ENKELE midiAsset (EntityType)
         ->add('midiAsset', EntityType::class, [
             'class' => Asset::class,
-            'choice_label' => fn(Asset $a) => $a->getOriginalName(),
+            'choice_label' => fn(Asset $a) => $a->getDisplayName() ?? $a->getOriginalName(),
             'choice_value' => 'id',
             'placeholder' => '— Geen bestand gekozen —',
             'required' => false,

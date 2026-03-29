@@ -106,12 +106,11 @@ final class MidiTrackSplitter
         $picked = [];
 
         foreach ($track0 as $line) {
-            if (!str_contains($line, ' Meta ')) {
-                continue;
-            }
-
             $parts = explode(' ', trim($line));
-            $type  = $parts[2] ?? null;
+
+            // php-midi slaat Tempo/TimeSig/KeySig op als "$time Type ..."
+            // (NIET als "$time Meta Type ..."), dus check $parts[1] direct.
+            $type = $parts[1] ?? null;
             if (!$type || !in_array($type, $wanted, true)) {
                 continue;
             }
@@ -126,7 +125,7 @@ final class MidiTrackSplitter
         $seen = [];
         foreach ($picked as $l) {
             $p = explode(' ', $l);
-            $t = $p[2] ?? '';
+            $t = $p[1] ?? '';
             if ($t === '' || isset($seen[$t])) {
                 continue;
             }
@@ -147,12 +146,10 @@ final class MidiTrackSplitter
         $clean = [];
 
         foreach ($track as $line) {
-            if (str_contains($line, ' Meta ')) {
-                $parts = explode(' ', trim($line));
-                $type  = $parts[2] ?? null;
-                if ($type && in_array($type, $stripTypes, true)) {
-                    continue;
-                }
+            $parts = explode(' ', trim($line));
+            $type  = $parts[1] ?? null;
+            if ($type && in_array($type, $stripTypes, true)) {
+                continue;
             }
             $clean[] = $line;
         }
