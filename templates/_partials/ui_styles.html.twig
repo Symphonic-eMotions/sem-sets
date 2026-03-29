@@ -989,4 +989,113 @@
         }
     }
 
+    /* ======== MIDI Asset Rename/Edit Styles ======== */
+
+    /* Container for display and edit modes */
+    .chip-name-wrapper {
+        position: relative;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* Display mode (default) */
+    .chip-name-display {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        word-break: break-word;
+    }
+
+    /* Edit mode container (hidden by default) */
+    .chip-name-edit {
+        display: none;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .chip-name-edit[hidden] {
+        display: none !important;
+    }
+
+    .chip-name-edit:not([hidden]) {
+        display: flex;
+    }
+
+    /* Rename input field */
+    .rename-input {
+        flex: 1;
+        min-width: 0;
+        padding: 4px 8px;
+        border: 1px solid var(--muted);
+        border-radius: 4px;
+        background: rgba(27, 38, 58, 0.8);
+        color: var(--text);
+        font-size: 13px;
+        font-family: inherit;
+    }
+
+    .rename-input:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--ring);
+    }
+
+    /* Icon-only buttons (edit, download, delete) */
+    .btn-mini-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 6px;
+        color: rgba(255, 255, 255, .92);
+        cursor: pointer;
+        transition: all .2s ease;
+        flex-shrink: 0;
+    }
+
+    .btn-mini-icon:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-mini-icon:active {
+        transform: scale(0.95);
+    }
+
+    /* Danger variant for delete icon */
+    .btn-mini-icon.danger {
+        color: rgba(255, 90, 90, .95);
+    }
+
+    .btn-mini-icon.danger:hover {
+        background: rgba(255, 90, 90, 0.1);
+        border-color: rgba(255, 90, 90, 0.3);
+    }
+
+    /* SVG icon styling */
+    .icon {
+        width: 18px;
+        height: 18px;
+        display: block;
+    }
+
+    .btn-mini-icon .icon {
+        width: 16px;
+        height: 16px;
+    }
+
+    /* Icon buttons group (edit, download, delete always together) */
+    .chip-actions-icons {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+    }
+
 </style>

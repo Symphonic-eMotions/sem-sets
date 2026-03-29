@@ -20,6 +20,9 @@ class Asset
     #[ORM\Column(type: 'string', length: 255)]
     private string $originalName;
 
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $displayName = null;
+
     #[ORM\Column(type: 'string', length: 127)]
     private string $mimeType;
 
@@ -64,6 +67,17 @@ class Asset
     public function setOriginalName(string $originalName): self
     {
         $this->originalName = $originalName;
+        return $this;
+    }
+
+    public function getDisplayName(): ?string
+    {
+        return $this->displayName;
+    }
+
+    public function setDisplayName(?string $displayName): self
+    {
+        $this->displayName = $displayName;
         return $this;
     }
 

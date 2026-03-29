@@ -761,6 +761,43 @@ final class DocumentController extends AbstractController
         return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
     }
 
+    #[Route('documents/{id}/assets/{assetId}/rename', name: 'doc_asset_rename', methods: ['POST'])]
+    public function renameAsset(
+        Document $doc,
+        int $assetId,
+        Request $req,
+        AssetRepository $assetRepo
+    ): Response {
+        $token = $req->request->get('_token');
+        if (!$this->isCsrfTokenValid('rename-asset-' . $assetId, $token)) {
+            return $this->json(['error' => 'Ongeldige CSRF token.'], Response::HTTP_FORBIDDEN);
+        }
+
+        $asset = $assetRepo->find($assetId);
+        if (!$asset || $asset->getDocument()->getId() !== $doc->getId()) {
+            return $this->json(['error' => 'Bestand niet gevonden.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $displayName = trim((string) $req->request->get('displayName', ''));
+
+        // Validatie: niet leeg, max 255 karakters
+        if (empty($displayName)) {
+            return $this->json(['error' => 'Naam mag niet leeg zijn.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        if (strlen($displayName) > 255) {
+            return $this->json(['error' => 'Naam is te lang (max 255 karakters).'], Response::HTTP_BAD_REQUEST);
+        }
+
+        $asset->setDisplayName($displayName);
+        $this->em->flush();
+
+        return $this->json([
+            'ok' => true,
+            'displayName' => $asset->getDisplayName()
+        ]);
+    }
+
     #[Route('documents/{id}/api.json', name: 'doc_api_json', methods: ['GET'])]
     public function apiJson(Document $doc): Response
     {

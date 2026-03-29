@@ -13,7 +13,11 @@
       "Bash(php bin/console doctrine:schema:validate)",
       "Bash(plutil:*)",
       "Bash(rsync -av --progress cloudtest:/home/symphonic/apps/sem-sets-test/var/uploads/ /Volumes/Storage/Active/GitHub/sem-sets/var/uploads/)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(php bin/console doctrine:migrations:status)",
+      "Bash(docker-compose ps:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

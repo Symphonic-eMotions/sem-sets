@@ -58,13 +58,30 @@
                             {# ── Bovenste rij: naam + knoppen ── #}
                             <div class="chip-row">
                                 <div class="chip-main chip-main-stack">
-                                    <span class="chip-name">
-                                        {% if isChild %}
-                                            <span class="subtle" style="margin-right:6px;">↳</span>
-                                            {% if childLabel %}<span class="subtle">{{ childLabel }}</span>{% endif %}
-                                        {% endif %}
-                                        {{ a.originalName }}
-                                    </span>
+                                    <div class="chip-name-wrapper">
+                                        {# Display mode (visible by default) #}
+                                        <span class="chip-name-display">
+                                            {% if isChild %}
+                                                <span class="subtle" style="margin-right:6px;">↳</span>
+                                                {% if childLabel %}<span class="subtle">{{ childLabel }}</span>{% endif %}
+                                            {% endif %}
+                                            {{ a.displayName ?? a.originalName }}
+                                        </span>
+
+                                        {# Edit mode (hidden by default) #}
+                                        <div class="chip-name-edit" id="chip-edit-{{ a.id }}" hidden>
+                                            <input
+                                                type="text"
+                                                class="rename-input"
+                                                value="{{ a.displayName ?? a.originalName }}"
+                                                data-asset-id="{{ a.id }}"
+                                                data-document-id="{{ document.id }}"
+                                                data-csrf-token="{{ csrf_token('rename-asset-' ~ a.id) }}"
+                                            />
+                                            <button type="button" class="btn-mini-icon" onclick="saveAssetRename({{ a.id }}, {{ document.id }})" title="Opslaan">✓</button>
+                                            <button type="button" class="btn-mini-icon" onclick="cancelAssetRename({{ a.id }})" title="Annuleren">✕</button>
+                                        </div>
+                                    </div>
 
                                     <span class="chip-meta subtle chip-meta-below">
                                         ({% if a.size is not null %}{{ (a.size / 1024)|number_format(1, '.', ' ') }} KB{% else %}–{% endif %}
@@ -85,6 +102,7 @@
                                 </div>
 
                                 <div class="chip-actions">
+                                    {# 1. Preview button #}
                                     <button
                                             type="button"
                                             class="btn-mini"
@@ -93,18 +111,7 @@
                                             title="Preview en piano roll"
                                     >▶ Preview</button>
 
-                                    <a href="{{ midiUrl }}" class="btn-mini">Download</a>
-
-                                    {% if (not isChild) and summary and not summaryError and summary.trackCount > 1 %}
-                                        <button
-                                                type="button"
-                                                class="btn-mini"
-                                                data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
-                                                data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
-                                                onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
-                                        >Split tracks</button>
-                                    {% endif %}
-
+                                    {# 2. Stagger notes button (conditional) #}
                                     {% if summary and not summaryError and summary.simultaneousNoteCount > 0 %}
                                         <button
                                                 type="button"
@@ -116,6 +123,18 @@
                                         >Stagger noten</button>
                                     {% endif %}
 
+                                    {# 3. Split tracks button (conditional) #}
+                                    {% if (not isChild) and summary and not summaryError and summary.trackCount > 1 %}
+                                        <button
+                                                type="button"
+                                                class="btn-mini"
+                                                data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
+                                                data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
+                                                onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
+                                        >Split tracks</button>
+                                    {% endif %}
+
+                                    {# Error message (if any) #}
                                     {% if summaryError %}
                                         <span class="subtle">midi-analyse mislukt</span>
                                         {% if is_granted('ROLE_ADMIN') %}
@@ -123,14 +142,48 @@
                                         {% endif %}
                                     {% endif %}
 
-                                    <button
-                                            type="button"
-                                            class="btn-mini danger"
-                                            data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
-                                            data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
-                                            data-name="{{ a.originalName }}"
-                                            onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
-                                    >Verwijder</button>
+                                    {# 4. Icon group: Edit, Download, Delete (always together) #}
+                                    <div class="chip-actions-icons">
+                                        {# Edit button for rename #}
+                                        <button
+                                                type="button"
+                                                class="btn-mini-icon"
+                                                onclick="toggleAssetRename({{ a.id }})"
+                                                title="Hernoemen"
+                                        >
+                                            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M12 20h9"></path>
+                                                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4 11.5-11.5Z"></path>
+                                            </svg>
+                                        </button>
+
+                                        {# Download button with SVG icon #}
+                                        <a href="{{ midiUrl }}" class="btn-mini-icon" title="Download">
+                                            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                        </a>
+
+                                        {# Delete button with SVG icon #}
+                                        <button
+                                                type="button"
+                                                class="btn-mini-icon danger"
+                                                data-url="{{ path('doc_asset_delete', { id: document.id, assetId: a.id }) }}"
+                                                data-csrf="{{ csrf_token('delete-asset-' ~ a.id) }}"
+                                                data-name="{{ a.originalName }}"
+                                                onclick="deleteAsset(this.dataset.url, this.dataset.csrf, this.dataset.name)"
+                                                title="Verwijder"
+                                        >
+                                            <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="3 6 5 6 21 6"></polyline>
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                                <line x1="10" y1="11" x2="10" y2="17"></line>
+                                                <line x1="14" y1="11" x2="14" y2="17"></line>
+                                            </svg>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -413,6 +466,7 @@
     <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js?v=1') }}" defer></script>
     <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
+    <script src="{{ asset('js/assetRename.js?v=1') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
