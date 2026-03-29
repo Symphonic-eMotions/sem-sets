@@ -9,6 +9,15 @@
         `;
     }
 
+    function renderMidiUploadNotice() {
+        return `
+            <div class="midi-save-notice">
+                <strong>MIDI-bestand geselecteerd.</strong> Klik op <strong>Opslaan</strong> om het MIDI-bestand aan het document toe te voegen.
+                <span class="hint">Hierna kun je het bestand toewijzen aan tracks.</span>
+            </div>
+        `;
+    }
+
     function onMidiChange(selectEl) {
         const targetId = selectEl.getAttribute('data-info-target');
         if (!targetId) return;
@@ -21,12 +30,30 @@
         infoEl.innerHTML = hasValue ? renderSaveNotice() : '';
     }
 
+    function onMidiFileChange(fileInputEl) {
+        const targetId = fileInputEl.getAttribute('data-notice-target');
+        if (!targetId) return;
+
+        const noticeEl = document.getElementById(targetId);
+        if (!noticeEl) return;
+
+        // Toon melding alleen als er bestanden zijn geselecteerd
+        const hasFiles = fileInputEl.files && fileInputEl.files.length > 0;
+        noticeEl.innerHTML = hasFiles ? renderMidiUploadNotice() : '';
+    }
+
     document.addEventListener('change', function (e) {
         const el = e.target;
-        if (!(el instanceof HTMLSelectElement)) return;
-        if (!el.classList.contains('js-midi-select')) return;
 
-        onMidiChange(el);
+        // Handler voor track MIDI-select
+        if (el instanceof HTMLSelectElement && el.classList.contains('js-midi-select')) {
+            onMidiChange(el);
+        }
+
+        // Handler voor MIDI-bestand upload
+        if (el instanceof HTMLInputElement && el.type === 'file' && el.classList.contains('js-midi-upload')) {
+            onMidiFileChange(el);
+        }
     });
 })();
 

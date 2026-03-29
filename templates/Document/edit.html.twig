@@ -30,7 +30,13 @@
                 <h2 class="section-title">Upload midi bestand</h2>
                 <div class="grid">
                     <div>
-                        {{ form_row(form.midiFiles) }}
+                        {{ form_row(form.midiFiles, {
+                            attr: form.midiFiles.vars.attr|merge({
+                                class: (form.midiFiles.vars.attr.class|default('') ~ ' js-midi-upload')|trim,
+                                'data-notice-target': 'midi-upload-notice'
+                            })
+                        }) }}
+                        <div id="midi-upload-notice"></div>
                     </div>
 
                     {# ---------------------------
