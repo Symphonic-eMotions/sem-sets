@@ -44,13 +44,11 @@ docker compose run --rm app php bin/console doctrine:fixtures:load
 ### 4. Applicatie openen
 
 - App: `http://localhost:8000`
-- Mailpit UI: `http://localhost:8025`
-- MariaDB op host: `127.0.0.1:3307`
 
 De app-container gebruikt intern deze databaseverbinding:
 
 ```text
-mysql://app:ChangeMe!@database:3306/app?serverVersion=10.11.2-MariaDB&charset=utf8mb4
+mysql://app:app@database:3306/app?serverVersion=10.5.29-MariaDB&charset=utf8mb4
 ```
 
 ### 5. Handige Docker commando's
@@ -84,7 +82,7 @@ De lokale development omgeving bestaat nu uit:
 
 - `app`: custom PHP 8.1 container op basis van `php:8.1-cli`
 - `database`: `mariadb:10.11`
-- `mailer`: `axllent/mailpit`
+- `mailer`: `axllent/mailpit` voor interne SMTP binnen Docker
 
 De PHP-container bevat in ieder geval:
 
@@ -95,4 +93,4 @@ De PHP-container bevat in ieder geval:
 
 ## Bestaande lokale env-bestanden
 
-Let op dat `.env.local` nog steeds een lokale host-database kan overschrijven voor native development buiten Docker. Voor de app-container is dat geen probleem, omdat Docker Compose expliciet `DATABASE_URL` aan de container meegeeft.
+Let op dat `.env.local` nog steeds een lokale host-database kan overschrijven voor native development buiten Docker. Voor de app-container is dat geen probleem, omdat Docker Compose expliciet `DATABASE_URL` en `MAILER_DSN` aan de container meegeeft.
