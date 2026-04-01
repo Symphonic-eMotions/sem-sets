@@ -8,7 +8,7 @@
 | Test | cloudtest.symphonic-emotions.nl | `/home/symphonic/apps/sem-sets-test` |
 
 Beide omgevingen draaien op dezelfde server. SSH-toegang via de alias `cloudtest` (zie `~/.ssh/config`).
-
+Er is een  ssh cloudtest.symphonic-emotions.nl sleutel aanwezig
 ---
 
 ## Deployen
@@ -35,7 +35,7 @@ Het deploy script voert automatisch uit:
 
 ## Lokale ontwikkeling
 
-De Docker setup biedt **MariaDB 10.5** en **Mailpit** als services. De PHP-app zelf draait via de Symfony CLI, omdat de server Apache + PHP gebruikt zonder aparte PHP-container in Docker.
+De Docker setup biedt **MariaDB 10.5** eZoun **Mailpit** als services. De PHP-app zelf draait via de Symfony CLI, omdat de server Apache + PHP gebruikt zonder aparte PHP-container in Docker.
 
 ### Wat Docker levert
 

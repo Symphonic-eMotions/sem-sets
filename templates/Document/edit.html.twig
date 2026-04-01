@@ -12,33 +12,69 @@
             {{ form_start(form, { attr: { id: 'document-form', enctype: 'multipart/form-data' } }) }}
 
             {# --- Set gegevens (Titel / Grid / BPM) --- #}
-            <div class="section">
-                <div class="grid grid-2">
-                    <div class="grid">
-                        {{ form_row(form.title) }}
+            <div class="section header-settings">
+                <div class="header-settings-grid">
+                    <div class="header-main">
+                        {{ form_row(form.title, { 
+                            label: 'Set Titel', 
+                            attr: { placeholder: 'Bijv. Maanlicht Sonata...' } 
+                        }) }}
                     </div>
-                    <div class="grid">
-                        {{ form_row(form.gridSize) }}
-                        {{ form_row(form.setBPM) }}
-                        {{ form_row(form.timeSignature) }}
+                    <div class="header-meta">
+                        {{ form_row(form.gridSize, { label: 'Grid' }) }}
+                        {{ form_row(form.setBPM, { label: 'BPM' }) }}
+                        {{ form_row(form.timeSignature, { label: 'Maatsoort' }) }}
+                    </div>
+                </div>
+
+                <div class="header-levels-row">
+                    <div class="ld-container">
+                        <label class="label" style="margin-bottom: 8px; display: block;">Aantal levels voor deze set</label>
+                        <div class="ld-row align-items-center">
+                            {# 1. Tegels #}
+                            <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
+
+                            {# 2. Acties rechts naast de tegels #}
+                            <div class="ld-actions">
+                                <button type="button" class="btn-mini" id="ld-add">+ Toevoegen</button>
+                                <button type="button" class="btn-mini secondary" id="ld-remove">
+                                    – Verwijder laatste
+                                </button>
+                            </div>
+                        </div>
+
+                        {# Hidden inputs #}
+                        <div id="ld-hidden-inputs"
+                             class="ld-hidden"
+                             data-prototype="{{ form_widget(form.levelDurations.vars.prototype)|e('html_attr') }}"
+                             data-index="{{ form.levelDurations|length }}">
+                            {% for field in form.levelDurations %}
+                                <div class="ld-item">
+                                    {{ form_widget(field) }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% do form.levelDurations.setRendered %}
                     </div>
                 </div>
             </div>
 
             {# --- Assets --- #}
-            <div class="section">
-                <h2 class="section-title">Upload midi bestand</h2>
-                <div class="grid">
-                    <div>
-                        {{ form_row(form.midiFiles, {
+            <div class="section midi-assets-section">
+                <div class="section-header-row">
+                    <h2 class="section-title">MIDI Bestanden</h2>
+                    <div class="upload-control">
+                        {{ form_widget(form.midiFiles, {
                             attr: form.midiFiles.vars.attr|merge({
-                                class: (form.midiFiles.vars.attr.class|default('') ~ ' js-midi-upload')|trim,
+                                class: (form.midiFiles.vars.attr.class|default('') ~ ' js-midi-upload custom-file-input')|trim,
                                 'data-notice-target': 'midi-upload-notice'
                             })
                         }) }}
                         <div id="midi-upload-notice"></div>
                     </div>
+                </div>
 
+                <div class="midi-assets-content">
                     {# ---------------------------
                    MIDI bestanden in project
                    - Parents bovenaan
@@ -327,7 +363,6 @@
                                     {% endif %}
 
                                 {% endfor %}
-
                             </div>
                         {% else %}
                             <p class="subtle" style="margin-top:6px">
@@ -335,49 +370,17 @@
                             </p>
                         {% endif %}
                     </div>
-
                 </div>
-            </div>
-
-            {# --- LevelDurations custom UI (tegels) --- #}
-            <div class="section">
-                <h2 class="section-title">Aantal levels voor deze set</h2>
-
-                <div class="ld-row align-items-center">
-                    {# 1. Tegels #}
-                    <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
-
-                    {# 2. Acties rechts naast de tegels #}
-                    <div class="ld-actions">
-                        <button type="button" class="btn-mini" id="ld-add">+ Toevoegen</button>
-                        <button type="button" class="btn-mini secondary" id="ld-remove">
-                            – Verwijder laatste
-                        </button>
-                    </div>
-
-                    {# 3. Track toevoegen rechts uitgelijnd op dezelfde rij #}
-                    <div class="ld-track-add">
-                        <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
-                    </div>
-                </div>
-
-                {# Hidden inputs #}
-                <div id="ld-hidden-inputs"
-                     class="ld-hidden"
-                     data-prototype="{{ form_widget(form.levelDurations.vars.prototype)|e('html_attr') }}"
-                     data-index="{{ form.levelDurations|length }}">
-                    {% for field in form.levelDurations %}
-                        <div class="ld-item">
-                            {{ form_widget(field) }}
-                        </div>
-                    {% endfor %}
-                </div>
-
-                {% do form.levelDurations.setRendered %}
             </div>
 
             {# --- Tracks (DocumentTrack) --- #}
-            <div class="section">
+            <div class="section tracks-section">
+                <div class="section-header-row">
+                    <h2 class="section-title">Tracks in deze set</h2>
+                    <div class="tracks-control">
+                        <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
+                    </div>
+                </div>
 
                 {# 1) Prototype track-kaart #}
                 {% set track_proto %}
@@ -446,13 +449,15 @@
                     <a
                             href="{{ path('doc_api_json', { id: document.id }) }}"
                             title="Download laatst opgeslagen JSON voor deze set"
+                            class="bottom-bar-download"
                             style="
-                                padding-left: 4px;
+                                padding-left: 12px;
                                 text-decoration:none;
                                 font-size: 13px;
-                                color: var(--muted);
+                                color: var(--text);
+                                opacity: 0.8;
                                 "
-                    >⬇️<span style="padding-left: 10px;">Download</span></a>
+                    >⬇️<span style="padding-left: 6px;">Download JSON</span></a>
                 </div>
 
                 <button class="btn" type="submit" form="document-form">Opslaan</button>
