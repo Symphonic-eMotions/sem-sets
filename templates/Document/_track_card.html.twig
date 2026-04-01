@@ -146,6 +146,9 @@
                                 data-total-bars="{{ totalBars }}"
                                 data-timesig="{{ timeSig }}"
                                 data-input-id="{{ trackForm.loopLength.vars.id }}"
+                                data-midi-asset-id="{{ trackEntity.midiAsset ? trackEntity.midiAsset.id : '' }}"
+                                data-document-id="{{ document.id }}"
+                                data-bpm="{{ info.bpm ?? 0 }}"
                         >
                             {# Verborgen input #}
                             <div class="loop-hidden-input">

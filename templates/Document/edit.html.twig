@@ -386,7 +386,8 @@
                         index:       '__name__',
                         num:         '__num__',
                         isPrototype: true,
-                        midiInfo:    {}
+                        midiInfo:    {},
+                        document:    document
                     } only %}
                 {% endset %}
 
@@ -402,7 +403,8 @@
                             index:       loop.index0,
                             num:         loop.index,
                             isPrototype: false,
-                            midiInfo:    midiInfo
+                            midiInfo:    midiInfo,
+                            document:    document
                         } only %}
                     {% else %}
                         <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
@@ -461,6 +463,8 @@
     </div>
     {# html-midi-player: Tone.js + Magenta core + player component #}
     <script src="https://cdn.jsdelivr.net/combine/npm/tone@14,npm/@magenta/music@1.23.1/es6/core.js,npm/html-midi-player@1.5.0"></script>
+    {# MIDI parser for loop preview playback #}
+    <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@1"></script>
 
     <script src="{{ asset('js/semLoopConfig.js?v=1') }}"></script>
     <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
@@ -468,6 +472,9 @@
     <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
     <script src="{{ asset('js/assetRename.js?v=1') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
+    {# Loop preview playback engine #}
+    <script src="{{ asset('js/midiLoopPlayback.js?v=1') }}" defer></script>
+    <script src="{{ asset('js/midiLoopPreview.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
 

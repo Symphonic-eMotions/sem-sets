@@ -71,6 +71,7 @@
 
                 const COLORS = window.SEM_LOOP_COLORS || [];
                 const LABELS = window.SEM_LOOP_LABELS || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+                const midiAssetId = editor.dataset.midiAssetId;
 
                 values.forEach(function (len, idx) {
                     const chip = document.createElement('span');
@@ -78,7 +79,31 @@
 
                     // A, B, C… of anders fallback naar 1,2,3
                     const label = LABELS[idx] || String(idx + 1);
-                    chip.textContent = 'Loop ' + label + ': ' + len + ' maten';
+
+                    // Create chip content wrapper for flex layout
+                    const chipContent = document.createElement('div');
+                    chipContent.style.display = 'flex';
+                    chipContent.style.alignItems = 'center';
+                    chipContent.style.gap = '6px';
+
+                    // Add play button if MIDI asset exists
+                    if (midiAssetId) {
+                        const playBtn = document.createElement('button');
+                        playBtn.type = 'button';
+                        playBtn.className = 'loop-play-btn';
+                        playBtn.innerHTML = '▶';
+                        playBtn.title = 'Voorbeeld afspelen (ingedrukt houden)';
+                        playBtn.dataset.loopIndex = idx;
+                        playBtn.dataset.loopLength = len;
+                        chipContent.appendChild(playBtn);
+                    }
+
+                    // Add text label
+                    const textSpan = document.createElement('span');
+                    textSpan.textContent = 'Loop ' + label + ': ' + len + ' maten';
+                    chipContent.appendChild(textSpan);
+
+                    chip.appendChild(chipContent);
 
                     if (COLORS.length) {
                         chip.style.backgroundColor = COLORS[idx % COLORS.length];
@@ -87,6 +112,11 @@
 
                     chipsContainer.appendChild(chip);
                 });
+
+                // Initialize loop previews if available
+                if (typeof window.initLoopPreviews === 'function') {
+                    window.initLoopPreviews(editor);
+                }
             }
 
             function getOverrideBase() {
