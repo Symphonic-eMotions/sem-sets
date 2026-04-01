@@ -84,6 +84,7 @@
         const assetId = editorElement.dataset.midiAssetId;
         const documentId = editorElement.dataset.documentId;
         const bpm = parseFloat(editorElement.dataset.bpm);
+        const presetId = editorElement.dataset.tonePreset;
 
         if (!assetId || !documentId || !bpm) {
             console.warn('Missing MIDI asset info for playback');
@@ -114,7 +115,7 @@
 
         // Start playback
         playbackManager
-            .playLoopSegment(midiUrl, loopIndex, loopValues, bpm, timeSignature)
+            .playLoopSegment(midiUrl, loopIndex, loopValues, bpm, timeSignature, presetId)
             .catch(error => {
                 console.error('Playback error:', error);
                 stopPlayback(btn);
@@ -242,6 +243,25 @@
 
             // The loop structure has changed, buttons will be re-rendered
             // We could optionally reinitialize here if needed
+        });
+
+        // Listen for tone preset changes to update data attributes in real-time
+        document.addEventListener('change', (e) => {
+            const el = e.target;
+            // Check if this is a tonePreset select field
+            if (el instanceof HTMLSelectElement && el.name && el.name.includes('[tonePreset]')) {
+                const trackCard = el.closest('.track-card');
+                if (trackCard) {
+                    const loopEditor = trackCard.querySelector('.js-loop-editor');
+                    if (loopEditor) {
+                        loopEditor.dataset.tonePreset = el.value;
+                        console.log(`Updated tone preset for track: ${el.value}`);
+                        
+                        // If currently playing, stop it to force synth rebuild on next play
+                        stopAllPlayback();
+                    }
+                }
+            }
         });
     }
 

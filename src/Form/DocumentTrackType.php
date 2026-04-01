@@ -116,6 +116,16 @@ final class DocumentTrackType extends AbstractType
             // label == value (AdvancedFM etc.)
         ])
 
+        ->add('tonePreset', ChoiceType::class, [
+            'label'       => 'Tone.js preview preset',
+            'required'    => false,
+            'placeholder' => '— Standaard (Plucky) —',
+            'choices'     => array_combine(
+                array_map(fn($p) => $p['label'], self::tonePresets()),
+                array_keys(self::tonePresets())
+            ),
+        ])
+
         ->add('trackEffects', CollectionType::class, [
             'entry_type'   => DocumentTrackEffectType::class,
             'allow_add'    => true,
@@ -149,6 +159,20 @@ final class DocumentTrackType extends AbstractType
             'document' => null,
         ]);
         $resolver->setAllowedTypes('document', [Document::class, 'null']);
+    }
+
+    private static function tonePresets(): array
+    {
+        return [
+            'soft-pad'        => ['label' => 'Soft Pad'],
+            'plucky-keys'     => ['label' => 'Plucky Keys'],
+            'warm-analog'     => ['label' => 'Warm Analog'],
+            'hollow-organ'    => ['label' => 'Hollow Organ'],
+            'percussive-bell' => ['label' => 'Percussive Bell'],
+            'bass-mono'       => ['label' => 'Bass Mono'],
+            'airy-lead'       => ['label' => 'Airy Lead'],
+            'noisy-texture'   => ['label' => 'Noisy Texture'],
+        ];
     }
 
     private static function exsPresets(): array

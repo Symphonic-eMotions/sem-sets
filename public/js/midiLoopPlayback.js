@@ -13,35 +13,120 @@
 class MidiLoopPlayback {
     constructor() {
         this.synth = null;
+        this.currentPresetId = null;
         this.currentPlayback = null;
-        this.isInitialized = false;
         this.cachedMidiFiles = new Map(); // Cache parsed MIDI files
 
-        this.initializeSynth();
+        // Define available Tone.js presets
+        this.presets = {
+            'soft-pad': {
+                engineType: 'PolySynth',
+                voiceType: Tone.Synth,
+                options: {
+                    oscillator: { type: 'fatsawtooth', count: 3, spread: 30 },
+                    envelope: { attack: 0.5, decay: 0.5, sustain: 1, release: 2 }
+                }
+            },
+            'plucky-keys': {
+                engineType: 'PolySynth',
+                voiceType: Tone.Synth,
+                options: {
+                    oscillator: { type: 'triangle' },
+                    envelope: { attack: 0.005, decay: 0.2, sustain: 0, release: 0.2 }
+                }
+            },
+            'warm-analog': {
+                engineType: 'PolySynth',
+                voiceType: Tone.AMSynth,
+                options: {
+                    harmonicity: 2.5,
+                    oscillator: { type: 'fatsawtooth' },
+                    envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 0.8 },
+                    modulation: { type: 'square' }
+                }
+            },
+            'hollow-organ': {
+                engineType: 'PolySynth',
+                voiceType: Tone.FMSynth,
+                options: {
+                    harmonicity: 3,
+                    modulationIndex: 10,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0, sustain: 1, release: 0.2 },
+                    modulation: { type: 'triangle' }
+                }
+            },
+            'percussive-bell': {
+                engineType: 'PolySynth',
+                voiceType: Tone.FMSynth,
+                options: {
+                    harmonicity: 5,
+                    modulationIndex: 20,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.001, decay: 1, sustain: 0, release: 1 },
+                    modulation: { type: 'square' }
+                }
+            },
+            'bass-mono': {
+                engineType: 'PolySynth',
+                voiceType: Tone.MonoSynth,
+                options: {
+                    oscillator: { type: 'square' },
+                    envelope: { attack: 0.05, decay: 0.3, sustain: 0.4, release: 0.1 },
+                    filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.2, release: 0.2, baseFrequency: 200, octaves: 4 }
+                }
+            },
+            'airy-lead': {
+                engineType: 'PolySynth',
+                voiceType: Tone.AMSynth,
+                options: {
+                    harmonicity: 1.5,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.2, decay: 0.2, sustain: 0.8, release: 1 },
+                    modulation: { type: 'sawtooth' }
+                }
+            },
+            'noisy-texture': {
+                engineType: 'PolySynth',
+                voiceType: Tone.FMSynth,
+                options: {
+                    harmonicity: 10,
+                    modulationIndex: 50,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 1, decay: 2, sustain: 0.5, release: 3 },
+                    modulation: { type: 'sawtooth' }
+                }
+            }
+        };
+
+        // Default synth (fallback)
+        this.defaultPresetId = 'plucky-keys';
     }
 
     /**
-     * Initialize the piano synth
+     * Get or create a synth for the given preset
+     * @param {string} presetId
+     * @returns {Tone.PolySynth}
+     * @private
      */
-    initializeSynth() {
-        if (this.isInitialized) return;
+    getOrCreateSynth(presetId) {
+        const id = presetId && this.presets[presetId] ? presetId : this.defaultPresetId;
 
-        // Piano synth with realistic ADSR envelope
-        this.synth = new Tone.PolySynth(Tone.Synth, {
-            oscillator: {
-                type: 'triangle',
-                count: 3,
-                spread: 30
-            },
-            envelope: {
-                attack: 0.008,    // Quick attack
-                decay: 0.1,       // Decay to sustain
-                sustain: 0.3,     // Mid-level sustain
-                release: 0.5      // Long release for piano tail
-            }
-        }).toDestination();
+        // If synth already exists for this preset, return it
+        if (this.synth && this.currentPresetId === id) {
+            return this.synth;
+        }
 
-        this.isInitialized = true;
+        // Dispose old synth if it exists
+        if (this.synth) {
+            this.synth.dispose();
+        }
+
+        const config = this.presets[id];
+        this.synth = new Tone.PolySynth(config.voiceType, config.options).toDestination();
+        this.currentPresetId = id;
+
+        return this.synth;
     }
 
     /**
@@ -49,7 +134,7 @@ class MidiLoopPlayback {
      * @private
      */
     async ensureAudioContextStarted() {
-        if (Tone.Synth.prototype.constructor.context?.state !== 'running') {
+        if (Tone.getContext().state !== 'running') {
             await Tone.start();
         }
     }
@@ -75,23 +160,6 @@ class MidiLoopPlayback {
             const arrayBuffer = await response.arrayBuffer();
             // Use @tonejs/midi directly (NOT Tone.Midi)
             const midi = new Midi(arrayBuffer);
-
-            // DEBUG: Check MIDI structure
-            console.log('MIDI object parsed:', {
-                hasTracks: !!midi.tracks,
-                trackCount: midi.tracks?.length,
-                tracks: midi.tracks,
-                keys: Object.keys(midi),
-                fullObject: midi
-            });
-
-            // Log all properties to find where notes are
-            console.log('🔍 MIDI object properties:');
-            for (let key in midi) {
-                if (midi.hasOwnProperty(key) || key in midi) {
-                    console.log(`  ${key}:`, midi[key]);
-                }
-            }
 
             // Cache for future use
             this.cachedMidiFiles.set(url, midi);
@@ -206,9 +274,6 @@ class MidiLoopPlayback {
             console.warn('⚠️  No notes found in MIDI file');
         }
 
-        console.log('📋 All notes count:', allNotes.length);
-        console.log('🔍 Time range (seconds):', { startSeconds, endSeconds, loopDurationSeconds });
-
         // Filter notes that fall within our loop range
         let scheduledCount = 0;
         allNotes.forEach((note, idx) => {
@@ -218,10 +283,7 @@ class MidiLoopPlayback {
                 const relativeTime = note.time - startSeconds;
                 const noteDuration = Math.min(note.duration, loopDurationSeconds - relativeTime);
 
-                console.log(`  Note ${idx}: ${note.name} at ${note.time.toFixed(3)}s (relative: ${relativeTime.toFixed(3)}s, duration: ${noteDuration.toFixed(3)}s)`);
-
                 Tone.Transport.schedule((time) => {
-                    console.log(`🔊 Triggering ${note.name} at time ${time}`);
                     this.synth.triggerAttackRelease(
                         note.name,
                         noteDuration,
@@ -231,7 +293,6 @@ class MidiLoopPlayback {
             }
         });
 
-        console.log(`📍 Scheduled ${scheduledCount} notes for loop (out of ${allNotes.length} total)`);
         return loopDurationSeconds;
     }
 
@@ -242,54 +303,43 @@ class MidiLoopPlayback {
      * @param {number[]} loopLengths - Array of bar counts [32, 32, 16]
      * @param {number} bpm - Beats per minute
      * @param {string} timeSignature - Time signature (e.g., "4/4")
+     * @param {string} presetId - ID of the preset to use
      * @returns {Promise<void>}
      */
-    async playLoopSegment(midiUrl, loopIndex, loopLengths, bpm, timeSignature) {
+    async playLoopSegment(midiUrl, loopIndex, loopLengths, bpm, timeSignature, presetId = null) {
         try {
-            console.log('🎹 playLoopSegment START:', { loopIndex, loopLengths, bpm, timeSignature });
+            // Ensure audio context is running
+            await this.ensureAudioContextStarted();
+
+            // Initialize/Switch synth if needed
+            this.getOrCreateSynth(presetId);
 
             // Stop any current playback
             this.stopPlayback();
 
-            // Ensure audio context is running
-            console.log('⏸ Ensuring AudioContext is started...');
-            await this.ensureAudioContextStarted();
-            console.log('✓ AudioContext state:', Tone.Synth.prototype.constructor.context?.state);
-
             // Parse MIDI file (cached if possible)
-            console.log('📥 Fetching MIDI:', midiUrl);
             const midi = await this.fetchAndParseMidi(midiUrl);
 
             // Calculate which bars this loop covers
             const loopInfo = this.calculateLoopBars(loopIndex, loopLengths);
             const beatsPerBar = this.getBeatsPerBar(timeSignature);
 
-            console.log('📊 Loop info:', { loopInfo, beatsPerBar });
-
             // Convert bars to beats
             const startBeat = this.barsToBeats(loopInfo.startBar - 1, beatsPerBar); // 0-indexed for calculation
             const endBeat = this.barsToBeats(loopInfo.endBar, beatsPerBar);
 
-            console.log('🎵 Beat range:', { startBeat, endBeat });
-
             // Set transport BPM
             Tone.Transport.bpm.value = bpm;
-            console.log('⏱ Transport BPM set to:', bpm);
 
             // Schedule all notes in this loop
-            console.log('📍 Scheduling notes...');
             const loopDurationSeconds = this.scheduleLoopNotes(midi, startBeat, endBeat, bpm);
-            console.log('✓ Loop duration:', loopDurationSeconds.toFixed(2), 'seconds');
 
             // Setup looping behavior
             Tone.Transport.setLoopPoints(0, loopDurationSeconds);
             Tone.Transport.loop = true;
-            console.log('🔄 Loop points set:', { start: 0, end: loopDurationSeconds });
 
             // Start transport
-            console.log('▶ Starting Tone.Transport...');
             Tone.Transport.start();
-            console.log('✓ Transport state:', Tone.Transport.state);
 
             // Store current playback info
             this.currentPlayback = {
@@ -298,10 +348,9 @@ class MidiLoopPlayback {
                 startBeat,
                 endBeat,
                 loopDuration: loopDurationSeconds,
-                startTime: Tone.now()
+                startTime: Tone.now(),
+                presetId: this.currentPresetId
             };
-
-            console.log(`✅ Playing loop ${loopIndex} (bars ${loopInfo.startBar}-${loopInfo.endBar}, ${loopDurationSeconds.toFixed(2)}s)`);
         } catch (error) {
             console.error('Failed to play loop:', error);
             this.stopPlayback();
@@ -313,12 +362,14 @@ class MidiLoopPlayback {
      * Stop current playback and cleanup
      */
     stopPlayback() {
-        if (this.currentPlayback) {
+        if (this.currentPlayback || Tone.Transport.state === 'started') {
             Tone.Transport.stop();
             Tone.Transport.cancel();
-            this.synth.triggerRelease();
 
-            console.log('Playback stopped');
+            if (this.synth) {
+                this.synth.releaseAll();
+            }
+
             this.currentPlayback = null;
         }
     }

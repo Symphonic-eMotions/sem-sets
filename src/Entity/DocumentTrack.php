@@ -51,6 +51,9 @@ class DocumentTrack
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $exsPreset = null;
 
+    #[ORM\Column(type: 'string', length: 100, nullable: true)]
+    private ?string $tonePreset = null;
+
     #[ORM\OneToMany(
         targetEntity: DocumentTrackEffect::class,
         mappedBy: 'track',
@@ -249,6 +252,17 @@ class DocumentTrack
     public function setExsPreset(?string $exsPreset): self
     {
         $this->exsPreset = $exsPreset;
+        return $this;
+    }
+
+    public function getTonePreset(): ?string
+    {
+        return $this->tonePreset;
+    }
+
+    public function setTonePreset(?string $tonePreset): self
+    {
+        $this->tonePreset = $tonePreset;
         return $this;
     }
 

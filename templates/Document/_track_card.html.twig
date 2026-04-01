@@ -149,6 +149,7 @@
                                 data-midi-asset-id="{{ trackEntity.midiAsset ? trackEntity.midiAsset.id : '' }}"
                                 data-document-id="{{ document.id }}"
                                 data-bpm="{{ info.bpm ?? 0 }}"
+                                data-tone-preset="{{ trackEntity.tonePreset ?? '' }}"
                         >
                             {# Verborgen input #}
                             <div class="loop-hidden-input">
@@ -204,6 +205,11 @@
         <div class="subsection">
             <label class="label">EXS preset</label>
             {{ form_widget(trackForm.exsPreset) }}
+        </div>
+
+        <div class="subsection">
+            <label class="label">Tone.js preview preset</label>
+            {{ form_widget(trackForm.tonePreset) }}
         </div>
 
         <div class="subsection effects-panel">
