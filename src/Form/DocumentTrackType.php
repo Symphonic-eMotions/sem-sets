@@ -15,6 +15,7 @@ use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
+use Symfony\Component\Form\Extension\Core\Type\RangeType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
@@ -126,17 +127,15 @@ final class DocumentTrackType extends AbstractType
             ),
         ])
 
-        ->add('trackVolume', NumberType::class, [
-            'label'      => 'Volume (dB) om toe te passen op loop preview eerst opslaan',
+        ->add('trackVolume', RangeType::class, [
+            'label'      => 'Volume (dB)',
             'required'   => false,
             'empty_data' => '0',
-            'html5'      => true,
             'attr'       => [
                 'class' => 'js-track-volume-input',
                 'min'   => -90,
                 'max'   => 12,
                 'step'  => 0.1,
-                'type'  => 'range',
             ],
             'constraints' => [
                 new Assert\Type('numeric'),

@@ -72,20 +72,6 @@
             });
         });
 
-        // Setup live volume slider listener for real-time volume adjustment
-        const trackCard = editorElement.closest('.track-card');
-        if (trackCard) {
-            const volumeSlider = trackCard.querySelector('.js-track-volume-input');
-            if (volumeSlider) {
-                volumeSlider.addEventListener('input', () => {
-                    if (playbackManager && playbackManager.isPlaying()) {
-                        const volumeDb = parseFloat(volumeSlider.value);
-                        playbackManager.setVolume(volumeDb);
-                    }
-                });
-            }
-        }
-
         console.log(`Initialized ${playBtns.length} loop preview buttons`);
     }
 
@@ -99,7 +85,16 @@
         const documentId = editorElement.dataset.documentId;
         const bpm = parseFloat(editorElement.dataset.bpm);
         const presetId = editorElement.dataset.tonePreset;
-        const volumeDb = parseFloat(editorElement.dataset.trackVolume) || 0;
+
+        // Get live volume from slider
+        let volumeDb = 0;
+        const trackCard = editorElement.closest('.track-card');
+        if (trackCard) {
+            const volumeSlider = trackCard.querySelector('.js-track-volume-input');
+            if (volumeSlider) {
+                volumeDb = parseFloat(volumeSlider.value) || 0;
+            }
+        }
 
         if (!assetId || !documentId || !bpm) {
             console.warn('Missing MIDI asset info for playback');
@@ -287,6 +282,18 @@
 
         loopEditors.forEach(editor => {
             initLoopPreviews(editor);
+        });
+
+        // Setup live volume slider listener for real-time volume adjustment (Global listener)
+        document.addEventListener('input', (e) => {
+            const el = e.target;
+            if (el instanceof HTMLInputElement && el.classList.contains('js-track-volume-input')) {
+                if (playbackManager && playbackManager.isPlaying()) {
+                    const volumeDb = parseFloat(el.value) || 0;
+                    playbackManager.setVolume(volumeDb);
+                    console.log(`Live volume update: ${volumeDb}dB`);
+                }
+            }
         });
 
         // Setup global event listeners

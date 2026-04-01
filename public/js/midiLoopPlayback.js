@@ -114,6 +114,13 @@ class MidiLoopPlayback {
     getOrCreateSynth(presetId, volumeDb = 0) {
         const id = presetId && this.presets[presetId] ? presetId : this.defaultPresetId;
 
+        // Create/update volume node first
+        if (!this.volNode) {
+            this.volNode = new Tone.Volume(volumeDb).toDestination();
+        } else {
+            this.volNode.volume.value = volumeDb;
+        }
+
         // If synth already exists for this preset, return it
         if (this.synth && this.currentPresetId === id) {
             return this.synth;
@@ -124,18 +131,10 @@ class MidiLoopPlayback {
             this.synth.dispose();
         }
 
-        // Create/update volume node only once (reuse between preset switches)
-        // volNode stays connected through all preset changes
-        if (!this.volNode) {
-            this.volNode = new Tone.Volume(volumeDb).toDestination();
-        } else {
-            this.volNode.volume.value = volumeDb;
-        }
-
         const config = this.presets[id];
-        // Signal chain: synth → volNode → [future effects] → Destination
-        // Volume node is always first in the effect chain, allowing future effects
-        // to be inserted between volNode and Destination.
+        console.log(`Building synth for preset: ${id} with volume: ${volumeDb}dB`);
+
+        // Signal chain: synth → volNode → Destination
         this.synth = new Tone.PolySynth(config.voiceType, config.options).connect(this.volNode);
         this.currentPresetId = id;
 
