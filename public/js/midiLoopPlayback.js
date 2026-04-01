@@ -388,6 +388,8 @@ class MidiLoopPlayback {
         if (this.currentPlayback || Tone.Transport.state === 'started') {
             Tone.Transport.stop();
             Tone.Transport.cancel();
+            Tone.Transport.loop = false; // Reset looping
+            Tone.Transport.loopPoints = [0, Infinity]; // Reset loop boundaries
 
             if (this.synth) {
                 this.synth.releaseAll();
