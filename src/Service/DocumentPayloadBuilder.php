@@ -300,6 +300,7 @@ final class DocumentPayloadBuilder
                 'trackId'         => $t->getTrackId(),
                 'levels'          => $levels,
                 'midiFiles'       => $midi,
+                'trackVolume'     => (float) $t->getTrackVolume(),
                 'instrumentType'  => $instrumentType,   // null of 'exsSampler'
                 'exsFiles'        => $exsFiles,         // null of array
                 'instrumentName'  => $instrumentName,

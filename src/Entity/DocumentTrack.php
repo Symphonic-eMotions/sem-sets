@@ -54,6 +54,9 @@ class DocumentTrack
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $tonePreset = null;
 
+    #[ORM\Column(type: 'float', options: ['default' => 0])]
+    private float $trackVolume = 0.0;
+
     #[ORM\OneToMany(
         targetEntity: DocumentTrackEffect::class,
         mappedBy: 'track',
@@ -263,6 +266,22 @@ class DocumentTrack
     public function setTonePreset(?string $tonePreset): self
     {
         $this->tonePreset = $tonePreset;
+        return $this;
+    }
+
+    public function getTrackVolume(): float
+    {
+        return $this->trackVolume;
+    }
+
+    public function setTrackVolume(float $volume): self
+    {
+        if (!is_finite($volume)) {
+            $volume = 0.0;
+        }
+
+        $this->trackVolume = max(-90.0, min(12.0, $volume));
+
         return $this;
     }
 

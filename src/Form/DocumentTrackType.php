@@ -126,6 +126,28 @@ final class DocumentTrackType extends AbstractType
             ),
         ])
 
+        ->add('trackVolume', NumberType::class, [
+            'label'      => 'Volume (dB) om toe te passen op loop preview eerst opslaan',
+            'required'   => false,
+            'empty_data' => '0',
+            'html5'      => true,
+            'attr'       => [
+                'class' => 'js-track-volume-input',
+                'min'   => -90,
+                'max'   => 12,
+                'step'  => 0.1,
+                'type'  => 'range',
+            ],
+            'constraints' => [
+                new Assert\Type('numeric'),
+                new Assert\Range(
+                    min: -90,
+                    max: 12,
+                    notInRangeMessage: 'Volume must be between -90 and 12 dB'
+                ),
+            ],
+        ])
+
         ->add('trackEffects', CollectionType::class, [
             'entry_type'   => DocumentTrackEffectType::class,
             'allow_add'    => true,

@@ -16,6 +16,7 @@ class MidiLoopPlayback {
         this.currentPresetId = null;
         this.currentPlayback = null;
         this.cachedMidiFiles = new Map(); // Cache parsed MIDI files
+        this.volNode = null; // Tone.Volume node for track volume control
 
         // Define available Tone.js presets
         this.presets = {
@@ -106,10 +107,11 @@ class MidiLoopPlayback {
     /**
      * Get or create a synth for the given preset
      * @param {string} presetId
+     * @param {number} volumeDb - Initial volume in decibels (-90 to +12)
      * @returns {Tone.PolySynth}
      * @private
      */
-    getOrCreateSynth(presetId) {
+    getOrCreateSynth(presetId, volumeDb = 0) {
         const id = presetId && this.presets[presetId] ? presetId : this.defaultPresetId;
 
         // If synth already exists for this preset, return it
@@ -122,11 +124,32 @@ class MidiLoopPlayback {
             this.synth.dispose();
         }
 
+        // Create/update volume node only once (reuse between preset switches)
+        // volNode stays connected through all preset changes
+        if (!this.volNode) {
+            this.volNode = new Tone.Volume(volumeDb).toDestination();
+        } else {
+            this.volNode.volume.value = volumeDb;
+        }
+
         const config = this.presets[id];
-        this.synth = new Tone.PolySynth(config.voiceType, config.options).toDestination();
+        // Signal chain: synth → volNode → [future effects] → Destination
+        // Volume node is always first in the effect chain, allowing future effects
+        // to be inserted between volNode and Destination.
+        this.synth = new Tone.PolySynth(config.voiceType, config.options).connect(this.volNode);
         this.currentPresetId = id;
 
         return this.synth;
+    }
+
+    /**
+     * Set the track volume in decibels
+     * @param {number} db - Volume in decibels (-90 to +12)
+     */
+    setVolume(db) {
+        if (this.volNode) {
+            this.volNode.volume.value = db;
+        }
     }
 
     /**
@@ -304,15 +327,16 @@ class MidiLoopPlayback {
      * @param {number} bpm - Beats per minute
      * @param {string} timeSignature - Time signature (e.g., "4/4")
      * @param {string} presetId - ID of the preset to use
+     * @param {number} volumeDb - Track volume in decibels (-90 to +12)
      * @returns {Promise<void>}
      */
-    async playLoopSegment(midiUrl, loopIndex, loopLengths, bpm, timeSignature, presetId = null) {
+    async playLoopSegment(midiUrl, loopIndex, loopLengths, bpm, timeSignature, presetId = null, volumeDb = 0) {
         try {
             // Ensure audio context is running
             await this.ensureAudioContextStarted();
 
             // Initialize/Switch synth if needed
-            this.getOrCreateSynth(presetId);
+            this.getOrCreateSynth(presetId, volumeDb);
 
             // Stop any current playback
             this.stopPlayback();
@@ -388,8 +412,8 @@ class MidiLoopPlayback {
     dispose() {
         this.stopPlayback();
         this.synth?.dispose();
+        this.volNode?.dispose();
         this.cachedMidiFiles.clear();
-        this.isInitialized = false;
     }
 }
 

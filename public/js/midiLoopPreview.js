@@ -72,6 +72,20 @@
             });
         });
 
+        // Setup live volume slider listener for real-time volume adjustment
+        const trackCard = editorElement.closest('.track-card');
+        if (trackCard) {
+            const volumeSlider = trackCard.querySelector('.js-track-volume-input');
+            if (volumeSlider) {
+                volumeSlider.addEventListener('input', () => {
+                    if (playbackManager && playbackManager.isPlaying()) {
+                        const volumeDb = parseFloat(volumeSlider.value);
+                        playbackManager.setVolume(volumeDb);
+                    }
+                });
+            }
+        }
+
         console.log(`Initialized ${playBtns.length} loop preview buttons`);
     }
 
@@ -85,6 +99,7 @@
         const documentId = editorElement.dataset.documentId;
         const bpm = parseFloat(editorElement.dataset.bpm);
         const presetId = editorElement.dataset.tonePreset;
+        const volumeDb = parseFloat(editorElement.dataset.trackVolume) || 0;
 
         if (!assetId || !documentId || !bpm) {
             console.warn('Missing MIDI asset info for playback');
@@ -115,7 +130,7 @@
 
         // Start playback
         playbackManager
-            .playLoopSegment(midiUrl, loopIndex, loopValues, bpm, timeSignature, presetId)
+            .playLoopSegment(midiUrl, loopIndex, loopValues, bpm, timeSignature, presetId, volumeDb)
             .catch(error => {
                 console.error('Playback error:', error);
                 stopPlayback(btn);

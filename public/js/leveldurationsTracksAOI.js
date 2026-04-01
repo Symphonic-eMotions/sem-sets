@@ -695,6 +695,10 @@
 
         // AOI tiles bouwen
         buildAoiTiles(card, idx);
+
+        if (typeof window.syncTrackVolumeDisplays === 'function') {
+            window.syncTrackVolumeDisplays(card);
+        }
     }
 
     function addTrackFromPrototype() {
