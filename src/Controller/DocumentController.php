@@ -8,8 +8,8 @@ use App\Entity\Document;
 use App\Entity\DocumentTrack;
 use App\Entity\EffectSettingsKeyValue;
 use App\Entity\InstrumentPart;
+use App\Enum\SemVersion;
 use App\Form\DocumentFormType;
-use App\Form\NewDocumentFormType;
 use App\Midi\MidiAnalyzer;
 use App\Repository\AssetRepository;
 use App\Repository\DocumentRepository;
@@ -59,30 +59,56 @@ final class DocumentController extends AbstractController
     }
 
     #[Route('documents/new', name: 'doc_new', methods: ['GET', 'POST'])]
-    public function new(Request $req): Response
-    {
+    public function new(
+        Request $req,
+        AssetStorage $assets,
+        MidiAnalyzer $midiAnalyzer,
+        DocumentSnapshotService $snapshotService,
+    ): Response {
         $doc = new Document();
-        $form = $this->createForm(NewDocumentFormType::class, $doc);
+        // Defaults voor een nieuwe set
+        $doc->setGridColumns(2);
+        $doc->setGridRows(2);
+        $doc->setLevelDurations([32, 32]);
+        $doc->setSetBPM('90.00');
+        $doc->setSemVersion(SemVersion::V_5_0_0);
+
+        $form = $this->createForm(DocumentFormType::class, $doc);
         $form->handleRequest($req);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            // slugify onder water
-            $doc->setSlug($this->slugify($doc->getTitle()));
-            $doc->setSemVersion($doc->getSemVersion());
-            $doc->setGridColumns(2);
-            $doc->setGridRows(2);
-            $doc->setLevelDurations([32, 32]);
-
             $doc->setCreatedBy($this->getUser());
             $doc->setUpdatedBy($this->getUser());
+            
+            // Verwerk de basisvelden (titel, slug, grid, bpm)
+            $title = (string) $form->get('title')->getData();
+            $doc->setSlug($this->slugify($title));
+
+            $gridSize = $form->get('gridSize')->getData();
+            if (is_string($gridSize) && preg_match('/^(\d+)x(\d+)$/', $gridSize, $m)) {
+                $doc->setGridColumns(max(1, min(3, (int) $m[1])));
+                $doc->setGridRows(max(1, min(3, (int) $m[2])));
+            }
+
             $this->em->persist($doc);
             $this->em->flush();
 
-            // ga direct naar edit (user vult daar alles verder in)
+            // Verwerk MIDI uploads indien aanwezig
+            $this->handleMidiUploads($form, $doc, $assets, $midiAnalyzer);
+
+            // Snapshot en sync
+            $snapshotService->createSnapshot($doc, 'create', $this->getUser());
+            $this->syncTrackLevelsToSet($doc);
+            $this->em->flush();
+
+            $this->addFlash('success', 'Nieuwe set aangemaakt.');
             return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
         }
 
-        return $this->render('Document/new.html.twig', ['form' => $form]);
+        return $this->render('Document/new.html.twig', [
+            'form' => $form,
+            'document' => $doc, // nodig voor sommige partials
+        ]);
     }
 
     /**
@@ -1017,10 +1043,8 @@ final class DocumentController extends AbstractController
                 $uploadSummary = $midiAnalyzer->summarize((string) $file->getRealPath());
                 if ($uploadSummary->simultaneousNoteCount > 0) {
                     $this->addFlash('warning', sprintf(
-                        '%s bevat %d noten die op exact hetzelfde moment starten. '
-                        . 'Gebruik de knop "Stagger noten" om dit automatisch op te lossen.',
-                        $file->getClientOriginalName(),
-                        $uploadSummary->simultaneousNoteCount,
+                        'Er zijn %d events op hetzelfde moment. \'Stagger noten\' is your friend',
+                        $uploadSummary->simultaneousNoteCount
                     ));
                 }
             } catch (Throwable) {

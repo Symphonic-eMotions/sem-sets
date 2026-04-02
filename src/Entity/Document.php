@@ -33,7 +33,7 @@ class Document
     private bool $published = false;
 
     #[ORM\Column(enumType: SemVersion::class)]
-    private SemVersion $semVersion = SemVersion::V_2_9_0;
+    private SemVersion $semVersion = SemVersion::V_5_0_0;
 
     #[ORM\ManyToOne(targetEntity: DocumentVersion::class)]
     #[ORM\JoinColumn(name: 'head_version_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]

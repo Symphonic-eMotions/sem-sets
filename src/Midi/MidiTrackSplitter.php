@@ -40,8 +40,9 @@ final class MidiTrackSplitter
 
         $track0 = $midi->getTrack(0);
 
-        // Basisnaam zonder extensie
-        $baseName = pathinfo((string) $asset->getOriginalName(), PATHINFO_FILENAME);
+        // Gebruik de displayName als basis indien ingesteld, anders de originalName
+        $sourceName = $asset->getDisplayName() ?? $asset->getOriginalName();
+        $baseName = pathinfo((string) $sourceName, PATHINFO_FILENAME);
 
         // Header/meta die we uit track0 willen behouden (tempo/maat/key)
         $headerMeta = $this->extractHeaderMeta($track0);

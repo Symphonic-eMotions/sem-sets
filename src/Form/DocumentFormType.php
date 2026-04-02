@@ -144,7 +144,7 @@ final class DocumentFormType extends AbstractType
                         'message' => 'Gebruik formaat zoals 3/4 of 4/4.',
                     ]),
                 ],
-                'help' => 'De maatsoort is bepalend voor de berekening van de loop lengten',
+                'help' => '',
             ])
 
             ->add('levelDurations', CollectionType::class, [

@@ -2,17 +2,108 @@
 {% block title %}Nieuwe Symphonic eMotions Set{% endblock %}
 
 {% block body %}
-<div class="wrap">
-    <div class="card">
-        <h1 class="title">Nieuwe Symphonic eMotions Set</h1>
-        <p class="subtitle">Hoe gaat deze set heten?</p>
+    <div class="wrap">
+        <div class="card">
+            <h1 class="title">Nieuwe Symphonic eMotions Set</h1>
+            <p class="subtitle">Configureer de basisgegevens en upload je eerste MIDI bestanden.</p>
 
-        {{ form_start(form) }}
-        {{ form_widget(form) }}
+            {% form_theme form 'forms/_theme.html.twig' %}
+            {{ form_start(form, { attr: { id: 'document-form', enctype: 'multipart/form-data' } }) }}
 
-        <button class="btn" type="submit">Opslaan</button>
-        <a class="btn secondary" href="{{ path('app_dashboard') }}" style="margin-left:8px">Terug</a>
-        {{ form_end(form) }}
+            {# --- Set gegevens (Titel / Grid / BPM) --- #}
+            <div class="section header-settings">
+                <div class="header-settings-grid">
+                    <div class="header-main">
+                        {{ form_row(form.title, {
+                            label: 'Set Titel',
+                            attr: { placeholder: 'Bijv. Maanlicht Sonata...' }
+                        }) }}
+                    </div>
+                    <div class="header-meta">
+                        {{ form_row(form.gridSize, { label: 'Grid' }) }}
+                        {{ form_row(form.setBPM, { label: 'BPM' }) }}
+                        {{ form_row(form.timeSignature, { label: 'Maatsoort' }) }}
+                    </div>
+                </div>
+
+                <div class="header-levels-row">
+                    <div class="ld-container">
+                        <label class="label" style="margin-bottom: 8px; display: block;">Aantal levels voor deze set</label>
+                        <div class="ld-row align-items-center">
+                            {# 1. Tegels #}
+                            <div id="ld-tiles" class="ld-tiles" data-target="#ld-hidden-inputs"></div>
+
+                            {# 2. Acties rechts naast de tegels #}
+                            <div class="ld-actions">
+                                <button type="button" class="btn-mini" id="ld-add">+ Toevoegen</button>
+                                <button type="button" class="btn-mini secondary" id="ld-remove">
+                                    – Verwijder laatste
+                                </button>
+                            </div>
+                        </div>
+
+                        {# Hidden inputs #}
+                        <div id="ld-hidden-inputs"
+                             class="ld-hidden"
+                             data-prototype="{{ form_widget(form.levelDurations.vars.prototype)|e('html_attr') }}"
+                             data-index="{{ form.levelDurations|length }}">
+                            {% for field in form.levelDurations %}
+                                <div class="ld-item">
+                                    {{ form_widget(field) }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                        {% do form.levelDurations.setRendered %}
+                    </div>
+                </div>
+            </div>
+
+            {# --- Assets (Upload only for New) --- #}
+            <div class="section midi-assets-section">
+                <div class="section-header-row">
+                    <h2 class="section-title">Upload MIDI Bestanden</h2>
+                    <div class="upload-control">
+                        {{ form_widget(form.midiFiles, {
+                            attr: form.midiFiles.vars.attr|merge({
+                                class: (form.midiFiles.vars.attr.class|default('') ~ ' js-midi-upload custom-file-input')|trim,
+                                'data-notice-target': 'midi-upload-notice'
+                            })
+                        }) }}
+                        <div id="midi-upload-notice"></div>
+                    </div>
+                </div>
+                <div class="midi-assets-content">
+                    <p class="subtle">Je kunt hier direct één of meerdere MIDI bestanden uploaden. Je kunt ze later in de editor aan tracks koppelen.</p>
+                </div>
+            </div>
+
+            {# Verberg tracks collectie in New scherm, die vullen we later #}
+            {% do form.tracks.setRendered %}
+            {% do form.published.setRendered %}
+
+            {{ form_rest(form) }}
+            {{ form_end(form, { render_rest: false }) }}
+        </div>
     </div>
-</div>
+
+    {# --- Sticky/Fixed bottom bar --- #}
+    <div class="bottom-bar">
+        <div class="bottom-bar-inner">
+            <div class="bottom-bar-flashes">
+                {% for type, messages in app.flashes %}
+                    {% for msg in messages %}
+                        <div class="flash flash-{{ type }}">{{ msg }}</div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <div class="bottom-bar-actions">
+                <button class="btn" type="submit" form="document-form">Set aanmaken</button>
+                <a class="btn secondary" href="{{ path('app_dashboard') }}">Annuleren</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
+    <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
 {% endblock %}

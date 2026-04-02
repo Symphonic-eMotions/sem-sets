@@ -229,12 +229,15 @@
                                         src="{{ midiUrl }}"
                                         sound-font
                                         visualizer="#{{ vizId }}"
+                                        data-visualizer-container="#{{ vizId }}-container"
                                 ></midi-player>
-                                <midi-visualizer
-                                        id="{{ vizId }}"
-                                        type="piano-roll"
-                                        src="{{ midiUrl }}"
-                                ></midi-visualizer>
+                                <div class="piano-roll-wrapper" id="{{ vizId }}-container">
+                                    <midi-visualizer
+                                            id="{{ vizId }}"
+                                            type="piano-roll"
+                                            src="{{ midiUrl }}"
+                                    ></midi-visualizer>
+                                </div>
                             </div>
 
                         </div>
@@ -283,22 +286,32 @@
 
                                     /* Chip herstructurering: rij + uitklapbare preview */
                                     .chip {
+                                        display: flex;
                                         flex-direction: column;
                                         align-items: stretch;
                                         gap: 0;
-                                        white-space: normal; /* override zodat preview niet op 1 regel wordt geperst */
+                                        white-space: normal; 
+                                        max-width: 100%;
+                                        min-width: 0; /* Essentieel voor flex-containment */
+                                        box-sizing: border-box;
+                                        overflow: hidden;
                                     }
+                                    .chip * { box-sizing: border-box; }
                                     .chip-row {
                                         display: flex;
                                         justify-content: space-between;
                                         align-items: center;
                                         white-space: nowrap;
                                         width: 100%;
+                                        min-width: 0;
                                     }
                                     .chip-preview {
                                         margin-top: 10px;
                                         width: 100%;
+                                        max-width: 100%;
+                                        min-width: 0;
                                         white-space: normal;
+                                        overflow: hidden;
                                     }
                                     .chip-preview[hidden] { display: none; }
 
@@ -306,18 +319,42 @@
                                     midi-player {
                                         display: block;
                                         width: 100%;
+                                        max-width: 100%;
+                                        min-width: 0;
                                         --player-button-size: 28px;
                                         --color-primary: #5865f2;
                                         --color-secondary: #3bcdf7;
                                     }
                                     /* Pianorol: donkere achtergrond + accent kleuren */
-                                    midi-visualizer {
-                                        display: block;
+                                    .piano-roll-wrapper {
+                                        overflow-x: auto;
+                                        overflow-y: hidden;
                                         width: 100%;
+                                        max-width: 100%;
+                                        min-width: 0;
                                         margin-top: 6px;
                                         border-radius: 8px;
-                                        overflow: hidden;
-                                        --background-color: #070f1f;
+                                        background: #070f1f;
+                                        /* Moderne scrollbar */
+                                        scrollbar-width: thin;
+                                        scrollbar-color: #5865f2 #070f1f;
+                                    }
+                                    .piano-roll-wrapper::-webkit-scrollbar {
+                                        height: 6px;
+                                    }
+                                    .piano-roll-wrapper::-webkit-scrollbar-track {
+                                        background: #070f1f;
+                                    }
+                                    .piano-roll-wrapper::-webkit-scrollbar-thumb {
+                                        background-color: #5865f2;
+                                        border-radius: 10px;
+                                    }
+
+                                    midi-visualizer {
+                                        display: block;
+                                        min-width: 100%;
+                                        width: fit-content;
+                                        --background-color: transparent;
                                         --black-key-color:  #1a2540;
                                         --white-key-color:  #0f1a30;
                                         --note-color:       #5865f2;
@@ -326,7 +363,7 @@
                                     /* Hoogte van de pianorol beperken */
                                     midi-visualizer svg {
                                         max-height: 220px;
-                                        width: 100%;
+                                        width: 100%; /* laat breedte op basis van MIDI data */
                                     }
 
                                     .badge-warning {
@@ -481,8 +518,46 @@
     {# Loop preview playback engine #}
     <script src="{{ asset('js/midiLoopPlayback.js?v=1') }}" defer></script>
     <script src="{{ asset('js/midiLoopPreview.js?v=1') }}" defer></script>
+    <script src="{{ asset('js/scrollRestore.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Selecteer alle midi-players
+            const players = document.querySelectorAll('midi-player');
+            players.forEach(player => {
+                player.addEventListener('start', () => {
+                    const containerSelector = player.getAttribute('data-visualizer-container');
+                    const container = document.querySelector(containerSelector);
+                    const viz = player.querySelector('midi-visualizer') || document.querySelector(player.getAttribute('visualizer'));
+
+                    if (!container || !viz) return;
+
+                    // Luister naar voortgang om te scrollen
+                    const onTimeUpdate = () => {
+                        if (!player.playing) return;
+                        
+                        const progress = player.currentTime / player.duration;
+                        const scrollWidth = container.scrollWidth - container.clientWidth;
+                        
+                        if (scrollWidth > 0) {
+                            container.scrollTo({
+                                left: scrollWidth * progress,
+                                behavior: 'auto' // auto voor directe sync tijdens playback
+                            });
+                        }
+                    };
+
+                    player.addEventListener('timeupdate', onTimeUpdate);
+                    
+                    // Cleanup als speler stopt
+                    player.addEventListener('stop', () => {
+                        player.removeEventListener('timeupdate', onTimeUpdate);
+                        container.scrollTo({ left: 0, behavior: 'smooth' });
+                    }, { once: true });
+                });
+            });
+        });
 
         function toggleMidiPreview(previewId, btn) {
             const panel = document.getElementById(previewId);
