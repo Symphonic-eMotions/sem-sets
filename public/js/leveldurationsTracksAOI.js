@@ -792,6 +792,117 @@
         }
     }
 
+    function sleep(ms) {
+        return new Promise((resolve) => {
+            window.setTimeout(resolve, ms);
+        });
+    }
+
+    async function waitForCondition(checkFn, options = {}) {
+        const timeoutMs = Number(options.timeoutMs || 2500);
+        const intervalMs = Number(options.intervalMs || 100);
+        const onRetry = typeof options.onRetry === 'function' ? options.onRetry : null;
+        const startedAt = Date.now();
+
+        while ((Date.now() - startedAt) < timeoutMs) {
+            try {
+                if (checkFn()) {
+                    return true;
+                }
+            } catch (_error) {
+                // Ignore transient errors while DOM is still changing.
+            }
+
+            if (onRetry) {
+                onRetry();
+            }
+            await sleep(intervalMs);
+        }
+
+        return false;
+    }
+
+    function getCreateTrackOverlay() {
+        const id = 'create-track-overlay';
+        let overlay = document.getElementById(id);
+        if (overlay) {
+            return overlay;
+        }
+
+        overlay = document.createElement('div');
+        overlay.id = id;
+        overlay.setAttribute('hidden', '');
+        overlay.innerHTML = `
+            <div class="create-track-overlay-backdrop"></div>
+            <div class="create-track-overlay-panel">
+                <div class="create-track-spinner" aria-hidden="true"></div>
+                <div class="create-track-overlay-text">Track wordt aangemaakt…</div>
+            </div>
+        `;
+
+        const style = document.createElement('style');
+        style.textContent = `
+            #${id} {
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            #${id}[hidden] { display: none; }
+            #${id} .create-track-overlay-backdrop {
+                position: absolute;
+                inset: 0;
+                background: rgba(5, 10, 20, 0.56);
+                backdrop-filter: blur(1px);
+            }
+            #${id} .create-track-overlay-panel {
+                position: relative;
+                z-index: 1;
+                display: inline-flex;
+                align-items: center;
+                gap: 10px;
+                padding: 12px 16px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                background: #0f172a;
+                color: #e2e8f0;
+                font-size: 14px;
+                box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+            }
+            #${id} .create-track-spinner {
+                width: 16px;
+                height: 16px;
+                border-radius: 999px;
+                border: 2px solid rgba(226, 232, 240, 0.3);
+                border-top-color: #e2e8f0;
+                animation: create-track-spin 0.8s linear infinite;
+            }
+            @keyframes create-track-spin {
+                to { transform: rotate(360deg); }
+            }
+        `;
+
+        document.head.appendChild(style);
+        document.body.appendChild(overlay);
+        return overlay;
+    }
+
+    function setCreateTrackBusy(isBusy) {
+        const overlay = getCreateTrackOverlay();
+        if (isBusy) {
+            overlay.removeAttribute('hidden');
+            document.body.style.cursor = 'wait';
+            return;
+        }
+
+        overlay.setAttribute('hidden', '');
+        document.body.style.cursor = '';
+    }
+
+    let createTrackInProgress = false;
+
     function setFirstRegionVelocity(card) {
         const firstPart = card.querySelector('.instrument-part');
         if (!firstPart) return;
@@ -819,6 +930,46 @@
         if (typeof applyRangeForSelect === 'function') {
             applyRangeForSelect(bindingSelect);
         }
+    }
+
+    async function setFirstRegionVelocityAsync(card) {
+        const firstPart = card.querySelector('.instrument-part');
+        if (!firstPart) return false;
+
+        const hiddenBindingInput = firstPart.querySelector('input.js-target-binding-hidden');
+        const bindingSelect = firstPart.querySelector('select.js-target-effect-param');
+        if (!bindingSelect) return false;
+
+        return waitForCondition(() => {
+            if (!bindingSelect.isConnected) return false;
+
+            const hasVelocityOption = !!bindingSelect.querySelector('option[value="seq:velocity"]');
+            if (!hasVelocityOption) return false;
+
+            bindingSelect.dataset.currentId = 'seq:velocity';
+            bindingSelect.value = 'seq:velocity';
+            bindingSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+            if (typeof syncBindingToHidden === 'function') {
+                syncBindingToHidden(bindingSelect);
+            }
+            if (hiddenBindingInput) {
+                hiddenBindingInput.value = 'seq:velocity';
+            }
+            if (typeof applyRangeForSelect === 'function') {
+                applyRangeForSelect(bindingSelect);
+            }
+
+            return bindingSelect.value === 'seq:velocity';
+        }, {
+            timeoutMs: 3200,
+            intervalMs: 120,
+            onRetry: () => {
+                if (typeof refreshTrackPartSelects === 'function') {
+                    refreshTrackPartSelects(card);
+                }
+            },
+        });
     }
 
     function normalizeToken(value) {
@@ -1050,6 +1201,52 @@
         return true;
     }
 
+    async function configureCutoffForPartAsync(partCard, trackCard) {
+        return waitForCondition(() => {
+            if (!partCard || !partCard.isConnected) return false;
+
+            const selectEl = partCard.querySelector('select.js-target-effect-param');
+            if (!selectEl) return false;
+
+            const cutoffOption = findCutoffOption(selectEl);
+            if (!cutoffOption) return false;
+
+            selectEl.dataset.currentId = cutoffOption.value;
+            selectEl.value = cutoffOption.value;
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+            if (typeof syncBindingToHidden === 'function') {
+                syncBindingToHidden(selectEl);
+            }
+            if (typeof applyRangeForSelect === 'function') {
+                applyRangeForSelect(selectEl);
+            }
+
+            setPartRange(partCard, 2200, 20000);
+
+            const hiddenBinding = partCard.querySelector('input.js-target-binding-hidden');
+            const lowHidden = partCard.querySelector('.range-low-hidden');
+            const highHidden = partCard.querySelector('.range-high-hidden');
+
+            if (!hiddenBinding || hiddenBinding.value !== cutoffOption.value) {
+                return false;
+            }
+
+            return !!lowHidden?.value && !!highHidden?.value;
+        }, {
+            timeoutMs: 3600,
+            intervalMs: 140,
+            onRetry: () => {
+                if (typeof refreshTrackPartSelects === 'function') {
+                    refreshTrackPartSelects(trackCard);
+                }
+                if (typeof ensureRangeControlsForTrackCard === 'function') {
+                    ensureRangeControlsForTrackCard(trackCard);
+                }
+            },
+        });
+    }
+
     function addTrackFromPrototype() {
         if (!tracksContainer) return;
 
@@ -1076,37 +1273,50 @@
         btn.closest('.track-card')?.remove();
     };
 
-    window.createTrackFromMidiAsset = function (assetId) {
-        if (!tracksContainer) return;
+    window.createTrackFromMidiAsset = async function (assetId) {
+        if (!tracksContainer || createTrackInProgress) return;
 
-        const trackIndex = parseInt(tracksContainer.dataset.index || '0', 10);
-        const newCard = addTrackFromPrototype();
-        if (!newCard) return;
+        createTrackInProgress = true;
+        setCreateTrackBusy(true);
 
-        setTrackMidiAsset(newCard, assetId);
-        setTrackLevelsActive(newCard, trackIndex);
-        setTrackExsPreset(newCard, 'Celesta');
-        setTrackVolume(newCard, 0);
-        addLowPassEffectToTrack(newCard, trackIndex);
-        setFirstRegionVelocity(newCard);
+        try {
+            const trackIndex = parseInt(tracksContainer.dataset.index || '0', 10);
+            const newCard = addTrackFromPrototype();
+            if (!newCard) return;
 
-        const secondRegion = addInstrumentPartToTrackCard(newCard, trackIndex);
-        if (secondRegion && secondRegion.partCard) {
-            configureCutoffForPart(secondRegion.partCard);
+            setTrackMidiAsset(newCard, assetId);
+            setTrackLevelsActive(newCard, trackIndex);
+            setTrackExsPreset(newCard, 'Celesta');
+            setTrackVolume(newCard, 0);
+
+            addLowPassEffectToTrack(newCard, trackIndex);
+            await sleep(80);
+
+            await setFirstRegionVelocityAsync(newCard);
+
+            const secondRegion = addInstrumentPartToTrackCard(newCard, trackIndex);
+            if (secondRegion && secondRegion.partCard) {
+                await sleep(80);
+                await configureCutoffForPartAsync(secondRegion.partCard, newCard);
+            }
+
+            // Na effect/regio refreshes velocity op regio 1 opnieuw afdwingen.
+            await setFirstRegionVelocityAsync(newCard);
+            await sleep(40);
+
+            const form = document.getElementById('document-form');
+            if (!form) return;
+
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+                return;
+            }
+
+            form.submit();
+        } finally {
+            setCreateTrackBusy(false);
+            createTrackInProgress = false;
         }
-
-        // Na effect/regio refreshes velocity op regio 1 opnieuw afdwingen.
-        setFirstRegionVelocity(newCard);
-
-        const form = document.getElementById('document-form');
-        if (!form) return;
-
-        if (typeof form.requestSubmit === 'function') {
-            form.requestSubmit();
-            return;
-        }
-
-        form.submit();
     };
 
     // Publieke helper voor de "+ Nieuw instrument part" knop
