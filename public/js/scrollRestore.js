@@ -1,31 +1,114 @@
-/**
- * Scroll Restore Script
- * Onthoudt de scroll-positie bij het verzenden van een formulier
- * en herstelt deze na een herlaadbeurt (PRG pattern).
- */
-document.addEventListener('DOMContentLoaded', function() {
-    const STORAGE_KEY = 'scroll_pos_' + window.location.pathname;
-    const form = document.getElementById('document-form');
+(function () {
+    'use strict';
 
-    // 1. Herstel scroll positie als deze is opgeslagen
-    const savedPos = sessionStorage.getItem(STORAGE_KEY);
-    if (savedPos !== null) {
-        // We gebruiken een kleine timeout om te zorgen dat alle dynamische content
-        // (zoals de levels en tracks) al is gerenderd door de andere scripts.
-        setTimeout(() => {
-            window.scrollTo({
-                top: parseInt(savedPos, 10),
-                behavior: 'smooth'
-            });
-            // Verwijder na herstel om ongewenst scrollen bij handmatige refresh te voorkomen
-            sessionStorage.removeItem(STORAGE_KEY);
-        }, 150);
+    const FORM_ID = 'document-form';
+    const STORAGE_KEY = 'scroll_pos_' + window.location.pathname;
+    const MAX_AGE_MS = 10 * 60 * 1000;
+    const RESTORE_DELAYS_MS = [0, 80, 220, 450];
+
+    function saveScrollPosition() {
+        const payload = {
+            y: window.scrollY || 0,
+            ts: Date.now(),
+        };
+
+        try {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        } catch (_error) {
+            // Ignore storage errors.
+        }
     }
 
-    // 2. Sla positie op bij verzenden van het formulier
-    if (form) {
-        form.addEventListener('submit', function() {
-            sessionStorage.setItem(STORAGE_KEY, window.scrollY);
+    function readScrollPosition() {
+        let raw = null;
+        try {
+            raw = sessionStorage.getItem(STORAGE_KEY);
+        } catch (_error) {
+            return null;
+        }
+
+        if (!raw) {
+            return null;
+        }
+
+        try {
+            const payload = JSON.parse(raw);
+            if (
+                typeof payload !== 'object'
+                || payload === null
+                || typeof payload.y !== 'number'
+                || typeof payload.ts !== 'number'
+            ) {
+                sessionStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
+
+            if ((Date.now() - payload.ts) > MAX_AGE_MS) {
+                sessionStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
+
+            return payload.y;
+        } catch (_error) {
+            sessionStorage.removeItem(STORAGE_KEY);
+            return null;
+        }
+    }
+
+    function restoreScrollPosition() {
+        const savedY = readScrollPosition();
+        if (savedY === null) {
+            return;
+        }
+
+        RESTORE_DELAYS_MS.forEach((delayMs, index) => {
+            window.setTimeout(() => {
+                window.scrollTo({
+                    top: savedY,
+                    behavior: 'auto',
+                });
+
+                if (index === RESTORE_DELAYS_MS.length - 1) {
+                    sessionStorage.removeItem(STORAGE_KEY);
+                }
+            }, delayMs);
         });
     }
-});
+
+    function bindFormSubmitHandler() {
+        const form = document.getElementById(FORM_ID);
+        if (!form || form.dataset.scrollRestoreBound === '1') {
+            return;
+        }
+
+        form.dataset.scrollRestoreBound = '1';
+        form.addEventListener('submit', saveScrollPosition);
+    }
+
+    function init() {
+        bindFormSubmitHandler();
+        restoreScrollPosition();
+    }
+
+    // Initial full load
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // Turbo navigations (after PRG redirect)
+    document.addEventListener('turbo:load', init);
+
+    // Fallback for Turbo form submissions in case native submit handlers change.
+    document.addEventListener('turbo:submit-start', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLFormElement)) {
+            return;
+        }
+        if (target.id !== FORM_ID) {
+            return;
+        }
+        saveScrollPosition();
+    });
+})();
