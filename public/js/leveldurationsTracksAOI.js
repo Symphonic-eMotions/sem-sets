@@ -516,8 +516,28 @@
     }
 
     // Helper: maak één InstrumentPart DOM-structuur vanuit het Symfony prototype
+    function remapInstrumentPartFieldIdentity(field, pIndex) {
+        if (!field) return;
+
+        if (typeof field.name === 'string' && field.name !== '') {
+            field.name = field.name.replace(
+                /(\[instrumentParts]\[)(?:__name__|__part__|\d+)(\])/,
+                '$1' + pIndex + '$2'
+            );
+        }
+
+        if (typeof field.id === 'string' && field.id !== '') {
+            field.id = field.id.replace(
+                /(_instrumentParts_)(?:__name__|__part__|\d+)(_)/,
+                '$1' + pIndex + '$2'
+            );
+        }
+    }
+
     function createInstrumentPart(partsContainer, trackIdx, pIndex) {
-        const proto = partsContainer.dataset.prototype?.replace(/__name__/g, pIndex);
+        const proto = partsContainer.dataset.prototype
+            ?.replace(/__part__/g, pIndex)
+            .replace(/__name__/g, pIndex);
         if (!proto) return null;
 
         const tmp = document.createElement('div');
@@ -529,10 +549,24 @@
         const targetField = tmp.querySelector('[name$="[targetBinding]"]') || (areaField && areaField.nextElementSibling) || null;
         const rangeLowField  = tmp.querySelector('[name$="[targetRangeLow]"]');
         const rangeHighField = tmp.querySelector('[name$="[targetRangeHigh]"]');
+        const minimalLevelField = tmp.querySelector('[name$="[minimalLevel]"]');
+        const rampSpeedField = tmp.querySelector('[name$="[rampSpeed]"]');
+        const rampSpeedDownField = tmp.querySelector('[name$="[rampSpeedDown]"]');
 
         if (!areaField) {
             return null;
         }
+
+        [
+            areaField,
+            loopsField,
+            targetField,
+            rangeLowField,
+            rangeHighField,
+            minimalLevelField,
+            rampSpeedField,
+            rampSpeedDownField,
+        ].forEach((field) => remapInstrumentPartFieldIdentity(field, pIndex));
 
         const card = document.createElement('div');
         card.className = 'instrument-part';
@@ -568,7 +602,9 @@
                         ` : ''}
                   
                     </div>
-                    <div class="part-effect-target"></div>
+                    <div class="part-effect-target">
+                        <div class="dynamic-part-extra-fields" style="display:none"></div>
+                    </div>
                 </div>`;
 
 
@@ -613,6 +649,24 @@
         if (rangeHighField) {
             rangeHighField.classList.add('range-high-hidden');
             targetContainer.appendChild(rangeHighField);
+        }
+
+        const extraFields = targetContainer.querySelector('.dynamic-part-extra-fields');
+        if (extraFields) {
+            const prepareDynamicNumberField = (field, className, fallbackValue) => {
+                if (!field) return;
+                field.classList.add(className);
+                if (String(field.value || '').trim() === '') {
+                    field.value = String(fallbackValue);
+                }
+                field.removeAttribute('required');
+                field.type = 'hidden';
+                extraFields.appendChild(field);
+            };
+
+            prepareDynamicNumberField(minimalLevelField, 'minimal-level-input', 0.1);
+            prepareDynamicNumberField(rampSpeedField, 'ramp-speed-input', 0.04);
+            prepareDynamicNumberField(rampSpeedDownField, 'ramp-speed-down-input', 0.02);
         }
 
         const select = document.createElement('select');
@@ -747,12 +801,13 @@
             hiddenBindingInput.value = 'seq:velocity';
         }
 
-        if (typeof refreshTrackPartSelects === 'function') {
-            refreshTrackPartSelects(card);
-        }
-
         const bindingSelect = firstPart.querySelector('select.js-target-effect-param');
         if (!bindingSelect) return;
+
+        const hasVelocityOption = !!bindingSelect.querySelector('option[value="seq:velocity"]');
+        if (!hasVelocityOption && typeof refreshTrackPartSelects === 'function') {
+            refreshTrackPartSelects(card);
+        }
 
         bindingSelect.dataset.currentId = 'seq:velocity';
         bindingSelect.value = 'seq:velocity';
@@ -764,6 +819,235 @@
         if (typeof applyRangeForSelect === 'function') {
             applyRangeForSelect(bindingSelect);
         }
+    }
+
+    function normalizeToken(value) {
+        return String(value || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
+    function wirePartSelectBindings(partCard) {
+        partCard.querySelectorAll('select.js-target-effect-param').forEach((sel) => {
+            if (sel.dataset.bindingListenersAttached === '1') {
+                return;
+            }
+            sel.dataset.bindingListenersAttached = '1';
+
+            sel.addEventListener('change', () => {
+                if (typeof syncBindingToHidden === 'function') {
+                    syncBindingToHidden(sel);
+                }
+                if (typeof applyRangeForSelect === 'function') {
+                    applyRangeForSelect(sel);
+                }
+            });
+
+            if (sel.value && typeof applyRangeForSelect === 'function') {
+                applyRangeForSelect(sel);
+            }
+        });
+    }
+
+    function addInstrumentPartToTrackCard(trackCard, fallbackTrackIdx) {
+        const partsContainer = trackCard.querySelector('.instrument-parts');
+        if (!partsContainer) {
+            return null;
+        }
+
+        const idMatch = String(partsContainer.id || '').match(/^parts-(\d+)$/);
+        const resolvedTrackIdx = idMatch ? parseInt(idMatch[1], 10) : fallbackTrackIdx;
+        if (!Number.isInteger(resolvedTrackIdx)) {
+            return null;
+        }
+
+        const pIndex = parseInt(partsContainer.dataset.index || '0', 10);
+        const newPartCard = createInstrumentPart(partsContainer, resolvedTrackIdx, pIndex);
+        if (!newPartCard) {
+            return null;
+        }
+
+        buildAoiTiles(trackCard, resolvedTrackIdx);
+
+        if (typeof refreshTrackPartSelects === 'function') {
+            refreshTrackPartSelects(trackCard);
+        }
+
+        if (typeof ensureRangeControlsForTrackCard === 'function') {
+            ensureRangeControlsForTrackCard(trackCard);
+        }
+
+        wirePartSelectBindings(newPartCard);
+
+        return {
+            partCard: newPartCard,
+            trackIdx: resolvedTrackIdx,
+        };
+    }
+
+    function findLowPassPresetValue(effectSelect) {
+        let bestValue = null;
+        let bestScore = -1;
+
+        Array.from(effectSelect.options || []).forEach((option) => {
+            if (!option.value) return;
+
+            const mapEntry = window.EFFECT_PRESET_MAP?.[option.value] || null;
+            const tokens = [
+                option.textContent,
+                option.label,
+                mapEntry?.effectName,
+                mapEntry?.name,
+            ].map(normalizeToken).filter(Boolean);
+
+            let score = 0;
+            tokens.forEach((token) => {
+                if (token === 'lowpassfilter') score = Math.max(score, 5);
+                else if (token.includes('lowpassfilter')) score = Math.max(score, 4);
+                else if (token.includes('lowpass')) score = Math.max(score, 3);
+                else if (token.includes('low') && token.includes('pass') && token.includes('filter')) score = Math.max(score, 2);
+            });
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestValue = option.value;
+            }
+        });
+
+        return bestScore > 0 ? bestValue : null;
+    }
+
+    function addLowPassEffectToTrack(trackCard, trackIdx) {
+        if (typeof window.addEffect !== 'function') {
+            return false;
+        }
+
+        window.addEffect(trackIdx);
+
+        const effectsContainer = trackCard.querySelector('.effects');
+        if (!effectsContainer) {
+            return false;
+        }
+
+        const effectCards = effectsContainer.querySelectorAll('.effect-card');
+        const newEffectCard = effectCards[effectCards.length - 1];
+        if (!newEffectCard) {
+            return false;
+        }
+
+        const effectSelect = newEffectCard.querySelector('select.effect-select, select[name$="[preset]"]');
+        if (!effectSelect) {
+            return false;
+        }
+
+        const lowPassValue = findLowPassPresetValue(effectSelect);
+        if (!lowPassValue) {
+            return false;
+        }
+
+        effectSelect.value = lowPassValue;
+        effectSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+        if (typeof refreshTrackPartSelects === 'function') {
+            refreshTrackPartSelects(trackCard);
+        }
+        if (typeof ensureRangeControlsForTrackCard === 'function') {
+            ensureRangeControlsForTrackCard(trackCard);
+        }
+
+        return true;
+    }
+
+    function findCutoffOption(selectEl) {
+        let bestOption = null;
+        let bestScore = -1;
+
+        Array.from(selectEl.options || []).forEach((option) => {
+            if (!option.value || !option.value.startsWith('effect:')) {
+                return;
+            }
+
+            const token = normalizeToken(option.textContent || option.label || '');
+            let score = 0;
+            if (token === 'cutofffrequency') score = 5;
+            else if (token.includes('cutofffrequency')) score = 4;
+            else if (token.includes('cutoff') && (token.includes('freq') || token.includes('frequency'))) score = 3;
+            else if (token.includes('cutoff')) score = 2;
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestOption = option;
+            }
+        });
+
+        return bestScore > 0 ? bestOption : null;
+    }
+
+    function setPartRange(partCard, lowValue, highValue) {
+        const target = partCard.querySelector('.part-effect-target');
+        if (!target) return;
+
+        const lowHidden = target.querySelector('.range-low-hidden');
+        const highHidden = target.querySelector('.range-high-hidden');
+        const lowSlider = target.querySelector('.range-low');
+        const highSlider = target.querySelector('.range-high');
+
+        const minVal = parseFloat(target.dataset.rangeMin || '');
+        const maxVal = parseFloat(target.dataset.rangeMax || '');
+
+        let low = Number(lowValue);
+        let high = Number(highValue);
+        if (!Number.isFinite(low) || !Number.isFinite(high)) {
+            return;
+        }
+
+        if (Number.isFinite(minVal) && Number.isFinite(maxVal) && maxVal !== minVal) {
+            low = Math.min(Math.max(low, minVal), maxVal);
+            high = Math.min(Math.max(high, minVal), maxVal);
+        }
+
+        if (low > high) {
+            const tmp = low;
+            low = high;
+            high = tmp;
+        }
+
+        if (lowHidden) lowHidden.value = String(low);
+        if (highHidden) highHidden.value = String(high);
+
+        if (lowSlider && highSlider && Number.isFinite(minVal) && Number.isFinite(maxVal) && maxVal !== minVal) {
+            const toNorm = (v) => (v - minVal) / (maxVal - minVal);
+            lowSlider.value = String(toNorm(low));
+            highSlider.value = String(toNorm(high));
+            lowSlider.dispatchEvent(new Event('input', { bubbles: true }));
+            highSlider.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    function configureCutoffForPart(partCard) {
+        const selectEl = partCard.querySelector('select.js-target-effect-param');
+        if (!selectEl) {
+            return false;
+        }
+
+        const cutoffOption = findCutoffOption(selectEl);
+        if (!cutoffOption) {
+            return false;
+        }
+
+        selectEl.dataset.currentId = cutoffOption.value;
+        selectEl.value = cutoffOption.value;
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+        if (typeof syncBindingToHidden === 'function') {
+            syncBindingToHidden(selectEl);
+        }
+        if (typeof applyRangeForSelect === 'function') {
+            applyRangeForSelect(selectEl);
+        }
+
+        setPartRange(partCard, 2200, 20000);
+        return true;
     }
 
     function addTrackFromPrototype() {
@@ -803,6 +1087,15 @@
         setTrackLevelsActive(newCard, trackIndex);
         setTrackExsPreset(newCard, 'Celesta');
         setTrackVolume(newCard, 0);
+        addLowPassEffectToTrack(newCard, trackIndex);
+        setFirstRegionVelocity(newCard);
+
+        const secondRegion = addInstrumentPartToTrackCard(newCard, trackIndex);
+        if (secondRegion && secondRegion.partCard) {
+            configureCutoffForPart(secondRegion.partCard);
+        }
+
+        // Na effect/regio refreshes velocity op regio 1 opnieuw afdwingen.
         setFirstRegionVelocity(newCard);
 
         const form = document.getElementById('document-form');
@@ -825,43 +1118,7 @@
         const card = cards[trackIdx];
         if (!card) return;
 
-        const partsContainer = card.querySelector('#parts-' + trackIdx);
-        if (!partsContainer) return;
-
-        const pIndex = parseInt(partsContainer.dataset.index || '0', 10);
-        const newCard = createInstrumentPart(partsContainer, trackIdx, pIndex);
-        if (!newCard) return;
-
-        const trackCard = card;
-
-        // AOI-tiles opnieuw opbouwen voor deze track
-        buildAoiTiles(trackCard, trackIdx);
-
-        // Effect-parameter-selecten updaten
-        if (typeof refreshTrackPartSelects === 'function') {
-            refreshTrackPartSelects(trackCard);
-        }
-
-        // Sliders onder de select toevoegen
-        if (typeof ensureRangeControlsForTrackCard === 'function') {
-            ensureRangeControlsForTrackCard(trackCard);
-        }
-
-        // select → hidden sync + range
-        newCard.querySelectorAll('select.js-target-effect-param').forEach(sel => {
-            sel.addEventListener('change', () => {
-                if (typeof syncBindingToHidden === 'function') {
-                    syncBindingToHidden(sel);
-                }
-                if (typeof applyRangeForSelect === 'function') {
-                    applyRangeForSelect(sel);
-                }
-            });
-
-            if (sel.value && typeof applyRangeForSelect === 'function') {
-                applyRangeForSelect(sel);
-            }
-        });
+        addInstrumentPartToTrackCard(card, trackIdx);
     };
 
     // ---------- INIT ----------
@@ -909,6 +1166,24 @@
             document
                 .querySelectorAll('.ld-hidden')
                 .forEach(h => LD._stripRequired(h));
+
+            // Dynamisch aangemaakte InstrumentPart velden kunnen hidden zijn.
+            // Zorg dat browser-validatie submit niet blokkeert.
+            document.querySelectorAll('.dynamic-part-extra-fields input').forEach((input) => {
+                input.removeAttribute('required');
+
+                if (String(input.value || '').trim() !== '') {
+                    return;
+                }
+
+                if (input.classList.contains('minimal-level-input')) {
+                    input.value = '0.1';
+                } else if (input.classList.contains('ramp-speed-input')) {
+                    input.value = '0.04';
+                } else if (input.classList.contains('ramp-speed-down-input')) {
+                    input.value = '0.02';
+                }
+            });
         });
     }
 
