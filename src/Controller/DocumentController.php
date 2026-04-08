@@ -543,8 +543,9 @@ final class DocumentController extends AbstractController
                 continue;
             }
 
-            $tmpPath = $assets->createLocalTempFile($asset);
+            $tmpPath = null;
             try {
+                $tmpPath = $assets->createLocalTempFile($asset);
                 $summary = $midiAnalyzer->summarize($tmpPath);
                 $midiInfo[$track->getTrackId()] = [
                     'bpm' => $summary->bpm,
@@ -555,10 +556,14 @@ final class DocumentController extends AbstractController
                     'duration' => $summary->getDurationFormatted(),
                     'rawSeconds' => $summary->durationSeconds,
                 ];
-            } catch (Throwable $e) {
+            } catch (\RuntimeException $e) {
+                $midiInfo[$track->getTrackId()] = ['missing' => $asset->getStoragePath()];
+            } catch (\Throwable $e) {
                 $midiInfo[$track->getTrackId()] = ['error' => $e->getMessage()];
             } finally {
-                @unlink($tmpPath);
+                if ($tmpPath !== null) {
+                    @unlink($tmpPath);
+                }
             }
         }
 
@@ -574,14 +579,18 @@ final class DocumentController extends AbstractController
                 continue;
             }
 
-            $tmpPath = $assets->createLocalTempFile($a);
-
+            $tmpPath = null;
             try {
+                $tmpPath = $assets->createLocalTempFile($a);
                 $midiSummariesByAssetId[$a->getId()] = $midiAnalyzer->summarize($tmpPath);
-            } catch (Throwable $e) {
+            } catch (\RuntimeException $e) {
+                // Bestand staat niet (meer) in storage — sla deze asset over.
+            } catch (\Throwable $e) {
                 $midiSummariesByAssetId[$a->getId()] = ['error' => $e->getMessage()];
             } finally {
-                @unlink($tmpPath);
+                if ($tmpPath !== null) {
+                    @unlink($tmpPath);
+                }
             }
         }
 
@@ -784,7 +793,7 @@ final class DocumentController extends AbstractController
             $this->addFlash('danger', 'Verwijderen mislukt: ' . $e->getMessage());
         }
 
-        return $this->redirectToRoute('doc_edit', ['id' => $doc->getId()]);
+        return $this->redirectToRoute('doc_edit', ['id' => $doc->getId(), 'open' => 'page-collapsible-assets']);
     }
 
     #[Route('documents/{id}/assets/{assetId}/rename', name: 'doc_asset_rename', methods: ['POST'])]

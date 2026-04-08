@@ -124,7 +124,11 @@
             {% set timeSig   = info.timeSig ?? '4/4' %}
 
             {% if info %}
-                {% if info.error is defined %}
+                {% if info.missing is defined %}
+                    <p class="warning" style="margin-top:6px">
+                        Bestand niet gevonden in opslag: <code>{{ info.missing }}</code>. Selecteer een ander bestand of upload het opnieuw.
+                    </p>
+                {% elseif info.error is defined %}
                     <p class="danger" style="margin-top:6px">
                         Kan MIDI analyseren: {{ info.error }}
                     </p>

@@ -98,9 +98,33 @@
         form.addEventListener('submit', saveState);
     }
 
+    /**
+     * Opent een specifieke <details> op basis van een ?open= query-parameter in de URL,
+     * en verwijdert daarna de parameter uit de adresbalk zonder een nieuwe history-entry.
+     */
+    function openFromUrlParam() {
+        const params = new URLSearchParams(window.location.search);
+        const key    = params.get('open');
+        if (!key) {
+            return;
+        }
+
+        document.querySelectorAll('details').forEach(details => {
+            if (keyFor(details) === key) {
+                details.open = true;
+            }
+        });
+
+        params.delete('open');
+        const newSearch = params.toString();
+        const cleanUrl  = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash;
+        history.replaceState(null, '', cleanUrl);
+    }
+
     function init() {
         bindFormSubmitHandler();
         restoreState();
+        openFromUrlParam();
     }
 
     if (document.readyState === 'loading') {
