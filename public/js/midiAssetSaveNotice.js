@@ -57,6 +57,28 @@
     });
 })();
 
+function savePendingCollapsibleAction(payload) {
+    const api = window.SemSetCollapsibleRestore;
+    if (api && typeof api.saveAction === 'function') {
+        api.saveAction(payload);
+        return;
+    }
+
+    const key = 'collapsible_action_' + window.location.pathname;
+    const action = {
+        keys: Array.isArray(payload?.keys) ? payload.keys : [],
+        focusLastTrack: payload?.focusLastTrack === true,
+        openAllInFocusedTrack: payload?.openAllInFocusedTrack === true,
+        ts: Date.now(),
+    };
+
+    try {
+        sessionStorage.setItem(key, JSON.stringify(action));
+    } catch (_error) {
+        // Ignore storage errors.
+    }
+}
+
 async function splitTracks(url, csrf) {
     try {
         const body = new URLSearchParams({ csrf });
@@ -72,7 +94,11 @@ async function splitTracks(url, csrf) {
             return;
         }
 
-        // Simpel: reload zodat nieuwe assets in de lijst staan
+        savePendingCollapsibleAction({
+            keys: ['page-collapsible-assets'],
+        });
+
+        // Reload zodat nieuwe assets in de lijst staan
         location.reload();
     } catch (e) {
         alert('Split mislukt: ' + e);
@@ -99,6 +125,10 @@ async function staggerNotes(url, csrf) {
             alert(data.error || 'Stagger mislukt');
             return;
         }
+
+        savePendingCollapsibleAction({
+            keys: ['page-collapsible-assets'],
+        });
 
         // Reload zodat het nieuwe bestand in de lijst staat
         location.reload();

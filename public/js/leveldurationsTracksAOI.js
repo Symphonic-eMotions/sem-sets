@@ -928,6 +928,28 @@
         document.body.style.cursor = '';
     }
 
+    function savePendingCollapsibleAction(payload) {
+        const api = window.SemSetCollapsibleRestore;
+        if (api && typeof api.saveAction === 'function') {
+            api.saveAction(payload);
+            return;
+        }
+
+        const key = 'collapsible_action_' + window.location.pathname;
+        const action = {
+            keys: Array.isArray(payload?.keys) ? payload.keys : [],
+            focusLastTrack: payload?.focusLastTrack === true,
+            openAllInFocusedTrack: payload?.openAllInFocusedTrack === true,
+            ts: Date.now(),
+        };
+
+        try {
+            sessionStorage.setItem(key, JSON.stringify(action));
+        } catch (_error) {
+            // Ignore storage errors.
+        }
+    }
+
     let createTrackInProgress = false;
 
     function setFirstRegionVelocity(card) {
@@ -1333,6 +1355,12 @@
 
             const form = document.getElementById('document-form');
             if (!form) return;
+
+            savePendingCollapsibleAction({
+                keys: ['page-collapsible-tracks'],
+                focusLastTrack: true,
+                openAllInFocusedTrack: true,
+            });
 
             if (typeof form.requestSubmit === 'function') {
                 form.requestSubmit();
