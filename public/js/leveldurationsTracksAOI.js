@@ -701,6 +701,71 @@
         }
     }
 
+    function setTrackMidiAsset(card, assetId) {
+        const midiSelect = card.querySelector('select[name$="[midiAsset]"]');
+        if (!midiSelect) return;
+        midiSelect.value = String(assetId);
+    }
+
+    function setTrackLevelsActive(card, idx) {
+        const hidden = card.querySelector('#trk-hidden-' + idx);
+        const tiles = card.querySelector('#trk-tiles-' + idx);
+        if (!hidden || !tiles) return;
+
+        hidden.querySelectorAll('.ld-item input').forEach((input) => {
+            input.value = '1';
+        });
+
+        LD._rebuild('#' + hidden.id, '#' + tiles.id);
+    }
+
+    function setTrackExsPreset(card, presetName) {
+        const exsSelect = card.querySelector('select[name$="[exsPreset]"]');
+        if (!exsSelect) return;
+
+        const hasOption = Array.from(exsSelect.options).some((option) => option.value === presetName);
+        exsSelect.value = hasOption ? presetName : '';
+    }
+
+    function setTrackVolume(card, value) {
+        const volumeInput = card.querySelector('input[name$="[trackVolume]"]');
+        if (!volumeInput) return;
+
+        volumeInput.value = String(value);
+
+        if (typeof window.syncTrackVolumeDisplays === 'function') {
+            window.syncTrackVolumeDisplays(card);
+        }
+    }
+
+    function setFirstRegionVelocity(card) {
+        const firstPart = card.querySelector('.instrument-part');
+        if (!firstPart) return;
+
+        const hiddenBindingInput = firstPart.querySelector('input.js-target-binding-hidden');
+        if (hiddenBindingInput) {
+            hiddenBindingInput.value = 'seq:velocity';
+        }
+
+        if (typeof refreshTrackPartSelects === 'function') {
+            refreshTrackPartSelects(card);
+        }
+
+        const bindingSelect = firstPart.querySelector('select.js-target-effect-param');
+        if (!bindingSelect) return;
+
+        bindingSelect.dataset.currentId = 'seq:velocity';
+        bindingSelect.value = 'seq:velocity';
+
+        if (typeof syncBindingToHidden === 'function') {
+            syncBindingToHidden(bindingSelect);
+        }
+
+        if (typeof applyRangeForSelect === 'function') {
+            applyRangeForSelect(bindingSelect);
+        }
+    }
+
     function addTrackFromPrototype() {
         if (!tracksContainer) return;
 
@@ -714,15 +779,41 @@
         const wrapper = document.createElement('div');
         wrapper.innerHTML = html;
         const card = wrapper.firstElementChild;
+        if (!card) return null;
 
         tracksContainer.appendChild(card);
         tracksContainer.dataset.index = String(index + 1);
 
         wireNewTrackCard(card, index);
+        return card;
     }
 
     window.removeTrack = function(btn) {
         btn.closest('.track-card')?.remove();
+    };
+
+    window.createTrackFromMidiAsset = function (assetId) {
+        if (!tracksContainer) return;
+
+        const trackIndex = parseInt(tracksContainer.dataset.index || '0', 10);
+        const newCard = addTrackFromPrototype();
+        if (!newCard) return;
+
+        setTrackMidiAsset(newCard, assetId);
+        setTrackLevelsActive(newCard, trackIndex);
+        setTrackExsPreset(newCard, 'Celesta');
+        setTrackVolume(newCard, 0);
+        setFirstRegionVelocity(newCard);
+
+        const form = document.getElementById('document-form');
+        if (!form) return;
+
+        if (typeof form.requestSubmit === 'function') {
+            form.requestSubmit();
+            return;
+        }
+
+        form.submit();
     };
 
     // Publieke helper voor de "+ Nieuw instrument part" knop

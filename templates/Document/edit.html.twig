@@ -147,27 +147,36 @@
                                             title="Preview en piano roll"
                                     >▶ Preview</button>
 
-                                    {# 2. Stagger notes button (conditional) #}
-                                    {% if summary and not summaryError and summary.simultaneousNoteCount > 0 %}
-                                        <button
-                                                type="button"
-                                                class="btn-mini warning"
-                                                data-url="{{ path('doc_asset_stagger_notes', { id: document.id, assetId: a.id }) }}"
-                                                data-csrf="{{ csrf_token('stagger-notes-' ~ a.id) }}"
-                                                onclick="staggerNotes(this.dataset.url, this.dataset.csrf)"
-                                                title="Verschuif gelijktijdige noten elk 1 tick naar achteren"
-                                        >Stagger noten</button>
-                                    {% endif %}
+                                    {% if summary and not summaryError %}
+                                        {% if summary.simultaneousNoteCount > 0 %}
+                                            <button
+                                                    type="button"
+                                                    class="btn-mini warning"
+                                                    data-url="{{ path('doc_asset_stagger_notes', { id: document.id, assetId: a.id }) }}"
+                                                    data-csrf="{{ csrf_token('stagger-notes-' ~ a.id) }}"
+                                                    onclick="staggerNotes(this.dataset.url, this.dataset.csrf)"
+                                                    title="Verschuif gelijktijdige noten elk 1 tick naar achteren"
+                                            >Stagger noten</button>
+                                        {% endif %}
 
-                                    {# 3. Split tracks button (conditional) #}
-                                    {% if (not isChild) and summary and not summaryError and summary.trackCount > 1 %}
-                                        <button
-                                                type="button"
-                                                class="btn-mini"
-                                                data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
-                                                data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
-                                                onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
-                                        >Split tracks</button>
+                                        {% if summary.trackCount > 1 %}
+                                            <button
+                                                    type="button"
+                                                    class="btn-mini"
+                                                    data-url="{{ path('doc_asset_split_tracks', { id: document.id, assetId: a.id }) }}"
+                                                    data-csrf="{{ csrf_token('split-tracks-' ~ a.id) }}"
+                                                    onclick="splitTracks(this.dataset.url, this.dataset.csrf)"
+                                            >Split tracks</button>
+                                        {% endif %}
+
+                                        {% if summary.trackCount == 1 and summary.simultaneousNoteCount == 0 %}
+                                            <button
+                                                    type="button"
+                                                    class="btn-mini"
+                                                    onclick="createTrackFromMidiAsset({{ a.id }})"
+                                                    title="Maak direct een nieuwe track op basis van dit MIDI-bestand"
+                                            >Create track</button>
+                                        {% endif %}
                                     {% endif %}
 
                                     {# Error message (if any) #}
@@ -509,7 +518,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@1"></script>
 
     <script src="{{ asset('js/semLoopConfig.js?v=1') }}"></script>
-    <script src="{{ asset('js/leveldurationsTracksAOI.js?v=1') }}" defer></script>
+    <script src="{{ asset('js/leveldurationsTracksAOI.js?v=2') }}" defer></script>
     <script src="{{ asset('js/trackVolume.js?v=1') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js?v=1') }}" defer></script>
     <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
