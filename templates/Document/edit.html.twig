@@ -12,7 +12,7 @@
             {{ form_start(form, { attr: { id: 'document-form', enctype: 'multipart/form-data' } }) }}
 
             {# --- Set gegevens (Titel / Grid / BPM) --- #}
-            <details class="page-collapsible page-collapsible-settings" open>
+            <details class="page-collapsible page-collapsible-settings">
                 <summary class="page-collapsible-summary">Set settings & levels</summary>
                 <div class="page-collapsible-body">
             <div class="section header-settings">
@@ -65,7 +65,7 @@
             </details>
 
             {# --- Assets --- #}
-            <details class="page-collapsible page-collapsible-assets" open>
+            <details class="page-collapsible page-collapsible-assets">
                 <summary class="page-collapsible-summary">MIDI bestanden (upload + overzicht)</summary>
                 <div class="page-collapsible-body">
             <div class="section midi-assets-section">
@@ -430,7 +430,7 @@
             </details>
 
             {# --- Tracks (DocumentTrack) --- #}
-            <details class="page-collapsible page-collapsible-tracks" open>
+            <details class="page-collapsible page-collapsible-tracks">
                 <summary class="page-collapsible-summary">Tracks</summary>
                 <div class="page-collapsible-body">
             <div class="section tracks-section">
@@ -536,6 +536,7 @@
     <script src="{{ asset('js/midiLoopPlayback.js?v=1') }}" defer></script>
     <script src="{{ asset('js/midiLoopPreview.js?v=1') }}" defer></script>
     <script src="{{ asset('js/scrollRestore.js?v=2') }}" defer></script>
+    <script src="{{ asset('js/collapsibleRestore.js?v=1') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
 

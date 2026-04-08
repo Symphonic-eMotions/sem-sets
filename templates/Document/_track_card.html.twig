@@ -71,7 +71,7 @@
     {# Hidden trackId #}
     {{ form_widget(trackForm.trackId) }}
 
-    <details class="track-panel-collapsible" open>
+    <details class="track-panel-collapsible">
         <summary class="track-panel-summary">
             <span class="track-panel-summary-title">Track {{ num }}</span>
             <span class="track-panel-summary-midi js-track-summary-midi">{{ trackMidiSummary }}</span>
@@ -129,7 +129,7 @@
                         Kan MIDI analyseren: {{ info.error }}
                     </p>
                 {% else %}
-                    <details class="track-collapsible track-collapsible-loops" open>
+                    <details class="track-collapsible track-collapsible-loops">
                         <summary class="track-collapsible-summary">Maten & loops</summary>
                         <div class="track-collapsible-body">
                             <div class="midi-header">
@@ -207,7 +207,7 @@
             {% endif %}
         </div>
 
-        <details class="track-collapsible track-collapsible-voicing" open>
+        <details class="track-collapsible track-collapsible-voicing">
             <summary class="track-collapsible-summary">Volume & presets</summary>
             <div class="track-collapsible-body">
                 <div class="subsection">
@@ -239,7 +239,7 @@
             </div>
         </details>
 
-        <details class="track-collapsible track-collapsible-effects" open>
+        <details class="track-collapsible track-collapsible-effects">
             <summary class="track-collapsible-summary">Effecten</summary>
             <div class="track-collapsible-body">
                 <div class="subsection effects-panel">
@@ -282,7 +282,7 @@
             </div>
         </details>
 
-        <details class="track-collapsible track-collapsible-regions" open>
+        <details class="track-collapsible track-collapsible-regions">
             <summary class="track-collapsible-summary">Regio's</summary>
             <div class="track-collapsible-body">
                 <div class="subsection instrument-parts-panel">

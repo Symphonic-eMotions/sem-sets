@@ -390,20 +390,7 @@
     .tracks { display: grid; gap: 12px; margin-top: 12px;}
     /* ======== Tracks ======== */
     /* ======== Tracks ======== */
-    .track-card {
-        /* A visible “track slab” from top to bottom */
-        background:
-            /* soft top glow */
-                radial-gradient(1100px 380px at 12% 0%, rgba(88, 101, 242, 0.28), transparent 58%),
-                    /* subtle wash through the whole card (this is the missing bit) */
-                linear-gradient(180deg, rgba(88, 101, 242, 0.10), rgba(88, 101, 242, 0.04)),
-                    /* base */
-                linear-gradient(180deg, #0f182bcc, #0f182bf2);
-
-        border: 1px solid #1f2937;
-        border-radius: 12px;
-        padding: 16px;
-    }
+    .track-card {}
 
     /* === Instrument Parts UI === */
     .instrument-part {
@@ -506,10 +493,12 @@
 
     /* ======== Track Panel Collapsible ======== */
     .track-panel-collapsible {
-        margin-top: 10px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        border-radius: 10px;
-        background: rgba(7, 12, 25, 0.32);
+        background:
+            radial-gradient(1100px 380px at 12% 0%, rgba(88, 101, 242, 0.28), transparent 58%),
+            linear-gradient(180deg, rgba(88, 101, 242, 0.10), rgba(88, 101, 242, 0.04)),
+            linear-gradient(180deg, #0f182bcc, #0f182bf2);
+        border: 1px solid #1f2937;
+        border-radius: 12px;
         overflow: hidden;
     }
     .track-panel-summary {
@@ -558,6 +547,10 @@
     }
     .track-panel-body > .grid {
         margin-top: 0;
+        gap: 8px;
+    }
+    .track-panel-body .grid-2 {
+        gap: 8px;
     }
 
     /* ======== Compact Track Collapsibles ======== */
