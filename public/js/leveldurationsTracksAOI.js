@@ -759,6 +759,31 @@
         const midiSelect = card.querySelector('select[name$="[midiAsset]"]');
         if (!midiSelect) return;
         midiSelect.value = String(assetId);
+        syncTrackSummaryMidiLabel(card);
+    }
+
+    function getTrackMidiLabel(card) {
+        const midiSelect = card.querySelector('select.js-midi-select');
+        if (!midiSelect) {
+            return 'geen MIDI geselecteerd';
+        }
+
+        if (!midiSelect.value) {
+            return 'geen MIDI geselecteerd';
+        }
+
+        const selected = midiSelect.options[midiSelect.selectedIndex];
+        const label = selected ? String(selected.textContent || '').trim() : '';
+        return label || 'geen MIDI geselecteerd';
+    }
+
+    function syncTrackSummaryMidiLabel(card) {
+        const summaryLabel = card.querySelector('.js-track-summary-midi');
+        if (!summaryLabel) return;
+
+        const label = getTrackMidiLabel(card);
+        summaryLabel.textContent = label;
+        summaryLabel.title = label;
     }
 
     function setTrackLevelsActive(card, idx) {
@@ -790,6 +815,8 @@
         if (typeof window.syncTrackVolumeDisplays === 'function') {
             window.syncTrackVolumeDisplays(card);
         }
+
+        syncTrackSummaryMidiLabel(card);
     }
 
     function sleep(ms) {
@@ -1369,6 +1396,45 @@
 
     document.getElementById('add-track')
         ?.addEventListener('click', addTrackFromPrototype);
+
+    document.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLSelectElement)) {
+            return;
+        }
+        if (!target.classList.contains('js-midi-select')) {
+            return;
+        }
+
+        const card = target.closest('.track-card');
+        if (!card) {
+            return;
+        }
+
+        syncTrackSummaryMidiLabel(card);
+    });
+
+    document.addEventListener('asset:renamed', (event) => {
+        const detail = event && event.detail ? event.detail : {};
+        const renamedAssetId = detail.assetId ? String(detail.assetId) : '';
+
+        if (!renamedAssetId) {
+            return;
+        }
+
+        document.querySelectorAll('#tracks .track-card').forEach((card) => {
+            const midiSelect = card.querySelector('select.js-midi-select');
+            if (!midiSelect) {
+                return;
+            }
+
+            if (String(midiSelect.value || '') !== renamedAssetId) {
+                return;
+            }
+
+            syncTrackSummaryMidiLabel(card);
+        });
+    });
 
     const form = document.querySelector('form');
     if (form) {

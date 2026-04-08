@@ -1,4 +1,24 @@
 (function () {
+    function updateMidiSelectOptionLabels(assetId, newName) {
+        const normalizedAssetId = String(assetId);
+        document.querySelectorAll('select.js-midi-select').forEach((selectEl) => {
+            Array.from(selectEl.options).forEach((option) => {
+                if (String(option.value) === normalizedAssetId) {
+                    option.textContent = newName;
+                }
+            });
+        });
+    }
+
+    function dispatchAssetRenamedEvent(assetId, newName) {
+        document.dispatchEvent(new CustomEvent('asset:renamed', {
+            detail: {
+                assetId: String(assetId),
+                newName: String(newName || '')
+            }
+        }));
+    }
+
     // Toggle between display and edit mode
     window.toggleAssetRename = function (assetId) {
         const editContainer = document.getElementById('chip-edit-' + assetId);
@@ -71,6 +91,14 @@
                         const prefix = displaySpan.innerHTML.match(/^(.*?↳.*?<\/span>)/);
                         displaySpan.innerHTML = (prefix ? prefix[0] : '') + newName;
                     }
+
+                    // Keep input baseline in sync for future cancel actions
+                    input.setAttribute('value', newName);
+                    input.value = newName;
+
+                    // Keep all track MIDI selects in sync with the mutable display name
+                    updateMidiSelectOptionLabels(assetId, newName);
+                    dispatchAssetRenamedEvent(assetId, newName);
 
                     // Close edit mode
                     cancelAssetRename(assetId);

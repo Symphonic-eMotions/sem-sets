@@ -12,6 +12,9 @@
             {{ form_start(form, { attr: { id: 'document-form', enctype: 'multipart/form-data' } }) }}
 
             {# --- Set gegevens (Titel / Grid / BPM) --- #}
+            <details class="page-collapsible page-collapsible-settings" open>
+                <summary class="page-collapsible-summary">Set settings & levels</summary>
+                <div class="page-collapsible-body">
             <div class="section header-settings">
                 <div class="header-settings-grid">
                     <div class="header-main">
@@ -58,8 +61,13 @@
                     </div>
                 </div>
             </div>
+                </div>
+            </details>
 
             {# --- Assets --- #}
+            <details class="page-collapsible page-collapsible-assets" open>
+                <summary class="page-collapsible-summary">MIDI bestanden (upload + overzicht)</summary>
+                <div class="page-collapsible-body">
             <div class="section midi-assets-section">
                 <div class="section-header-row">
                     <h2 class="section-title">MIDI Bestanden</h2>
@@ -418,8 +426,13 @@
                     </div>
                 </div>
             </div>
+                </div>
+            </details>
 
             {# --- Tracks (DocumentTrack) --- #}
+            <details class="page-collapsible page-collapsible-tracks" open>
+                <summary class="page-collapsible-summary">Tracks</summary>
+                <div class="page-collapsible-body">
             <div class="section tracks-section">
                 <div class="section-header-row">
                     <h2 class="section-title">Tracks in deze set</h2>
@@ -460,6 +473,8 @@
                     {% endfor %}
                 </div>
             </div>
+                </div>
+            </details>
 
             {# Markeer custom gerenderde velden #}
             {% do form.tracks.setRendered %}
@@ -518,11 +533,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@1"></script>
 
     <script src="{{ asset('js/semLoopConfig.js?v=1') }}"></script>
-    <script src="{{ asset('js/leveldurationsTracksAOI.js?v=7') }}" defer></script>
+    <script src="{{ asset('js/leveldurationsTracksAOI.js?v=9') }}" defer></script>
     <script src="{{ asset('js/trackVolume.js?v=1') }}" defer></script>
     <script src="{{ asset('js/loopLengthEditor.js?v=1') }}" defer></script>
     <script src="{{ asset('js/midiAssetSaveNotice.js?v=3') }}" defer></script>
-    <script src="{{ asset('js/assetRename.js?v=1') }}" defer></script>
+    <script src="{{ asset('js/assetRename.js?v=2') }}" defer></script>
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
     {# Loop preview playback engine #}
     <script src="{{ asset('js/midiLoopPlayback.js?v=1') }}" defer></script>

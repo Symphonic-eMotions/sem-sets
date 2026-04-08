@@ -7,6 +7,14 @@
 #}
 
 {% set trackEntity = trackForm.vars.data %}
+{% set trackMidiSummary = 'geen MIDI geselecteerd' %}
+{% if trackForm.midiAsset.vars.choices is defined and trackForm.midiAsset.vars.value is not empty %}
+    {% for midiChoice in trackForm.midiAsset.vars.choices %}
+        {% if midiChoice.value == trackForm.midiAsset.vars.value %}
+            {% set trackMidiSummary = midiChoice.label %}
+        {% endif %}
+    {% endfor %}
+{% endif %}
 
 {# Bouw effectsData alleen voor echte tracks (geen prototype) #}
 {% set effectsData = [] %}
@@ -60,16 +68,15 @@
 
 <div class="track-card"
      data-effects='{{ effectsData|json_encode|e("html_attr") }}'>
-    <div class="track-head">
-        <div class="track-title">Track {{ num }}</div>
-        <div class="track-actions">
-            <button type="button" class="btn-mini danger" onclick="removeTrack(this)">Verwijder</button>
-        </div>
-    </div>
-
     {# Hidden trackId #}
     {{ form_widget(trackForm.trackId) }}
 
+    <details class="track-panel-collapsible" open>
+        <summary class="track-panel-summary">
+            <span class="track-panel-summary-title">Track {{ num }}</span>
+            <span class="track-panel-summary-midi js-track-summary-midi">{{ trackMidiSummary }}</span>
+        </summary>
+        <div class="track-panel-body">
     <div class="grid">
         <div class="grid grid-2">
             <div class="subsection">
@@ -225,7 +232,7 @@
                     </div>
 
                     <div class="subsection">
-                        <label class="label">Tone.js preview preset</label>
+                        <label class="label">Tone.js voor loop preview preset</label>
                         {{ form_widget(trackForm.tonePreset) }}
                     </div>
                 </div>
@@ -406,5 +413,11 @@
             </div>
         </details>
 
+        <div class="track-actions track-footer-actions">
+            <button type="button" class="btn-mini danger" onclick="removeTrack(this)">Verwijder gehele track, direct and no undo</button>
+        </div>
+
     </div>
+        </div>
+    </details>
 </div>

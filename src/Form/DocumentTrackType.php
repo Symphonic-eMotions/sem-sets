@@ -118,7 +118,7 @@ final class DocumentTrackType extends AbstractType
         ])
 
         ->add('tonePreset', ChoiceType::class, [
-            'label'       => 'Tone.js preview preset',
+            'label'       => 'Tone.js voor loop preview preset',
             'required'    => false,
             'placeholder' => '— Standaard (Plucky) —',
             'choices'     => array_combine(
