@@ -434,13 +434,6 @@
                 <summary class="page-collapsible-summary">Tracks</summary>
                 <div class="page-collapsible-body">
             <div class="section tracks-section">
-                <div class="section-header-row">
-                    <h2 class="section-title">Tracks in deze set</h2>
-                    <div class="tracks-control">
-                        <button type="button" class="btn" id="add-track">+ Track toevoegen</button>
-                    </div>
-                </div>
-
                 {# 1) Prototype track-kaart #}
                 {% set track_proto %}
                     {% include 'Document/_track_card.html.twig' with {
@@ -469,7 +462,7 @@
                             document:    document
                         } only %}
                     {% else %}
-                        <p class="subtle">Nog geen tracks. Voeg er één toe.</p>
+                        <p class="subtle">Nog geen tracks.</p>
                     {% endfor %}
                 </div>
             </div>
