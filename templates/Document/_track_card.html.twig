@@ -122,303 +122,289 @@
                         Kan MIDI analyseren: {{ info.error }}
                     </p>
                 {% else %}
+                    <details class="track-collapsible track-collapsible-loops" open>
+                        <summary class="track-collapsible-summary">Maten & loops</summary>
+                        <div class="track-collapsible-body">
+                            <div class="midi-header">
+                                <div class="midi-context">
+                                    <div class="midi-timesig">
+                                        <span class="midi-context-label">Maatsoort</span>
+                                        <strong class="midi-context-value">{{ info.timeSig }}</strong>
+                                    </div>
+                                    <div class="midi-bars">
+                                        <span class="midi-context-label">Totaal</span>
+                                        <strong class="midi-context-value">{{ info.bars }} maten</strong>
+                                    </div>
+                                </div>
 
-                    {# === Header rij: context links, meta rechts === #}
-                    <div class="midi-header">
-                        <div class="midi-context">
-                            <div class="midi-timesig">
-                                <span class="midi-context-label">Maatsoort</span>
-                                <strong class="midi-context-value">{{ info.timeSig }}</strong>
-                            </div>
-                            <div class="midi-bars">
-                                <span class="midi-context-label">Totaal</span>
-                                <strong class="midi-context-value">{{ info.bars }} maten</strong>
-                            </div>
-                        </div>
-
-                        <div class="midi-meta">
-                            <span>⏱ {{ info.duration }}</span>
-                            <span>• ♩ {{ info.bpm }} BPM</span>
-                        </div>
-                    </div>
-
-                    {# === Ritme & loop editor: coherent blok === #}
-                    <div
-                            class="midi-rhythm-card loop-editor js-loop-editor"
-                            data-total-bars="{{ totalBars }}"
-                            data-timesig="{{ timeSig }}"
-                            data-input-id="{{ trackForm.loopLength.vars.id }}"
-                            data-midi-asset-id="{{ trackEntity.midiAsset ? trackEntity.midiAsset.id : '' }}"
-                            data-document-id="{{ document.id }}"
-                            data-bpm="{{ info.bpm ?? 0 }}"
-                            data-tone-preset="{{ trackEntity.tonePreset ?? '' }}"
-                            data-track-volume="{{ trackEntity.trackVolume ?? 0 }}"
-                    >
-                        {# Verborgen input #}
-                        <div class="loop-hidden-input">
-                            {{ form_widget(trackForm.loopLength) }}
-                        </div>
-
-                        {# Rij A: basismaten + controls op 1 lijn #}
-                        <div class="loop-base-row">
-                            <div class="loop-base-title">
-                                <span class="label-small">Basismaten</span>
-                                <span class="loop-base-hint subtle">
-                            (afgerond op maatsoort {{ timeSig }})
-                        </span>
+                                <div class="midi-meta">
+                                    <span>⏱ {{ info.duration }}</span>
+                                    <span>• ♩ {{ info.bpm }} BPM</span>
+                                </div>
                             </div>
 
-                            <div class="loop-base-controls">
-                                {{ form_widget(trackForm.loopLengthOverride, {
-                                    attr: trackForm.loopLengthOverride.vars.attr|merge({
-                                        class: (trackForm.loopLengthOverride.vars.attr.class|default('') ~ ' js-loop-base-input loop-base-input')|trim
-                                    })
-                                }) }}
+                            <div
+                                    class="midi-rhythm-card loop-editor js-loop-editor"
+                                    data-total-bars="{{ totalBars }}"
+                                    data-timesig="{{ timeSig }}"
+                                    data-input-id="{{ trackForm.loopLength.vars.id }}"
+                                    data-midi-asset-id="{{ trackEntity.midiAsset ? trackEntity.midiAsset.id : '' }}"
+                                    data-document-id="{{ document.id }}"
+                                    data-bpm="{{ info.bpm ?? 0 }}"
+                                    data-tone-preset="{{ trackEntity.tonePreset ?? '' }}"
+                                    data-track-volume="{{ trackEntity.trackVolume ?? 0 }}"
+                            >
+                                <div class="loop-hidden-input">
+                                    {{ form_widget(trackForm.loopLength) }}
+                                </div>
 
-                                <button type="button" class="btn-mini js-loop-base-dec">–</button>
-                                <button type="button" class="btn-mini js-loop-base-inc">+</button>
+                                <div class="loop-base-row">
+                                    <div class="loop-base-title">
+                                        <span class="label-small">Basismaten</span>
+                                        <span class="loop-base-hint subtle">
+                                    (afgerond op maatsoort {{ timeSig }})
+                                </span>
+                                    </div>
+
+                                    <div class="loop-base-controls">
+                                        {{ form_widget(trackForm.loopLengthOverride, {
+                                            attr: trackForm.loopLengthOverride.vars.attr|merge({
+                                                class: (trackForm.loopLengthOverride.vars.attr.class|default('') ~ ' js-loop-base-input loop-base-input')|trim
+                                            })
+                                        }) }}
+
+                                        <button type="button" class="btn-mini js-loop-base-dec">–</button>
+                                        <button type="button" class="btn-mini js-loop-base-inc">+</button>
+                                    </div>
+                                </div>
+
+                                <div class="loop-chips js-loop-chips"></div>
+
+                                <div class="loop-actions">
+                                    <button type="button" class="btn-mini js-loop-reset">Basis</button>
+                                    <button type="button" class="btn-mini js-loop-add">+ Loop</button>
+                                    <button type="button" class="btn-mini js-loop-remove">– Loop</button>
+                                </div>
                             </div>
                         </div>
-
-                        {# Rij B: loops chips (verdeling) #}
-                        <div class="loop-chips js-loop-chips"></div>
-
-                        {# Acties compact onder chips #}
-                        <div class="loop-actions">
-                            <button type="button" class="btn-mini js-loop-reset">Basis</button>
-                            <button type="button" class="btn-mini js-loop-add">+ Loop</button>
-                            <button type="button" class="btn-mini js-loop-remove">– Loop</button>
-                        </div>
-                    </div>
-
+                    </details>
                 {% endif %}
+            {% endif %}
 
-                {% if not isPrototype
-                    and trackForm.midiAsset.vars.choices is defined
-                    and trackForm.midiAsset.vars.choices|length == 0 %}
-                    <p class="subtle" style="margin-top:6px">
-                        Nog geen MIDI-assets. Upload ze bovenaan.
-                    </p>
-                {% endif %}
+            {% if not isPrototype
+                and trackForm.midiAsset.vars.choices is defined
+                and trackForm.midiAsset.vars.choices|length == 0 %}
+                <p class="subtle" style="margin-top:6px">
+                    Nog geen MIDI-assets. Upload ze bovenaan.
+                </p>
             {% endif %}
         </div>
 
-        <div class="subsection">
-            <label class="label">Volume</label>
-            <div class="volume-control" style="display: flex; align-items: center; gap: 10px;">
-                {{ form_widget(trackForm.trackVolume, {
-                    attr: trackForm.trackVolume.vars.attr|merge({
-                        class: (trackForm.trackVolume.vars.attr.class|default('') ~ ' track-volume-slider js-track-volume-input')|trim,
-                        style: 'flex-grow: 1;'
-                    })
-                }) }}
-                <span class="volume-value" data-input="{{ trackForm.trackVolume.vars.id }}" style="min-width: 45px; font-size: 12px; color: #cbd5e1;">
-                    {{ trackForm.trackVolume.vars.value ?? 0 }} dB
-                </span>
-            </div>
-        </div>
-
-        <div class="grid grid-2">
-            <div class="subsection">
-                <label class="label">EXS preset</label>
-                {{ form_widget(trackForm.exsPreset) }}
-            </div>
-
-            <div class="subsection">
-                <label class="label">Tone.js preview preset</label>
-                {{ form_widget(trackForm.tonePreset) }}
-            </div>
-        </div>
-
-        <div class="subsection effects-panel">
-
-            {# Header: label + knop op één rij #}
-            <div class="effects-header">
-                <label class="label">Effecten</label>
-
-                {# labels, ids en JS blijven hetzelfde, alleen class gewijzigd naar .btn #}
-                <button
-                        type="button"
-                        class="btn effects-add-btn"
-                        onclick="addEffect('{{ index }}')"
-                >
-                    + Effect toevoegen
-                </button>
-            </div>
-
-            <div id="effects-{{ index }}"
-                 class="effects"
-                 data-index="{{ trackForm.trackEffects|length }}"
-                 data-prototype="{{ form_widget(trackForm.trackEffects.vars.prototype)|e('html_attr') }}">
-
-                {% for effectForm in trackForm.trackEffects %}
-                    <div class="effect-card">
-                        <div class="effect-head">
-                            <div class="effect-title">
-                                {{ form_widget(effectForm.preset) }}
-                            </div>
-
-                            <div class="effect-actions">
-                                <button type="button" class="btn-mini js-effect-up">↑</button>
-                                <button type="button" class="btn-mini js-effect-down">↓</button>
-                                <button type="button" class="btn-mini danger js-effect-remove">Verwijder</button>
-                            </div>
-                        </div>
-                        {{ form_widget(effectForm.position) }}
-                        {{ form_widget(effectForm.overrides) }}
+        <details class="track-collapsible track-collapsible-voicing" open>
+            <summary class="track-collapsible-summary">Volume & presets</summary>
+            <div class="track-collapsible-body">
+                <div class="subsection">
+                    <label class="label">Volume</label>
+                    <div class="volume-control" style="display: flex; align-items: center; gap: 10px;">
+                        {{ form_widget(trackForm.trackVolume, {
+                            attr: trackForm.trackVolume.vars.attr|merge({
+                                class: (trackForm.trackVolume.vars.attr.class|default('') ~ ' track-volume-slider js-track-volume-input')|trim,
+                                style: 'flex-grow: 1;'
+                            })
+                        }) }}
+                        <span class="volume-value" data-input="{{ trackForm.trackVolume.vars.id }}" style="min-width: 45px; font-size: 12px; color: #cbd5e1;">
+                            {{ trackForm.trackVolume.vars.value ?? 0 }} dB
+                        </span>
                     </div>
-                {% endfor %}
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="subsection">
+                        <label class="label">EXS preset</label>
+                        {{ form_widget(trackForm.exsPreset) }}
+                    </div>
+
+                    <div class="subsection">
+                        <label class="label">Tone.js preview preset</label>
+                        {{ form_widget(trackForm.tonePreset) }}
+                    </div>
+                </div>
             </div>
+        </details>
 
-            {% do trackForm.trackEffects.setRendered %}
-        </div>
-
-        {# -- InstrumentParts -- #}
-        <div class="subsection instrument-parts-panel">
-
-            {# header: titel + knop rechts #}
-            <div class="instrument-parts-header-row">
-                <label class="label">Instrument regio's</label>
-
-                <button
-                        type="button"
-                        class="btn instrument-parts-add-btn"
-                        onclick="addInstrumentPart('{{ index }}')"
-                >
-                    + Regio toevoegen
-                </button>
-            </div>
-
-            {# Symfony-collection container met prototype #}
-            <div id="parts-{{ index }}"
-                 class="instrument-parts"
-                 data-index="{{ trackForm.instrumentParts|length }}"
-                 data-prototype="{{ form_widget(trackForm.instrumentParts.vars.prototype)|e('html_attr') }}">
-            </div>
-
-            {# Bestaande parts (server-side gerenderd) #}
-            {% for partForm in trackForm.instrumentParts %}
-                {% set bindingCode = partForm.targetBinding.vars.data ?? null %}
-
-                <div class="instrument-part" data-part-index="{{ loop.index0 }}">
-
-                    {# Kopregel: labels links, verwijder-knop rechts #}
-                    <div class="instrument-part-header-row">
-                        <div class="instrument-parts-header">
-                            <span class="label">Actieve regio delen</span>
-                            <span class="label">Wat stuurt deze regio aan</span>
-                        </div>
-
-                        <button type="button"
-                                class="btn-mini danger instrument-part-remove"
-                                onclick="removeInstrumentPart(this)">
-                            Verwijder
+        <details class="track-collapsible track-collapsible-effects" open>
+            <summary class="track-collapsible-summary">Effecten</summary>
+            <div class="track-collapsible-body">
+                <div class="subsection effects-panel">
+                    <div class="effects-header effects-header-inline-action">
+                        <button
+                                type="button"
+                                class="btn effects-add-btn"
+                                onclick="addEffect('{{ index }}')"
+                        >
+                            + Effect toevoegen
                         </button>
                     </div>
 
-                    <div class="instrument-part-grid">
-                        {# LINKER kolom: AOI tegels #}
-                        <div class="instrument-part-region">
-                            <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
-                                 class="aoi-tiles"
-                                 data-input-id="{{ partForm.areaOfInterest.vars.id }}"></div>
+                    <div id="effects-{{ index }}"
+                         class="effects"
+                         data-index="{{ trackForm.trackEffects|length }}"
+                         data-prototype="{{ form_widget(trackForm.trackEffects.vars.prototype)|e('html_attr') }}">
 
-                            <div class="ld-hidden">
-                                {{ form_widget(partForm.areaOfInterest) }}
-                            </div>
-
-                            {# LoopsToGrid field: altijd aanwezig maar verborgen #}
-                            <div class="ld-hidden loops-hidden">
-                                {{ form_widget(partForm.loopsToGrid) }}
-                            </div>
-
-                            {# Loops-naar-grid editor: ALLEEN op eerste InstrumentPart #}
-                            {% if loop.first %}
-                                <div class="loops-grid-label">
-                                    <span class="label">Geef midi loops een plaats in het grid</span>
-                                </div>
-
-                                <div id="loops-tiles-{{ index }}-{{ loop.index0 }}"
-                                     class="loops-tiles"
-                                     data-input-id="{{ partForm.loopsToGrid.vars.id }}">
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        {# RECHTER kolom: alles in één wrapper zodat het in kolom 2 blijft #}
-                        {# RECHTER kolom: alles in één wrapper zodat het in kolom 2 blijft #}
-                        <div class="instrument-part-target-col">
-                            <div class="part-effect-target">
-                                {{ form_widget(partForm.targetBinding, {
-                                    attr: {
-                                        class: (partForm.targetBinding.vars.attr.class|default('') ~ ' js-target-binding-hidden')|trim
-                                    }
-                                }) }}
-
-                                {# Hidden fields voor echte low/high-waarden (range-sliders) #}
-                                {{ form_widget(partForm.targetRangeLow, {
-                                    attr: { class: 'range-low-hidden' }
-                                }) }}
-                                {{ form_widget(partForm.targetRangeHigh, {
-                                    attr: { class: 'range-high-hidden' }
-                                }) }}
-
-                                {# Select voor effect/seq-parameter #}
-                                <select
-                                        class="js-target-effect-param"
-                                        data-current-id="{{ bindingCode }}"
-                                        data-bind-input="{{ partForm.targetBinding.vars.id }}"
-                                ></select>
-                            </div>
-
-                            {# Nieuw: extra instellingen voor deze damperTarget, in 1 rij met 3 kolommen #}
-                            <div class="damper-extra-settings">
-                                <div class="damper-row damper-row-3">
-                                    <div class="damper-field">
-                                        <label class="label-small">
-                                            Min. lvl
-                                        </label>
-                                        {{ form_widget(partForm.minimalLevel, {
-                                            attr: partForm.minimalLevel.vars.attr|merge({
-                                                class: ((partForm.minimalLevel.vars.attr.class|default('') ~ ' minimal-level-input')|trim)
-                                            })
-                                        }) }}
+                        {% for effectForm in trackForm.trackEffects %}
+                            <div class="effect-card">
+                                <div class="effect-head">
+                                    <div class="effect-title">
+                                        {{ form_widget(effectForm.preset) }}
                                     </div>
 
-                                    <div class="damper-field">
-                                        <label class="label-small">
-                                            Ramp-up
-                                        </label>
-                                        {{ form_widget(partForm.rampSpeed, {
-                                            attr: partForm.rampSpeed.vars.attr|merge({
-                                                class: ((partForm.rampSpeed.vars.attr.class|default('') ~ ' ramp-speed-input')|trim)
-                                            })
-                                        }) }}
-                                    </div>
-
-                                    <div class="damper-field">
-                                        <label class="label-small">
-                                            Ramp-dwn
-                                        </label>
-                                        {{ form_widget(partForm.rampSpeedDown, {
-                                            attr: partForm.rampSpeedDown.vars.attr|merge({
-                                                class: ((partForm.rampSpeedDown.vars.attr.class|default('') ~ ' ramp-speed-down-input')|trim)
-                                            })
-                                        }) }}
+                                    <div class="effect-actions">
+                                        <button type="button" class="btn-mini js-effect-up">↑</button>
+                                        <button type="button" class="btn-mini js-effect-down">↓</button>
+                                        <button type="button" class="btn-mini danger js-effect-remove">Verwijder</button>
                                     </div>
                                 </div>
+                                {{ form_widget(effectForm.position) }}
+                                {{ form_widget(effectForm.overrides) }}
                             </div>
-                        </div>
-
-
+                        {% endfor %}
                     </div>
 
+                    {% do trackForm.trackEffects.setRendered %}
                 </div>
+            </div>
+        </details>
 
-            {% endfor %}
+        <details class="track-collapsible track-collapsible-regions" open>
+            <summary class="track-collapsible-summary">Regio's</summary>
+            <div class="track-collapsible-body">
+                <div class="subsection instrument-parts-panel">
+                    <div class="instrument-parts-header-row is-collapsible-head">
+                        <button
+                                type="button"
+                                class="btn instrument-parts-add-btn"
+                                onclick="addInstrumentPart('{{ index }}')"
+                        >
+                            + Regio toevoegen
+                        </button>
+                    </div>
 
-            {% do trackForm.instrumentParts.setRendered %}
-        </div>
+                    <div id="parts-{{ index }}"
+                         class="instrument-parts"
+                         data-index="{{ trackForm.instrumentParts|length }}"
+                         data-prototype="{{ form_widget(trackForm.instrumentParts.vars.prototype)|e('html_attr') }}">
+                    </div>
+
+                    {% for partForm in trackForm.instrumentParts %}
+                        {% set bindingCode = partForm.targetBinding.vars.data ?? null %}
+
+                        <div class="instrument-part" data-part-index="{{ loop.index0 }}">
+                            <div class="instrument-part-header-row">
+                                <div class="instrument-parts-header">
+                                    <span class="label">Actieve regio delen</span>
+                                    <span class="label">Wat stuurt deze regio aan</span>
+                                </div>
+
+                                <button type="button"
+                                        class="btn-mini danger instrument-part-remove"
+                                        onclick="removeInstrumentPart(this)">
+                                    Verwijder
+                                </button>
+                            </div>
+
+                            <div class="instrument-part-grid">
+                                <div class="instrument-part-region">
+                                    <div id="aoi-tiles-{{ index }}-{{ loop.index0 }}"
+                                         class="aoi-tiles"
+                                         data-input-id="{{ partForm.areaOfInterest.vars.id }}"></div>
+
+                                    <div class="ld-hidden">
+                                        {{ form_widget(partForm.areaOfInterest) }}
+                                    </div>
+
+                                    <div class="ld-hidden loops-hidden">
+                                        {{ form_widget(partForm.loopsToGrid) }}
+                                    </div>
+
+                                    {% if loop.first %}
+                                        <div class="loops-grid-label">
+                                            <span class="label">Geef midi loops een plaats in het grid</span>
+                                        </div>
+
+                                        <div id="loops-tiles-{{ index }}-{{ loop.index0 }}"
+                                             class="loops-tiles"
+                                             data-input-id="{{ partForm.loopsToGrid.vars.id }}">
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="instrument-part-target-col">
+                                    <div class="part-effect-target">
+                                        {{ form_widget(partForm.targetBinding, {
+                                            attr: {
+                                                class: (partForm.targetBinding.vars.attr.class|default('') ~ ' js-target-binding-hidden')|trim
+                                            }
+                                        }) }}
+
+                                        {{ form_widget(partForm.targetRangeLow, {
+                                            attr: { class: 'range-low-hidden' }
+                                        }) }}
+                                        {{ form_widget(partForm.targetRangeHigh, {
+                                            attr: { class: 'range-high-hidden' }
+                                        }) }}
+
+                                        <select
+                                                class="js-target-effect-param"
+                                                data-current-id="{{ bindingCode }}"
+                                                data-bind-input="{{ partForm.targetBinding.vars.id }}"
+                                        ></select>
+                                    </div>
+
+                                    <div class="damper-extra-settings">
+                                        <div class="damper-row damper-row-3">
+                                            <div class="damper-field">
+                                                <label class="label-small">
+                                                    Min. lvl
+                                                </label>
+                                                {{ form_widget(partForm.minimalLevel, {
+                                                    attr: partForm.minimalLevel.vars.attr|merge({
+                                                        class: ((partForm.minimalLevel.vars.attr.class|default('') ~ ' minimal-level-input')|trim)
+                                                    })
+                                                }) }}
+                                            </div>
+
+                                            <div class="damper-field">
+                                                <label class="label-small">
+                                                    Ramp-up
+                                                </label>
+                                                {{ form_widget(partForm.rampSpeed, {
+                                                    attr: partForm.rampSpeed.vars.attr|merge({
+                                                        class: ((partForm.rampSpeed.vars.attr.class|default('') ~ ' ramp-speed-input')|trim)
+                                                    })
+                                                }) }}
+                                            </div>
+
+                                            <div class="damper-field">
+                                                <label class="label-small">
+                                                    Ramp-dwn
+                                                </label>
+                                                {{ form_widget(partForm.rampSpeedDown, {
+                                                    attr: partForm.rampSpeedDown.vars.attr|merge({
+                                                        class: ((partForm.rampSpeedDown.vars.attr.class|default('') ~ ' ramp-speed-down-input')|trim)
+                                                    })
+                                                }) }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    {% do trackForm.instrumentParts.setRendered %}
+                </div>
+            </div>
+        </details>
 
     </div>
 </div>

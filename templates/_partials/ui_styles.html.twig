@@ -465,6 +465,55 @@
     .subsection .label { display: block; font-size: 0.95rem; margin-bottom: 6px; opacity: 0.9; }
     .collection-item { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; }
 
+    /* ======== Compact Track Collapsibles ======== */
+    .track-collapsible {
+        margin-top: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 10px;
+        background: rgba(11, 18, 36, 0.4);
+        overflow: hidden;
+    }
+    .track-collapsible-summary {
+        list-style: none;
+        cursor: pointer;
+        user-select: none;
+        font-size: 12px;
+        letter-spacing: 0.2px;
+        text-transform: uppercase;
+        color: #cbd5e1;
+        opacity: 0.92;
+        padding: 6px 10px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .track-collapsible-summary::-webkit-details-marker { display: none; }
+    .track-collapsible-summary::before {
+        content: "▾";
+        font-size: 12px;
+        line-height: 1;
+        color: #94a3b8;
+        transition: transform 0.15s ease;
+    }
+    .track-collapsible:not([open]) .track-collapsible-summary::before {
+        transform: rotate(-90deg);
+    }
+    .track-collapsible[open] .track-collapsible-summary {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    }
+    .track-collapsible-body {
+        padding: 8px 10px 10px;
+        display: grid;
+        gap: 10px;
+    }
+    .track-collapsible-body .subsection {
+        margin-top: 0;
+    }
+    .effects-header-inline-action,
+    .instrument-parts-header-row.is-collapsible-head {
+        justify-content: flex-end;
+    }
+
     /* ======== Forms & tables ======== */
     .error-box {
         background: #7f1d1d;
