@@ -294,13 +294,17 @@ final class DocumentPayloadBuilder
                 )
             );
 
+            $trackVolume = (float) $t->getTrackVolume();
+
             // 5) Basis track-config
             $trackConfig = [
                 'onlineTrackId'   => $t->getId(),
                 'trackId'         => $t->getTrackId(),
                 'levels'          => $levels,
                 'midiFiles'       => $midi,
-                'trackVolume'     => (float) $t->getTrackVolume(),
+                'trackVolume'     => $trackVolume,
+                // Backward compatibility voor clients die nog instrumentVolume verwachten.
+                'instrumentVolume'=> $trackVolume,
                 'instrumentType'  => $instrumentType,   // null of 'exsSampler'
                 'exsFiles'        => $exsFiles,         // null of array
                 'instrumentName'  => $instrumentName,

@@ -70,14 +70,67 @@ final class ApiController extends AbstractController
             throw $this->createNotFoundException();
         }
 
-        $response = new StreamedResponse(static function () use ($uploadsStorage, $path) {
-            echo $uploadsStorage->read($path);
+        $json = $uploadsStorage->read($path);
+        $json = $this->ensureTrackVolumeCompatibility($json);
+
+        $response = new StreamedResponse(static function () use ($json) {
+            echo $json;
         });
         $response->headers->set('Content-Type', 'application/json');
         // eenvoudige cache headers; ETag/If-None-Match kun je later toevoegen
         $response->headers->set('Cache-Control', 'public, max-age=60');
 
         return $response;
+    }
+
+    private function ensureTrackVolumeCompatibility(string $json): string
+    {
+        $decoded = json_decode($json, true);
+        if (!is_array($decoded)) {
+            return $json;
+        }
+
+        $tracks = $decoded['instrumentsConfig'] ?? null;
+        if (!is_array($tracks)) {
+            return $json;
+        }
+
+        $changed = false;
+
+        foreach ($tracks as $index => $trackConfig) {
+            if (!is_array($trackConfig)) {
+                continue;
+            }
+
+            if (
+                !array_key_exists('instrumentVolume', $trackConfig)
+                && array_key_exists('trackVolume', $trackConfig)
+                && is_numeric($trackConfig['trackVolume'])
+            ) {
+                $decoded['instrumentsConfig'][$index]['instrumentVolume'] = (float) $trackConfig['trackVolume'];
+                $changed = true;
+            }
+
+            if (
+                !array_key_exists('trackVolume', $trackConfig)
+                && array_key_exists('instrumentVolume', $trackConfig)
+                && is_numeric($trackConfig['instrumentVolume'])
+            ) {
+                $decoded['instrumentsConfig'][$index]['trackVolume'] = (float) $trackConfig['instrumentVolume'];
+                $changed = true;
+            }
+        }
+
+        if (!$changed) {
+            return $json;
+        }
+
+        $encoded = json_encode(
+            $decoded,
+            JSON_UNESCAPED_SLASHES | JSON_PRESERVE_ZERO_FRACTION | JSON_PRETTY_PRINT
+        );
+
+        return is_string($encoded) ? $encoded : $json;
     }
 
     /**

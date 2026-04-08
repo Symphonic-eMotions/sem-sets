@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Tests\Support\DatabaseWebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ApiControllerTest extends DatabaseWebTestCase
 {
@@ -61,5 +62,40 @@ class ApiControllerTest extends DatabaseWebTestCase
             '{"error":"Invalid JSON"}',
             $this->client->getResponse()->getContent() ?: ''
         );
+    }
+
+    public function testGetSetJsonAddsInstrumentVolumeWhenMissing(): void
+    {
+        $user = $this->createUser();
+        $document = $this->createPublishedDocument($user, 'compat-set', 'Compat Set');
+
+        $json = json_encode([
+            'instrumentsConfig' => [[
+                'trackId' => 'track-1',
+                'trackVolume' => -7.25,
+            ]],
+        ], JSON_THROW_ON_ERROR);
+
+        $storage = static::getContainer()->get('uploads.storage');
+        $storage->write(sprintf('sets/%d/latest/document.json', $document->getId()), $json);
+
+        $this->client->request('GET', '/api/sets/compat-set.json');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $response = $this->client->getResponse();
+        self::assertInstanceOf(StreamedResponse::class, $response);
+        $callback = $response->getCallback();
+        self::assertIsCallable($callback);
+
+        ob_start();
+        $callback();
+        $content = (string) ob_get_clean();
+
+        $payload = json_decode($content, true, flags: JSON_THROW_ON_ERROR);
+        $trackConfig = $payload['instrumentsConfig'][0];
+
+        self::assertSame(-7.25, $trackConfig['trackVolume']);
+        self::assertSame(-7.25, $trackConfig['instrumentVolume']);
     }
 }
