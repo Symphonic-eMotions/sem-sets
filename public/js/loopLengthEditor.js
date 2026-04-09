@@ -39,23 +39,41 @@
                         if (Array.isArray(parsed)) {
                             arr = parsed;
                         }
-                    } catch (e) {
-                        // negeren
-                    }
+                    } catch (e) {}
                 } else {
                     arr = raw.split(',').map(function (v) { return parseInt(v, 10); });
                 }
 
-                return arr
-                    .map(function (v) { return parseInt(v, 10); })
-                    .filter(function (v) { return !Number.isNaN(v) && v > 0; });
+                // Oude array van ints (maten) converteren naar objects (kwartnoten)
+                if (arr.length > 0 && typeof arr[0] === 'number') {
+                    let objs = [];
+                    let currentOffset = 0;
+                    arr.forEach(function(bars) {
+                        let b = parseInt(bars, 10);
+                        if (!Number.isNaN(b) && b > 0) {
+                            let q = b * groupSize;
+                            objs.push({ offset: currentOffset, length: q });
+                            currentOffset += q;
+                        }
+                    });
+                    return objs;
+                }
+
+                // Normal object array (al gemigreerd via backend)
+                return arr.filter(function(v) { return typeof v === 'object' && v !== null && v.length > 0; })
+                          .map(function(v) {
+                              return {
+                                  offset: parseInt(v.offset, 10) || 0,
+                                  length: parseInt(v.length, 10) || 0
+                              };
+                          });
             }
 
             function storeValue(values) {
                 if (!hiddenInput) {
                     return;
                 }
-                hiddenInput.value = '[' + values.join(',') + ']';
+                hiddenInput.value = JSON.stringify(values);
             }
 
             function renderChips(values) {
@@ -73,7 +91,7 @@
                 const LABELS = window.SEM_LOOP_LABELS || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
                 const midiAssetId = editor.dataset.midiAssetId;
 
-                values.forEach(function (len, idx) {
+                values.forEach(function (loopObj, idx) {
                     const chip = document.createElement('span');
                     chip.className = 'loop-chip loop-chip-colored';
 
@@ -94,13 +112,25 @@
                         playBtn.innerHTML = '▶';
                         playBtn.title = 'Voorbeeld afspelen (ingedrukt houden)';
                         playBtn.dataset.loopIndex = idx;
-                        playBtn.dataset.loopLength = len;
+                        playBtn.dataset.loopLength = loopObj.length; // old/new compatible kwartnoten
+                        playBtn.dataset.loopOffset = loopObj.offset; // offset meegeven
                         chipContent.appendChild(playBtn);
                     }
 
+                    // Edit button toevoegen voor piano roll (Plan Fase 2)
+                    const editBtn = document.createElement('button');
+                    editBtn.type = 'button';
+                    editBtn.className = 'loop-edit-btn';
+                    editBtn.innerHTML = '✎';
+                    editBtn.title = 'Loop bewerken';
+                    editBtn.dataset.loopIndex = idx;
+                    chipContent.appendChild(editBtn);
+
                     // Add text label
                     const textSpan = document.createElement('span');
-                    textSpan.textContent = 'Loop ' + label + ': ' + len + ' maten';
+                    // maten voor weergave
+                    const lenMaten = loopObj.length / groupSize; 
+                    textSpan.textContent = 'Loop ' + label + ': ' + lenMaten + ' maten';
                     chipContent.appendChild(textSpan);
 
                     chip.appendChild(chipContent);
@@ -179,14 +209,21 @@
                     return [];
                 }
 
-                return new Array(count).fill(quantized);
+                let objs = [];
+                let currentOffset = 0;
+                let qLength = quantized * groupSize;
+                for (let i = 0; i < count; i++) {
+                    objs.push({ offset: currentOffset, length: qLength });
+                    currentOffset += qLength;
+                }
+                return objs;
             }
 
             let current = parseValueFromHidden();
             if (!current.length) {
                 const base = computeEffectiveBase();
                 if (base > 0) {
-                    current = [base];
+                    current = [{ offset: 0, length: base * groupSize }];
                     storeValue(current);
 
                     // Toon de berekende basis ook in het basismaten-veld
@@ -202,21 +239,16 @@
 
                 if (loopsCount <= 0) {
                     const base = computeEffectiveBase();
-                    if (base <= 0) {
-                        return;
-                    }
-                    current = [base];
+                    if (base <= 0) return;
+                    current = [{ offset: 0, length: base * groupSize }];
                 } else if (loopsCount === 1) {
                     const base = computeEffectiveBase();
-                    if (base <= 0) {
-                        return;
-                    }
-                    current = [base];
+                    if (base <= 0) return;
+                    current = [{ offset: 0, length: base * groupSize }];
                 } else {
+                    // Update the lengths but keep the existing sequence logic since they changed base size
                     const next = recalcForSegmentCount(loopsCount);
-                    if (!next.length) {
-                        return;
-                    }
+                    if (!next.length) return;
                     current = next;
                 }
 
@@ -243,16 +275,14 @@
                     }
 
                     const base = computeEffectiveBase();
-                    if (base <= 0) {
-                        return;
-                    }
+                    if (base <= 0) return;
 
                     // Basismaten veld ook invullen met de berekende basis
                     if (baseInput) {
                         baseInput.value = String(base);
                     }
 
-                    current = [base];
+                    current = [{ offset: 0, length: base * groupSize }];
                     storeValue(current);
                     renderChips(current);
 

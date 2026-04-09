@@ -31,15 +31,11 @@ final class DocumentPayloadBuilder
         /* @var DocumentTrack $t */
         foreach ($doc->getTracks() as $t) {
 
-            // 1) LoopLength ophalen (altijd array<int>)
-            $loopLengthBars = method_exists($t, 'getLoopLength')
+            // 1) LoopLength ophalen (sinds loop-piano-roll-plan is dit array met objecten in kwartnoten)
+            $beatsPerBar = (int) ($doc->getTimeSignatureNumerator() ?? 4);
+            $loopLengths = method_exists($t, 'getLoopLength')
                 ? $t->getLoopLength()
                 : [];
-
-            $loopLengthBars = array_values(array_map('intval', $loopLengthBars));
-
-            $beatsPerBar     = (int) ($doc->getTimeSignatureNumerator() ?? 4);
-            $loopLengthBeats = $this->loopLengthBarsToBeats($loopLengthBars, $beatsPerBar);
 
             // 1b) LoopsToGrid uit eerste InstrumentPart
             $loopsToGrid = [];
@@ -75,7 +71,7 @@ final class DocumentPayloadBuilder
                 $midi[] = [
                     'midiFileName' => $name,
                     'midiFileExt'  => $ext,
-                    'loopLength'   => $loopLengthBeats,
+                    'loopLength'   => $loopLengths,
                     'loopsToGrid'  => $loopsToGrid,
                     'loopsToLevel' => $loopsToLevel,
                 ];

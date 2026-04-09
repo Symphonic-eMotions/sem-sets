@@ -144,7 +144,7 @@ final class DocumentController extends AbstractController
                 if ($trackForm->has('loopLength')) {
                     $loop = $track->getLoopLength() ?? [];
                     if (!empty($loop)) {
-                        $raw = '[' . implode(',', array_map('intval', $loop)) . ']';
+                        $raw = json_encode($loop);
                         $trackForm->get('loopLength')->setData($raw);
                     }
                 }

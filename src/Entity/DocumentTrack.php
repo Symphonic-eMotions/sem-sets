@@ -30,9 +30,10 @@ class DocumentTrack
     private array $levels = [];
 
     /**
-     * Loop-lengtes in maten, bv. [100] of [48,48] of [32,32,32].
+     * Loop-lengtes (in kwartnoten), bv. [['offset' => 0, 'length' => 192], ...].
+     * Legacy was een array van maten bv [48, 48].
      * Wordt in de DB als JSON opgeslagen.
-     * @var int[]
+     * @var array[]
      */
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $loopLength = [];
@@ -115,17 +116,47 @@ class DocumentTrack
         return $this;
     }
 
-    /** @return int[] */
+    /** @return array[] */
     public function getLoopLength(): array
     {
-        return $this->loopLength;
+        $raw = $this->loopLength;
+        if (empty($raw)) {
+            return [];
+        }
+
+        // Controleer of de JSON al het nieuwe formatter heeft (objecten met 'offset')
+        if (isset($raw[0]) && is_array($raw[0]) && array_key_exists('offset', $raw[0])) {
+            return $raw;
+        }
+
+        // Oude formaat: array van ints (maten). Migreer deze on-the-fly naar kwartnoten (beats).
+        $beatsPerBar = 4;
+        if ($this->getDocument()) {
+            $beatsPerBar = $this->getDocument()->getTimeSignatureNumerator() ?? 4;
+        }
+
+        $migrated = [];
+        $currentOffsetQuarters = 0;
+
+        foreach ($raw as $bars) {
+            $quarterNotes = (int)$bars * $beatsPerBar;
+            if ($quarterNotes > 0) {
+                $migrated[] = [
+                    'offset' => $currentOffsetQuarters,
+                    'length' => $quarterNotes,
+                ];
+                $currentOffsetQuarters += $quarterNotes;
+            }
+        }
+
+        return $migrated;
     }
 
     /**
-     * Accepteert zowel een string (bijv. "[48,48]" of "48,48")
-     * als een array, en normaliseert naar int[].
+     * Accepteert zowel JSON array van objecten, als in sommige unieke 
+     * gevallen nog een CSV / array fallback (die wordt omgezet).
      *
-     * @param string|array<int,mixed>|null $value
+     * @param string|array|null $value
      */
     public function setLoopLength(string|array|null $value): self
     {
@@ -134,7 +165,6 @@ class DocumentTrack
             return $this;
         }
 
-        // String-invoer: uit formulier / JS
         if (is_string($value)) {
             $raw = trim($value);
 
@@ -143,17 +173,14 @@ class DocumentTrack
                 return $this;
             }
 
-            // Probeer JSON-array, bv. "[48,48]"
             if (str_starts_with($raw, '[')) {
                 $decoded = json_decode($raw, true);
                 if (is_array($decoded)) {
                     $value = $decoded;
                 } else {
-                    // fallback naar CSV
                     $value = explode(',', $raw);
                 }
             } else {
-                // CSV-vorm: "48,48"
                 $value = explode(',', $raw);
             }
         }
@@ -163,16 +190,38 @@ class DocumentTrack
             return $this;
         }
 
-        // Normaliseer naar int[] en filter alles ← 0 eruit
-        $normalized = array_values(
-            array_filter(
-                array_map(
-                    static fn ($v) => (int) $v,
-                    $value
-                ),
-                static fn (int $v): bool => $v > 0
-            )
-        );
+        $normalized = [];
+        $beatsPerBar = 4;
+        if ($this->getDocument()) {
+            $beatsPerBar = $this->getDocument()->getTimeSignatureNumerator() ?? 4;
+        }
+
+        $currentFallbackOffset = 0;
+
+        foreach ($value as $item) {
+            if (is_array($item) && isset($item['offset'], $item['length'])) {
+                // Nieuw formaat item
+                $lengthVal = (int) $item['length'];
+                if ($lengthVal > 0) {
+                    $normalized[] = [
+                        'offset' => max(0, (int) $item['offset']),
+                        'length' => $lengthVal,
+                    ];
+                }
+            } else {
+                // Oud format (maten CSV) ingetypt
+                $bars = (int) $item;
+                $quarters = $bars * $beatsPerBar;
+                if ($quarters > 0) {
+                    $normalized[] = [
+                        'offset' => $currentFallbackOffset,
+                        'length' => $quarters,
+                    ];
+                    $currentFallbackOffset += $quarters;
+                }
+            }
+        }
+
         $this->loopLength = $normalized;
 
         return $this;

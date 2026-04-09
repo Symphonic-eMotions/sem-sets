@@ -299,10 +299,11 @@ class MidiLoopPlayback {
         // Filter notes that fall within our loop range
         let scheduledCount = 0;
         allNotes.forEach((note, idx) => {
-            // Check if note starts within the loop range
-            if (note.time >= startSeconds && note.time < endSeconds) {
+            // Check if note starts within the loop range (met 0.05s slack marge voor slightly vroege noten op de maat)
+            if (note.time >= startSeconds - 0.05 && note.time < endSeconds) {
                 scheduledCount++;
-                const relativeTime = note.time - startSeconds;
+                // Zorg dat the note niet voor de loop start gepulled wordt
+                const relativeTime = Math.max(0, note.time - startSeconds);
                 const noteDuration = Math.min(note.duration, loopDurationSeconds - relativeTime);
 
                 Tone.Transport.schedule((time) => {
@@ -343,13 +344,22 @@ class MidiLoopPlayback {
             // Parse MIDI file (cached if possible)
             const midi = await this.fetchAndParseMidi(midiUrl);
 
-            // Calculate which bars this loop covers
-            const loopInfo = this.calculateLoopBars(loopIndex, loopLengths);
+            // Determine start and end beat
+            const loopValue = loopLengths[loopIndex];
             const beatsPerBar = this.getBeatsPerBar(timeSignature);
+            let startBeat = 0;
+            let endBeat = 0;
 
-            // Convert bars to beats
-            const startBeat = this.barsToBeats(loopInfo.startBar - 1, beatsPerBar); // 0-indexed for calculation
-            const endBeat = this.barsToBeats(loopInfo.endBar, beatsPerBar);
+            if (typeof loopValue === 'object' && loopValue !== null) {
+                // Nieuw formaat: expliciete start (offset) en lengte (in quarters)
+                startBeat = loopValue.offset || 0;
+                endBeat = startBeat + (loopValue.length || 0);
+            } else {
+                // Oud formaat: lengte in maten, impliciet aaneengesloten
+                const loopInfo = this.calculateLoopBars(loopIndex, loopLengths);
+                startBeat = this.barsToBeats(loopInfo.startBar - 1, beatsPerBar); // 0-indexed
+                endBeat = this.barsToBeats(loopInfo.endBar, beatsPerBar);
+            }
 
             // Set transport BPM
             Tone.Transport.bpm.value = bpm;
