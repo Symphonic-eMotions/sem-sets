@@ -177,6 +177,11 @@
         const btn = document.querySelector('.js-pr-play');
         if (btn) btn.classList.remove('playing');
 
+        // Close full MIDI preview if open
+        if (typeof window.closeMidiFilePreview === 'function') {
+            window.closeMidiFilePreview();
+        }
+
         state.modal.setAttribute('hidden', '');
         document.body.style.overflow = '';
         state.midiData = null;
@@ -473,17 +478,18 @@
     let isPlayingPreview = false;
 
     function onPlayBtnMouseDown(e) {
-        if (!state.editorEl || !state.documentId || !state.assetId) return;
-        
+        const modal = document.getElementById('piano-roll-modal');
+        const isFullMidiPreview = modal && modal.dataset.isFullMidiPreview === 'true';
+
         if (!playbackManager && window.MidiLoopPlayback) {
             playbackManager = new window.MidiLoopPlayback();
         }
-        
+
         if (!playbackManager) {
             console.warn('MidiLoopPlayback not available');
             return;
         }
-        
+
         // Stop globals
         if (typeof window.stopAllLoopPlayback === 'function') {
             window.stopAllLoopPlayback();
@@ -494,10 +500,33 @@
         if (btn) btn.classList.add('playing');
         isPlayingPreview = true;
 
+        // ========== Full MIDI preview mode ==========
+        if (isFullMidiPreview) {
+            const midiUrl = modal.dataset.previewUrl;
+            const bpm = parseFloat(modal.dataset.previewBpm) || 120;
+            const timeSignature = modal.dataset.previewTimeSig || '4/4';
+            const totalBeats = parseInt(modal.dataset.previewTotalBeats, 10) || 48;
+
+            const loopLengths = [
+                { offset: 0, length: totalBeats }
+            ];
+
+            playbackManager
+                .playLoopSegment(midiUrl, 0, loopLengths, bpm, timeSignature, null, 0)
+                .catch(error => {
+                    console.error('MIDI preview error:', error);
+                    onPlayBtnMouseUp();
+                });
+            return;
+        }
+
+        // ========== Loop editor mode ==========
+        if (!state.editorEl || !state.documentId || !state.assetId) return;
+
         const bpm = parseFloat(state.editorEl.dataset.bpm) || 120;
         const timeSignature = state.editorEl.dataset.timesig || '4/4';
         const presetId = state.editorEl.dataset.tonePreset;
-        
+
         let volumeDb = 0;
         const trackCard = state.editorEl.closest('.track-card');
         if (trackCard) {
@@ -506,9 +535,9 @@
                 volumeDb = parseFloat(volumeSlider.value) || 0;
             }
         }
-        
+
         const midiUrl = `/documents/${state.documentId}/assets/${state.assetId}/download`;
-        
+
         // Pak start offset en speellengte direct uit de huidige ongeopgeslagen muis/canvas selectie
         const startBeat = Math.min(state.selectionStartBeat, state.selectionEndBeat);
         const length = Math.abs(state.selectionEndBeat - state.selectionStartBeat);
