@@ -1,18 +1,33 @@
 # Plan van aanpak: Piano Roll Loop Editor
 
+## Voortgang
+
+✅ **Fase 4 (Basis)** — Piano roll canvas renderer, drag & drop tape-offset werkt (begin van loop goed instelbaar)  
+⏳ **Fase 4 (Uitbreiding)** — Loop-lengte aanpassing in tellen (einde van loop instelbaar)  
+⏳ **Fase 4 (Integratie)** — Piano roll + Tone.js player samen bij MIDI files interface plaatsen  
+⏳ **Fase 5** — Loop naar MIDI-bestand kopieren (export-functie)  
+⏳ **Fase 6** — Loops aaneenschakelen in geëxporteerd bestand
+
+---
+
 ## Feature omschrijving
 
 Op de Set (Document) Edit pagina, in het **Maten & Loops** gedeelte van elke track, wordt naast de bestaande play-knop per loop een **edit-knop** toegevoegd. Deze opent een modal met een **custom piano roll** weergave.
 
-In de piano roll geldt de **tape-metafoor**: de loop is een vast venster met een vaste lengte (zoals ingesteld in de loop editor), en de gehele MIDI-inhoud schuift er als een tape onderdoor. Door de tape te verschuiven bepaal je welk deel van de MIDI-file de loop bevat. De beweging is gekwantiseerd op kwartnoten.
+In de piano roll geldt de **tape-metafoor**: de loop is een venster waarvan het **begin** vast staat (d.m.v. drag & drop van de tape) en de **lengte** aanpasbaar is. De gehele MIDI-inhoud schuift als een tape onderdoor. 
+
+- **Begin instelbaar**: door de tape te slepen verschuif je het startpunt van de loop (gekwantiseerd op kwartnoten)
+- **Lengte instelbaar**: door de rechterkant van het loop-venster te slepen of rechtstreeks in tellen in te voeren, bepaal je waar de loop eindigt
+
+De beweging is gekwantiseerd op kwartnoten.
 
 ```
 [MIDI tape: ████████████████████████████████████████████]
                     ┌──────────────┐
-                    │  LOOP VENSTER│  ← vaste positie & lengte op scherm
+                    │  LOOP VENSTER│  ← positie op scherm
                     │  (7 maten)   │
                     └──────────────┘
-           ◄── sleep tape links/rechts ──►
+           ◄─ sleep tape (begin) ►  ◄─ sleep rechterkant (einde/lengte) ►
                 kwartnoot-gekwantiseerd
 ```
 
@@ -105,7 +120,12 @@ Naast elke bestaande `.loop-play-btn` een edit-knop toevoegen:
   <div class="loop-modal-dialog">
     <header>
       <span class="loop-modal-title">Loop A — Track naam</span>
-      <span class="loop-modal-offset-display">Start: maat 1, tel 1</span>
+      <div class="loop-modal-info">
+        <span class="loop-modal-offset-display">Start: maat 1, tel 1</span>
+        <label>Lengte (tellen): 
+          <input type="number" class="js-loop-length-input" value="48" min="1">
+        </label>
+      </div>
     </header>
     <div class="loop-piano-roll-wrap">
       <canvas id="loop-piano-roll-canvas"></canvas>
@@ -149,47 +169,86 @@ Sluiten via: backdrop-klik, Escape-toets, Annuleren-knop.
 6. Noten **buiten** loop-venster → opacity 30%, **binnen** → 100%
 
 #### Interactie
-- **Slepen**: `mousedown` op canvas + bewegen → tape verschuift, loop-venster blijft op vaste positie
+- **Begin slepen** (tape): `mousedown` op canvas-achtergrond + bewegen → tape verschuift, loop-venster-begin verplaatst zich
+- **Lengte slepen**: `mousedown` op rechterkant van loop-venster + bewegen → loop-einde aanpassen (rechtergrens verplaatst)
+- **Lengte invoer**: invoerveld in de header voor directe invoer van loop-lengte in tellen (kwartnoten)
 - **Snapping**: beweging gekwantiseerd op 1 kwartnoot (= breedte van 1 kwartnoot in pixels)
 - **Context**: noten 4 maten voor en na het loop-venster zichtbaar (gedempt)
-- **Keyboard**: `←` / `→` voor verschuiving per kwartnoot
-- **Offset display**: `"Start: maat 3, tel 2"` realtime bijwerken in modal-header
+- **Keyboard**: `←` / `→` voor verschuiving per kwartnoot (tape), `Shift+←` / `Shift+→` voor lengte-aanpassing
+- **Offset display**: `"Start: maat 3, tel 2 | Lengte: 48 tellen"` realtime bijwerken in modal-header
 
 #### Data laden
 Hergebruik van de bestaande MIDI-fetch en parse logica uit `midiLoopPlayback.js` (of gedeelde helper extraheren).
 
 ---
 
-### Fase 5 — Playback engine updaten
+### Fase 5 — Loop naar MIDI-bestand kopieren
 
-**`midiLoopPlayback.js`** — `calculateLoopBars()` aanpassen:
+**Doel:** Vanuit de piano roll loop-editor een geselecteerde loop naar een (nieuw of bestaand) MIDI-bestand exporteren.
 
-```js
-// Huidig: start = som van lengtes van alle vorige loops
-// Nieuw:  start = loop.offset  (direct uit het nieuwe formaat)
-```
+**UI in modal:**
+- Export-knop in footer: "Loop kopiëren naar bestand"
+- Dialog voor bestandskeuze:
+  - Nieuw bestand aanmaken (invoer voor bestandsnaam)
+  - OF bestaand MIDI-bestand selecteren
+
+**Logica:**
+- Extract notaten uit originele MIDI-file binnen het offset + length bereik
+- Schrijf notaten naar nieuw bestand (of voeg toe aan bestaand)
+- Omdat loops gekwantiseerd zijn op tellen, klopt de maat automatisch in het nieuwe bestand
+- Returneer link/ID van het nieuwe/gewijzigde MIDI-bestand
+
+**Betrokken:**
+- `public/js/loopPianoRoll.js` — export-functie, bestandskeuze-dialog
+- Backend API-endpoint: `POST /api/midi/export-loop` met offset, length, target-file
 
 ---
 
-### Fase 6 — Loop editor JS updaten
+### Fase 6 — Loops aaneenschakelen in geëxporteerd bestand
 
-**`loopLengthEditor.js`**:
-- Bij `+ Loop`: nieuw object `{ offset: <einde vorige loop>, length: <basiswaarde> }` toevoegen
-- Bij `– Loop`: laatste object verwijderen
-- Bij inladen: oud integer-array formaat automatisch migreren naar object-array
+**Doel:** Meerdere loops kunnen achter elkaar aan het geëxporteerde bestand worden toegevoegd.
+
+**Workflow:**
+1. Eerste loop kopiëren naar nieuw bestand (Fase 5)
+2. Volgende loop uit dezelfde/andere track selecteren
+3. "Toevoegen aan [huidge bestand]" optie in export-dialog
+4. Loop wordt achter de vorige loop geplakt (offset = einde vorige loop)
+
+**Betrokken:**
+- Backend API: uitbreiden om append-logica te ondersteunen
+- Frontend: geselecteerde bestand in sessie onthouden/tonen
 
 ---
 
 ## Volgorde van implementatie
 
-1. **Data model** (entity + controller) — fundament voor alles
-2. **Edit knop** in template — zichtbaar, nog niet functioneel
-3. **Modal + basis canvas** — venster opent, toont lege piano roll
-4. **MIDI data laden** in piano roll — noten zichtbaar, geen interactie
-5. **Slepen + snapping** — kern-interactie
-6. **Opslaan** — offset terugschrijven naar hidden input
-7. **Playback updaten** — play knop gebruikt nieuwe offset
-8. **Polish** — context-dimming, keyboard shortcuts, offset display
+1. **Data model** (entity + controller) — fundament voor alles ✅
+2. **Edit knop** in template — zichtbaar, nog niet functioneel ✅
+3. **Modal + basis canvas** — venster opent, toont lege piano roll ✅
+4. **MIDI data laden** in piano roll — noten zichtbaar, geen interactie ✅
+5. **Slepen tape (begin)** — offset aanpassen via drag & drop ✅
+6. **Lengte-aanpassing** — rechterkant slepen of invoerveld voor einde loop
+7. **Export-functie** — geselecteerde loop kopiëren naar nieuw/bestaand MIDI-bestand
+8. **Aaneenschakelen** — meerdere loops achter elkaar toevoegen
+9. **Integratie MIDI files** — piano roll + Tone.js player samen op interface
+10. **Polish** — context-dimming, keyboard shortcuts, offset display
+
+---
+
+## Fase 7 — Integratie met MIDI files interface & Tone.js player
+
+**Doel:** Piano roll + Tone.js player samengetrokken in de MIDI files interface (niet in modal gescheiden).
+
+**Bestanden:**
+- `templates/Document/midi-files.html.twig` — Piano roll canvas (niet in modal) integreren naast Tone.js player
+- `public/js/loopPianoRoll.js` — Aanpassen voor standalone canvas (niet-modal versie)
+- CSS voor layout: canvas links, playback controls rechts
+
+**Wijzigingen:**
+- Loop-lengte invoerveld blijft beschikbaar voor directe aanpassing
+- Drag & drop tape-offset blijft werken (loop-begin)
+- Rechterkant-slepen of lengte-invoer voor loop-einde aanpassingen
+- Tone.js playback kan direct uit de piano roll gebruikt worden
 
 ---
 
@@ -197,4 +256,6 @@ Hergebruik van de bestaande MIDI-fetch en parse logica uit `midiLoopPlayback.js`
 
 - Worden overlappende loops toegestaan (twee loops die hetzelfde MIDI-gebied bevatten)? Vooralsnog: ja, geen validatie.
 - Eenheid voor opslag: kwartnoten zijn gekozen boven MIDI ticks voor leesbaarheid in de API. Bij omrekening geldt: `ticks = quarterNotes * ticksPerQuarterNote` (uit MIDI header).
-- De ontvangende app moet het nieuwe `{ offset, length }` formaat nog gaan interpreteren — dat is een separate stap.
+- Export-logica: notaten worden geëxtraheerd op basis van offset + length en weggeschreven; maat/time signature wordt automatisch correct omdat loops gekwantiseerd zijn.
+- Aaneenschakelen: loops worden achter elkaar geplakt met offset = einde vorige loop, geen overlap of gaten.
+- Integratie MIDI files interface: canvas wordt niet-modal versie, integreert met bestaande Tone.js player UI.
