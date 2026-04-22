@@ -146,10 +146,10 @@
 
         // Restore normal state
         if (lengthControls) {
-            lengthControls.style.display = '';
+            lengthControls.style.display = 'flex';
         }
         if (saveBtn) {
-            saveBtn.style.display = '';
+            saveBtn.style.display = 'block';
         }
 
         modal.removeAttribute('data-previewUrl');
