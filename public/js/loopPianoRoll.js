@@ -542,10 +542,15 @@
             const midiUrl = modal.dataset.previewUrl;
             const bpm = parseFloat(modal.dataset.previewBpm) || 120;
             const timeSignature = modal.dataset.previewTimeSig || '4/4';
-            const totalBeats = parseInt(modal.dataset.previewTotalBeats, 10) || 48;
+
+            // Play the SELECTED loop segment (not the whole MIDI)
+            const startBeat = Math.min(state.selectionStartBeat, state.selectionEndBeat);
+            const length = Math.abs(state.selectionEndBeat - state.selectionStartBeat);
+
+            if (length <= 0) return;
 
             const loopLengths = [
-                { offset: 0, length: totalBeats }
+                { offset: startBeat, length: length }
             ];
 
             playbackManager
