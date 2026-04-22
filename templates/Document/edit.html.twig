@@ -240,21 +240,15 @@
                                 </div>
                             </div>
 
-                            {# ── Preview: midi-player + piano roll (verborgen tot toggle) ── #}
-                            <div class="chip-preview" id="{{ previewId }}" hidden>
-                                <midi-player
-                                        src="{{ midiUrl }}"
-                                        sound-font
-                                        visualizer="#{{ vizId }}"
-                                        data-visualizer-container="#{{ vizId }}-container"
-                                ></midi-player>
-                                <div class="piano-roll-wrapper" id="{{ vizId }}-container">
-                                    <midi-visualizer
-                                            id="{{ vizId }}"
-                                            type="piano-roll"
-                                            src="{{ midiUrl }}"
-                                    ></midi-visualizer>
+                            {# ── Preview: piano roll canvas + Tone.js player ── #}
+                            <div class="chip-preview" id="{{ previewId }}" hidden
+                                 data-midi-url="{{ midiUrl }}"
+                                 data-asset-id="{{ a.id }}">
+                                <div class="chip-preview-controls">
+                                    <button type="button" class="btn-mini js-file-preview-play" title="Afspelen">▶ Afspelen</button>
+                                    <button type="button" class="btn-mini js-file-preview-stop" title="Stoppen" disabled>■ Stop</button>
                                 </div>
+                                <canvas class="js-file-preview-canvas midi-preview-canvas"></canvas>
                             </div>
 
                         </div>
@@ -651,10 +645,20 @@
             display: flex;
             gap: 10px;
         }
+        .chip-preview-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .midi-preview-canvas {
+            display: block;
+            width: 100%;
+            border: 1px solid #334155;
+            background: #0f172a;
+            cursor: default;
+        }
     </style>
 
-    {# html-midi-player: Tone.js + Magenta core + player component #}
-    <script src="https://cdn.jsdelivr.net/combine/npm/tone@14,npm/@magenta/music@1.23.1/es6/core.js,npm/html-midi-player@1.5.0"></script>
     {# MIDI parser for loop preview playback #}
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@1"></script>
 
@@ -667,50 +671,17 @@
     <script src="{{ asset('js/effectsSettings.js?v=1') }}" defer></script>
     {# Loop preview playback engine #}
     <script src="{{ asset('js/midiLoopPlayback.js?v=1') }}" defer></script>
+    {# Gedeelde piano roll renderer #}
+    <script src="{{ asset('js/midiPianoRollRenderer.js?v=1') }}" defer></script>
     <script src="{{ asset('js/midiLoopPreview.js?v=1') }}" defer></script>
     {# Piano Roll Loop Editor #}
     <script src="{{ asset('js/loopPianoRoll.js?v=1') }}" defer></script>
+    {# MIDI file preview #}
+    <script src="{{ asset('js/midiFilePreview.js?v=1') }}" defer></script>
     <script src="{{ asset('js/scrollRestore.js?v=2') }}" defer></script>
     <script src="{{ asset('js/collapsibleRestore.js?v=2') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Selecteer alle midi-players
-            const players = document.querySelectorAll('midi-player');
-            players.forEach(player => {
-                player.addEventListener('start', () => {
-                    const containerSelector = player.getAttribute('data-visualizer-container');
-                    const container = document.querySelector(containerSelector);
-                    const viz = player.querySelector('midi-visualizer') || document.querySelector(player.getAttribute('visualizer'));
-
-                    if (!container || !viz) return;
-
-                    // Luister naar voortgang om te scrollen
-                    const onTimeUpdate = () => {
-                        if (!player.playing) return;
-                        
-                        const progress = player.currentTime / player.duration;
-                        const scrollWidth = container.scrollWidth - container.clientWidth;
-                        
-                        if (scrollWidth > 0) {
-                            container.scrollTo({
-                                left: scrollWidth * progress,
-                                behavior: 'auto' // auto voor directe sync tijdens playback
-                            });
-                        }
-                    };
-
-                    player.addEventListener('timeupdate', onTimeUpdate);
-                    
-                    // Cleanup als speler stopt
-                    player.addEventListener('stop', () => {
-                        player.removeEventListener('timeupdate', onTimeUpdate);
-                        container.scrollTo({ left: 0, behavior: 'smooth' });
-                    }, { once: true });
-                });
-            });
-        });
 
         function toggleMidiPreview(previewId, btn) {
             const panel = document.getElementById(previewId);
@@ -720,10 +691,14 @@
                 panel.removeAttribute('hidden');
                 btn.textContent = '■ Sluit';
                 btn.classList.add('active');
+                // Fire event untuk midiFilePreview.js
+                panel.dispatchEvent(new CustomEvent('midiPreviewOpened', { bubbles: true }));
             } else {
-                // Pauzeer de player als die bestaat
-                const player = panel.querySelector('midi-player');
-                if (player && typeof player.stop === 'function') player.stop();
+                // Stop playback
+                const stopBtn = panel.querySelector('.js-file-preview-stop');
+                if (stopBtn && !stopBtn.disabled) {
+                    stopBtn.click();
+                }
                 panel.setAttribute('hidden', '');
                 btn.textContent = '▶ Preview';
                 btn.classList.remove('active');

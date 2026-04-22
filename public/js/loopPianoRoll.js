@@ -37,8 +37,6 @@
         dragMoveLength: 0
     };
 
-    // Cache voor midi files
-    const midiCache = {};
 
     function init() {
         state.modal = document.getElementById('piano-roll-modal');
@@ -186,28 +184,17 @@
 
     async function loadMidiAndDraw() {
         const url = `/documents/${state.documentId}/assets/${state.assetId}/download`;
-        
-        if (!window.Midi) {
-            state.infoSpan.textContent = "Tonejs/Midi parser niet geladen.";
+
+        if (!window.MidiPianoRollRenderer) {
+            state.infoSpan.textContent = "Piano roll renderer niet geladen.";
             return;
         }
 
         try {
-            if (midiCache[url]) {
-                state.midiData = midiCache[url];
-            } else {
-                const response = await fetch(url);
-                if (!response.ok) throw new Error("HTTP " + response.status);
-                const arrayBuffer = await response.arrayBuffer();
-                state.midiData = new window.Midi(arrayBuffer);
-                midiCache[url] = state.midiData;
-            }
-            
-            // Bereken afmetingen
+            state.midiData = await window.MidiPianoRollRenderer.loadMidi(url);
             calibrateCanvas();
             draw();
             updateInfoSpan();
-            
         } catch (e) {
             state.infoSpan.textContent = "Fout bij laden MIDI: " + e.message;
             console.error(e);
@@ -215,115 +202,31 @@
     }
 
     function calibrateCanvas() {
-        if (!state.midiData) return;
-        
-        let minP = 127;
-        let maxP = 0;
-        let endTicks = 0;
-        
-        state.midiData.tracks.forEach(t => {
-            t.notes.forEach(n => {
-                if (n.midi < minP) minP = n.midi;
-                if (n.midi > maxP) maxP = n.midi;
-                const noteEnd = n.ticks + n.durationTicks;
-                if (noteEnd > endTicks) endTicks = noteEnd;
-            });
-        });
-        
-        if (minP > maxP) {
-            minP = 21; maxP = 108; // default
-        }
-        
-        // Voeg wat padding toe aan pitch
-        state.minPitch = Math.max(0, minP - 2);
-        state.maxPitch = Math.min(127, maxP + 2);
-        
-        const ppq = state.midiData.header.ppq; // ticks per quarter note
-        const endQuarters = endTicks / ppq;
-        const requiredWidth = Math.max(800, endQuarters * state.pixelsPerQuarter);
-        const requiredHeight = (state.maxPitch - state.minPitch + 1) * state.pitchHeight;
-        
-        // Zorg dat we goed schalen in de modal layout (breedte instellen)
-        state.canvas.width = Math.min(requiredWidth + 100, 3000); // maximum limit to prevent huge canvases
-        state.canvas.height = Math.max(requiredHeight + 40, 200); // 40px padding onderaan voor maat-labels
+        if (!state.midiData || !window.MidiPianoRollRenderer) return;
+
+        const pitches = window.MidiPianoRollRenderer.calibrate(
+            state.canvas,
+            state.midiData,
+            state.beatsPerBar,
+            state.pixelsPerQuarter
+        );
+        state.minPitch = pitches.minPitch;
+        state.maxPitch = pitches.maxPitch;
     }
 
     function draw() {
-        if (!state.midiData || !state.ctx) return;
-        
-        const ctx = state.ctx;
-        const w = state.canvas.width;
-        const h = state.canvas.height;
-        const pitchRange = state.maxPitch - state.minPitch + 1;
-        
-        // Background
-        ctx.fillStyle = '#0f172a'; // dark theme bg
-        ctx.fillRect(0, 0, w, h);
-        
-        const ppq = state.midiData.header.ppq;
-        const pxPerBar = state.pixelsPerQuarter * state.beatsPerBar;
-        
-        // Draw grid
-        ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for (let q = 0; q * state.pixelsPerQuarter < w; q++) {
-            const x = q * state.pixelsPerQuarter;
-            if (q % state.beatsPerBar === 0) {
-                // Maatlijn
-                ctx.strokeStyle = '#334155';
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, h - 30);
-                
-                ctx.fillStyle = '#64748b';
-                ctx.font = '10px sans-serif';
-                ctx.fillText(`M ${q / state.beatsPerBar + 1}`, x + 5, h - 15);
-            } else {
-                // Beat lijn
-                ctx.strokeStyle = '#1e293b';
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, h - 30);
-            }
-        }
-        ctx.stroke();
+        if (!state.midiData || !state.ctx || !window.MidiPianoRollRenderer) return;
 
-        // Draw note blocks
-        state.midiData.tracks.forEach(track => {
-            track.notes.forEach(note => {
-                const startBeat = note.ticks / ppq;
-                const lengthBeat = note.durationTicks / ppq;
-                
-                const x = startBeat * state.pixelsPerQuarter;
-                const width = lengthBeat * state.pixelsPerQuarter;
-                
-                const relativePitch = note.midi - state.minPitch;
-                const y = h - 40 - ((relativePitch + 1) * state.pitchHeight); // bottom up
-                
-                ctx.fillStyle = '#5865f2'; // purple-ish default track color
-                ctx.fillRect(x, y, Math.max(1, width - 1), state.pitchHeight - 1);
-            });
+        window.MidiPianoRollRenderer.draw(state.canvas, state.ctx, state.midiData, {
+            beatsPerBar: state.beatsPerBar,
+            pixelsPerQuarter: state.pixelsPerQuarter,
+            pitchHeight: state.pitchHeight,
+            minPitch: state.minPitch,
+            maxPitch: state.maxPitch,
+            selectionStartBeat: state.selectionStartBeat,
+            selectionEndBeat: state.selectionEndBeat,
+            loopIndex: state.loopIndex
         });
-        
-        // Draw Selection Overlay
-        if (state.selectionStartBeat !== null && state.selectionEndBeat !== null) {
-            const minB = Math.min(state.selectionStartBeat, state.selectionEndBeat);
-            const maxB = Math.max(state.selectionStartBeat, state.selectionEndBeat);
-            
-            const sx = minB * state.pixelsPerQuarter;
-            const ex = maxB * state.pixelsPerQuarter;
-            
-            ctx.fillStyle = 'rgba(59, 205, 247, 0.2)'; // tint
-            ctx.fillRect(sx, 0, ex - sx, h);
-            
-            ctx.strokeStyle = '#3bcdf7'; // tint border
-            ctx.lineWidth = 2;
-            ctx.strokeRect(sx, 0, ex - sx, h);
-            
-            // Loop Info in selectieblok
-            ctx.fillStyle = '#3bcdf7';
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillText(`Loop ${state.loopIndex + 1}`, sx + 5, 20);
-        }
     }
 
     function xToBeat(x) {
