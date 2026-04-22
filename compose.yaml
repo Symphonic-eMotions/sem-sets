@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: docker/php/Dockerfile
     working_dir: /app
-    command: php -S 0.0.0.0:8000 -t public
+    command: php -S 0.0.0.0:6677 -t public
     depends_on:
       - database
     environment:
@@ -14,7 +14,7 @@ services:
       DATABASE_URL: mysql://app:app@database:3306/app?serverVersion=10.5.29-MariaDB&charset=utf8mb4
       MAILER_DSN: smtp://mailer:1025
     ports:
-      - "8000:8000"
+      - "6677:6677"
     volumes:
       - .:/app
 

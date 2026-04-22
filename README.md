@@ -43,7 +43,7 @@ docker compose run --rm app php bin/console doctrine:fixtures:load
 
 ### 4. Applicatie openen
 
-- App: `http://localhost:8000`
+- App: `http://localhost:6677`
 
 De app-container gebruikt intern deze databaseverbinding:
 

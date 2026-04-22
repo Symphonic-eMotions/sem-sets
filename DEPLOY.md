@@ -54,7 +54,7 @@ docker compose up -d
 symfony server:start
 ```
 
-De app is dan bereikbaar op `https://localhost:8000` (of de poort die Symfony aangeeft).
+De app is dan bereikbaar op `http://localhost:6677` (of de poort die geconfigureerd is in docker-compose).
 
 ### Stoppen
 

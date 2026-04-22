@@ -299,7 +299,7 @@ php bin/console doctrine:schema:validate
 ### **3. JSON Output**
 ```bash
 # Check API response
-curl http://localhost:8000/api/sets/my-set.json | jq '.instrumentsConfig[0].trackVolume'
+curl http://localhost:6677/api/sets/my-set.json | jq '.instrumentsConfig[0].trackVolume'
 # Should return: 0 (or modified value)
 ```
 
