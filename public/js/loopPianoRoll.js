@@ -234,6 +234,33 @@
         });
     }
 
+    /**
+     * Export selected loop from MIDI file
+     */
+    function exportLoopFromMidi(offset, length) {
+        const modal = document.getElementById('piano-roll-modal');
+        const midiUrl = modal.dataset.previewUrl;
+        const fileName = modal.dataset.previewFileName;
+        const bpm = parseInt(modal.dataset.previewBpm, 10) || 120;
+        const timeSig = modal.dataset.previewTimeSig || '4/4';
+
+        console.log('Export loop from MIDI:', {
+            file: fileName,
+            offset: offset,
+            length: length,
+            bpm: bpm,
+            timeSig: timeSig
+        });
+
+        // TODO: Implementeer MIDI export logica
+        // For now: show confirmation
+        const startBar = (offset / state.beatsPerBar) + 1;
+        const lengthBars = length / state.beatsPerBar;
+        alert(`Geselecteerde loop:\n${fileName}\nMaat ${startBar} - ${lengthBars} maten\n\n(Export functie in development)`);
+
+        closeModal();
+    }
+
     function xToBeat(x) {
         return x / state.pixelsPerQuarter;
     }
@@ -398,15 +425,25 @@
     }
 
     function saveSelection() {
-        if (!state.editorEl) return;
-        
+        const modal = document.getElementById('piano-roll-modal');
+        const isFullMidiPreview = modal && modal.dataset.isFullMidiPreview === 'true';
+
         const length = Math.abs(state.selectionEndBeat - state.selectionStartBeat);
         if (length <= 0) {
             alert('Selecteer een gebied breder dan 0.');
             return;
         }
-        
+
         const offset = Math.min(state.selectionStartBeat, state.selectionEndBeat);
+
+        // ========== MIDI File Preview: Export ==========
+        if (isFullMidiPreview) {
+            exportLoopFromMidi(offset, length);
+            return;
+        }
+
+        // ========== Loop Editor: Save ==========
+        if (!state.editorEl) return;
         
         // Update het formulier
         const inputId = state.editorEl.dataset.inputId;

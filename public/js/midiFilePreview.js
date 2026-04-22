@@ -48,6 +48,7 @@
 
     /**
      * Setup modal state for MIDI file preview
+     * Toon DEZELFDE interface als loop editor - met selectie + stepper
      */
     async function setupPreviewModal(midiUrl, fileName) {
         const modal = document.getElementById('piano-roll-modal');
@@ -55,23 +56,17 @@
         const ctx = canvas.getContext('2d');
         const infoSpan = document.getElementById('pr-selection-info');
         const modalTitle = modal.querySelector('.modal-header h3');
-        const lengthInput = modal.querySelector('.js-pr-length-input');
-        const lengthControls = modal.querySelector('.pr-header-controls');
         const saveBtn = modal.querySelector('.js-pr-save');
 
         // Update title
         if (modalTitle) {
-            modalTitle.textContent = `MIDI Voorbeeld: ${fileName}`;
+            modalTitle.textContent = `MIDI Preview: ${fileName}`;
         }
 
-        // Hide length controls (no selection in preview mode)
-        if (lengthControls) {
-            lengthControls.style.display = 'none';
-        }
-
-        // Disable save button (can't save from preview)
+        // Change save button text
         if (saveBtn) {
-            saveBtn.style.display = 'none';
+            saveBtn.textContent = 'Exporteren';
+            saveBtn.dataset.exportMode = 'true';
         }
 
         try {
@@ -84,21 +79,7 @@
             // Kalibreer canvas
             const pitches = window.MidiPianoRollRenderer.calibrate(canvas, midiData, beatsPerBar);
 
-            // Teken canvas (geen selectie overlay)
-            const state = {
-                beatsPerBar: beatsPerBar,
-                pixelsPerQuarter: 40,
-                pitchHeight: 4,
-                minPitch: pitches.minPitch,
-                maxPitch: pitches.maxPitch,
-                selectionStartBeat: null,  // No selection in preview
-                selectionEndBeat: null,
-                loopIndex: null
-            };
-
-            window.MidiPianoRollRenderer.draw(canvas, ctx, midiData, state);
-
-            // Setup playback info
+            // Bereken totale duur
             const ppq = midiData.header.ppq;
             let endTicks = 0;
             midiData.tracks.forEach(track => {
@@ -107,22 +88,37 @@
                     if (noteEnd > endTicks) endTicks = noteEnd;
                 });
             });
-
             const totalBeats = Math.round(endTicks / ppq);
+
+            // Teken canvas MET selectie overlay (default: hele MIDI)
+            const state = {
+                beatsPerBar: beatsPerBar,
+                pixelsPerQuarter: 40,
+                pitchHeight: 4,
+                minPitch: pitches.minPitch,
+                maxPitch: pitches.maxPitch,
+                selectionStartBeat: 0,         // Start at beginning
+                selectionEndBeat: totalBeats,  // Whole MIDI selected by default
+                loopIndex: 0                   // Label as "Loop 1"
+            };
+
+            window.MidiPianoRollRenderer.draw(canvas, ctx, midiData, state);
+
+            // Store in modal
             const tempos = midiData.header.tempos;
             const bpm = tempos && tempos[0] ? tempos[0].bpm : 120;
             const timeSigStr = timeSig
                 ? `${timeSig.timeSignature[0]}/${timeSig.timeSignature[1]}`
                 : '4/4';
 
-            // Store in modal for play button
             modal.dataset.previewUrl = midiUrl;
             modal.dataset.previewBpm = bpm;
             modal.dataset.previewTimeSig = timeSigStr;
             modal.dataset.previewTotalBeats = totalBeats;
             modal.dataset.isFullMidiPreview = 'true';
+            modal.dataset.previewFileName = fileName;
 
-            infoSpan.textContent = `${totalBeats} tellen • ${bpm} BPM • ${timeSigStr}`;
+            infoSpan.textContent = `Totaal: ${totalBeats} tellen • ${bpm} BPM • ${timeSigStr}`;
 
         } catch (error) {
             console.error('Error loading MIDI preview:', error);
@@ -135,7 +131,6 @@
      */
     window.closeMidiFilePreview = function() {
         const modal = document.getElementById('piano-roll-modal');
-        const lengthControls = modal.querySelector('.pr-header-controls');
         const saveBtn = modal.querySelector('.js-pr-save');
 
         // Stop any playback
@@ -144,12 +139,10 @@
             playBtn.click(); // Trigger mouseup to stop
         }
 
-        // Restore normal state
-        if (lengthControls) {
-            lengthControls.style.display = 'flex';
-        }
+        // Restore save button
         if (saveBtn) {
-            saveBtn.style.display = 'block';
+            saveBtn.textContent = 'Opslaan';
+            delete saveBtn.dataset.exportMode;
         }
 
         modal.removeAttribute('data-previewUrl');
@@ -157,6 +150,7 @@
         modal.removeAttribute('data-previewTimeSig');
         modal.removeAttribute('data-previewTotalBeats');
         modal.removeAttribute('data-isFullMidiPreview');
+        modal.removeAttribute('data-previewFileName');
 
         modal.setAttribute('hidden', '');
         document.body.style.overflow = '';
