@@ -240,15 +240,23 @@
                                 </div>
                             </div>
 
-                            {# ── Preview: piano roll canvas + Tone.js player ── #}
+                            {# ── Preview: piano roll canvas + Tone.js player (modal) ── #}
                             <div class="chip-preview" id="{{ previewId }}" hidden
                                  data-midi-url="{{ midiUrl }}"
                                  data-asset-id="{{ a.id }}">
-                                <div class="chip-preview-controls">
-                                    <button type="button" class="btn-mini js-file-preview-play" title="Afspelen">▶ Afspelen</button>
-                                    <button type="button" class="btn-mini js-file-preview-stop" title="Stoppen" disabled>■ Stop</button>
+                                <div class="chip-preview-inner">
+                                    <div class="chip-preview-header">
+                                        <h3>MIDI Voorbeeld: {{ a.displayName ?? a.originalName }}</h3>
+                                        <button type="button" class="close-btn js-file-preview-close" title="Sluiten">✕</button>
+                                    </div>
+                                    <div class="chip-preview-body">
+                                        <div class="chip-preview-controls">
+                                            <button type="button" class="btn-mini js-file-preview-play" title="Afspelen">▶ Afspelen</button>
+                                            <button type="button" class="btn-mini js-file-preview-stop" title="Stoppen" disabled>■ Stop</button>
+                                        </div>
+                                        <canvas class="js-file-preview-canvas midi-preview-canvas"></canvas>
+                                    </div>
                                 </div>
-                                <canvas class="js-file-preview-canvas midi-preview-canvas"></canvas>
                             </div>
 
                         </div>
@@ -645,6 +653,59 @@
             display: flex;
             gap: 10px;
         }
+        /* Modal styling voor chip-preview */
+        .chip-preview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9998;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .chip-preview[hidden] {
+            display: none !important;
+        }
+        .chip-preview-inner {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            width: 90vw;
+            max-width: 1200px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+        .chip-preview-header {
+            padding: 16px;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chip-preview-header h3 {
+            margin: 0;
+            font-size: 1.1em;
+        }
+        .chip-preview-header .close-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.5em;
+            cursor: pointer;
+        }
+        .chip-preview-body {
+            padding: 16px;
+            overflow: auto;
+            flex: 1;
+            background: #0f172a;
+        }
         .chip-preview-controls {
             display: flex;
             gap: 8px;
@@ -659,6 +720,8 @@
         }
     </style>
 
+    {# Tone.js audio engine #}
+    <script src="https://cdn.jsdelivr.net/npm/tone@14"></script>
     {# MIDI parser for loop preview playback #}
     <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@1"></script>
 

@@ -21,9 +21,64 @@
         // Delegated listener voor Play knoppen
         document.addEventListener('click', onPlayClick);
         document.addEventListener('click', onStopClick);
+        document.addEventListener('click', onCloseClick);
 
         // Listen voor custom event bij toggle
         document.addEventListener('midiPreviewOpened', onPreviewOpened);
+
+        // Keyboard: ESC to close modal
+        document.addEventListener('keydown', onKeyDown);
+    }
+
+    /**
+     * Close button clicked
+     */
+    function onCloseClick(e) {
+        const btn = e.target.closest('.js-file-preview-close');
+        if (!btn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const panel = btn.closest('.chip-preview');
+        if (panel) {
+            closeModal(panel);
+        }
+    }
+
+    /**
+     * ESC key closes modal
+     */
+    function onKeyDown(e) {
+        if (e.key === 'Escape') {
+            const openPanel = document.querySelector('.chip-preview:not([hidden])');
+            if (openPanel) {
+                closeModal(openPanel);
+            }
+        }
+    }
+
+    /**
+     * Close the modal panel
+     */
+    function closeModal(panel) {
+        const previewId = panel.id;
+        const stopBtn = panel.querySelector('.js-file-preview-stop');
+
+        // Stop playback if active
+        if (stopBtn && !stopBtn.disabled) {
+            stopBtn.click();
+        }
+
+        // Hide panel
+        panel.setAttribute('hidden', '');
+
+        // Update button text
+        const triggerBtn = document.querySelector(`[data-preview-id="${previewId}"]`);
+        if (triggerBtn) {
+            triggerBtn.textContent = '▶ Preview';
+            triggerBtn.classList.remove('active');
+        }
     }
 
     /**
