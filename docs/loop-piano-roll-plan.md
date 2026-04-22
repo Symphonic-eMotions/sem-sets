@@ -170,11 +170,12 @@ Sluiten via: backdrop-klik, Escape-toets, Annuleren-knop.
 
 #### Interactie
 - **Begin slepen** (tape): `mousedown` op canvas-achtergrond + bewegen → tape verschuift, loop-venster-begin verplaatst zich
-- **Lengte slepen**: `mousedown` op rechterkant van loop-venster + bewegen → loop-einde aanpassen (rechtergrens verplaatst)
-- **Lengte invoer**: invoerveld in de header voor directe invoer van loop-lengte in tellen (kwartnoten)
+- **Lengte stepper**: +/− knoppen en invoerveld in de header voor loop-lengte in tellen (kwartnoten)
+  - Invoer bijwerkt canvas realtime
+  - Min 1 tel, geen maximaal
 - **Snapping**: beweging gekwantiseerd op 1 kwartnoot (= breedte van 1 kwartnoot in pixels)
 - **Context**: noten 4 maten voor en na het loop-venster zichtbaar (gedempt)
-- **Keyboard**: `←` / `→` voor verschuiving per kwartnoot (tape), `Shift+←` / `Shift+→` voor lengte-aanpassing
+- **Keyboard**: `←` / `→` voor verschuiving tape per kwartnoot
 - **Offset display**: `"Start: maat 3, tel 2 | Lengte: 48 tellen"` realtime bijwerken in modal-header
 
 #### Data laden
@@ -227,7 +228,7 @@ Hergebruik van de bestaande MIDI-fetch en parse logica uit `midiLoopPlayback.js`
 3. **Modal + basis canvas** — venster opent, toont lege piano roll ✅
 4. **MIDI data laden** in piano roll — noten zichtbaar, geen interactie ✅
 5. **Slepen tape (begin)** — offset aanpassen via drag & drop ✅
-6. **Lengte-aanpassing** — rechterkant slepen of invoerveld voor einde loop
+6. **Lengte-aanpassing met stepper** — stepper met +/- knoppen en invoerveld voor loop-lengte in tellen
 7. **Export-functie** — geselecteerde loop kopiëren naar nieuw/bestaand MIDI-bestand
 8. **Aaneenschakelen** — meerdere loops achter elkaar toevoegen
 9. **Integratie MIDI files** — piano roll + Tone.js player samen op interface

@@ -43,7 +43,7 @@
     function init() {
         state.modal = document.getElementById('piano-roll-modal');
         if (!state.modal) return;
-        
+
         state.canvas = document.getElementById('piano-roll-canvas');
         state.ctx = state.canvas.getContext('2d');
         state.infoSpan = document.getElementById('pr-selection-info');
@@ -67,6 +67,28 @@
             playBtn.addEventListener('mouseleave', onPlayBtnMouseUp);
             playBtn.addEventListener('touchstart', (e) => { e.preventDefault(); onPlayBtnMouseDown(e); });
             playBtn.addEventListener('touchend', (e) => { e.preventDefault(); onPlayBtnMouseUp(e); });
+        }
+
+        // Stepper controls
+        const lengthInput = document.querySelector('.js-pr-length-input');
+        const minusBtn = document.querySelector('.js-pr-length-minus');
+        const plusBtn = document.querySelector('.js-pr-length-plus');
+
+        if (lengthInput) {
+            lengthInput.addEventListener('change', onLengthInputChange);
+            lengthInput.addEventListener('input', onLengthInputChange);
+        }
+        if (minusBtn) {
+            minusBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                adjustLoopLength(-1);
+            });
+        }
+        if (plusBtn) {
+            plusBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                adjustLoopLength(1);
+            });
         }
 
         // Canvas mouse events
@@ -313,6 +335,33 @@
         return Math.round(beat);
     }
 
+    function adjustLoopLength(delta) {
+        if (state.selectionStartBeat === null) return;
+
+        const currentLength = Math.abs(state.selectionEndBeat - state.selectionStartBeat);
+        const newLength = Math.max(1, currentLength + delta);
+
+        state.selectionEndBeat = state.selectionStartBeat + newLength;
+
+        const lengthInput = document.querySelector('.js-pr-length-input');
+        if (lengthInput) {
+            lengthInput.value = newLength;
+        }
+
+        draw();
+        updateInfoSpan();
+    }
+
+    function onLengthInputChange(e) {
+        if (state.selectionStartBeat === null) return;
+
+        const newLength = Math.max(1, parseInt(e.target.value, 10) || 1);
+        state.selectionEndBeat = state.selectionStartBeat + newLength;
+
+        draw();
+        updateInfoSpan();
+    }
+
     // Mouse interactions
     function onMouseDown(e) {
         if (!state.midiData) return;
@@ -427,11 +476,17 @@
             state.infoSpan.textContent = "Selecteer een gebied op de tijdlijn...";
             return;
         }
-        
+
         const length = Math.abs(state.selectionEndBeat - state.selectionStartBeat);
         const bars = (length / state.beatsPerBar).toFixed(1);
-        
+
         state.infoSpan.textContent = `Offset: ${state.selectionStartBeat} kwartnoten | Lengte: ${length} kwartnoten (${bars} maten)`;
+
+        // Update stepper input
+        const lengthInput = document.querySelector('.js-pr-length-input');
+        if (lengthInput) {
+            lengthInput.value = length;
+        }
     }
 
     function saveSelection() {
