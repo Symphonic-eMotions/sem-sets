@@ -603,14 +603,15 @@
 
     /**
      * Initialize preview mode state (for MIDI file preview)
-     * @param {number} startBeat - Selection start
-     * @param {number} endBeat - Selection end
-     * @param {number} beatsPerBar - Time signature numerator
+     * @param {object} previewState - { startBeat, endBeat, beatsPerBar, minPitch, maxPitch, midiData }
      */
-    window.initLoopPreviewState = function(startBeat, endBeat, beatsPerBar) {
-        state.selectionStartBeat = startBeat;
-        state.selectionEndBeat = endBeat;
-        state.beatsPerBar = beatsPerBar;
+    window.initLoopPreviewState = function(previewState) {
+        state.selectionStartBeat = previewState.startBeat;
+        state.selectionEndBeat = previewState.endBeat;
+        state.beatsPerBar = previewState.beatsPerBar;
+        state.minPitch = previewState.minPitch;
+        state.maxPitch = previewState.maxPitch;
+        state.midiData = previewState.midiData;
         state.loopIndex = 0;
         draw();
         updateInfoSpan();

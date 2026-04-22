@@ -106,7 +106,14 @@
 
             // Initialize loopPianoRoll state voor drag/drop en stepper functionaliteit
             if (typeof window.initLoopPreviewState === 'function') {
-                window.initLoopPreviewState(0, totalBeats, beatsPerBar);
+                window.initLoopPreviewState({
+                    startBeat: 0,
+                    endBeat: totalBeats,
+                    beatsPerBar: beatsPerBar,
+                    minPitch: pitches.minPitch,
+                    maxPitch: pitches.maxPitch,
+                    midiData: midiData
+                });
             }
 
             // Store in modal
