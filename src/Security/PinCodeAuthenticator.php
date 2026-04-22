@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Security;
 
 use Doctrine\DBAL\Exception as DbalException;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\RouterInterface;
@@ -24,7 +25,8 @@ final class PinCodeAuthenticator extends AbstractLoginFormAuthenticator
 
     public function __construct(
         private readonly RouterInterface $router,
-        private readonly UserProviderInterface $userProvider
+        private readonly UserProviderInterface $userProvider,
+        private readonly LoggerInterface $logger
     ) {}
 
     public function authenticate(Request $request): Passport
@@ -45,12 +47,12 @@ final class PinCodeAuthenticator extends AbstractLoginFormAuthenticator
                         // Hier gaat de daadwerkelijke DB-call via je UserProvider
                         return $this->userProvider->loadUserByIdentifier($userIdentifier);
                     } catch (DbalException $e) {
-                        // Database-issue → Vriendelijke melding voor de gebruiker
+                        $this->logger->error('Login DbalException: ' . get_class($e) . ': ' . $e->getMessage());
                         throw new CustomUserMessageAuthenticationException(
                             'Inloggen is tijdelijk niet mogelijk. Probeer het later opnieuw.'
                         );
                     } catch (Throwable $e) {
-                        // Catch-all voor andere technische fouten (optioneel)
+                        $this->logger->error('Login Throwable: ' . get_class($e) . ': ' . $e->getMessage());
                         throw new CustomUserMessageAuthenticationException(
                             'Er is een technisch probleem opgetreden tijdens het inloggen.'
                         );
