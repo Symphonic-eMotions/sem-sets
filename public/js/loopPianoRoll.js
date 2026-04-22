@@ -601,6 +601,21 @@
         isPlayingPreview = false;
     }
 
+    /**
+     * Initialize preview mode state (for MIDI file preview)
+     * @param {number} startBeat - Selection start
+     * @param {number} endBeat - Selection end
+     * @param {number} beatsPerBar - Time signature numerator
+     */
+    window.initLoopPreviewState = function(startBeat, endBeat, beatsPerBar) {
+        state.selectionStartBeat = startBeat;
+        state.selectionEndBeat = endBeat;
+        state.beatsPerBar = beatsPerBar;
+        state.loopIndex = 0;
+        draw();
+        updateInfoSpan();
+    };
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

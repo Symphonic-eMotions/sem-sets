@@ -91,7 +91,7 @@
             const totalBeats = Math.round(endTicks / ppq);
 
             // Teken canvas MET selectie overlay (default: hele MIDI)
-            const state = {
+            const renderState = {
                 beatsPerBar: beatsPerBar,
                 pixelsPerQuarter: 40,
                 pitchHeight: 4,
@@ -102,7 +102,12 @@
                 loopIndex: 0                   // Label as "Loop 1"
             };
 
-            window.MidiPianoRollRenderer.draw(canvas, ctx, midiData, state);
+            window.MidiPianoRollRenderer.draw(canvas, ctx, midiData, renderState);
+
+            // Initialize loopPianoRoll state voor drag/drop en stepper functionaliteit
+            if (typeof window.initLoopPreviewState === 'function') {
+                window.initLoopPreviewState(0, totalBeats, beatsPerBar);
+            }
 
             // Store in modal
             const tempos = midiData.header.tempos;
