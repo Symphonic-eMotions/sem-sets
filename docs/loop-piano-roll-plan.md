@@ -3,10 +3,10 @@
 ## Voortgang
 
 ✅ **Fase 4 (Basis)** — Piano roll canvas renderer, drag & drop tape-offset werkt (begin van loop goed instelbaar)  
-⏳ **Fase 4 (Uitbreiding)** — Loop-lengte aanpassing in tellen (einde van loop instelbaar)  
-⏳ **Fase 4 (Integratie)** — Piano roll + Tone.js player samen bij MIDI files interface plaatsen  
-⏳ **Fase 5** — Loop naar MIDI-bestand kopieren (export-functie)  
-⏳ **Fase 6** — Loops aaneenschakelen in geëxporteerd bestand
+✅ **Fase 4 (Uitbreiding)** — Loop-lengte aanpassing in tellen (einde van loop instelbaar)  
+✅ **Fase 4 (Integratie)** — Piano roll + Tone.js player samen bij MIDI files interface plaatsen  
+⏳ **Fase 5** — Loop naar MIDI-bestand kopieren (export-functie) — Frontend dialog ✅, Backend MIDI logic TODO  
+⏳ **Fase 6** — Loops aaneenschakelen in geëxporteerd bestand — Workflow design ✅, Backend implementation TODO
 
 ---
 

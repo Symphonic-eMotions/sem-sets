@@ -28,7 +28,7 @@
      * Public function: open piano roll modal for MIDI file preview
      * Called by toggleMidiPreview in template
      */
-    window.openMidiFilePreview = function(midiUrl, fileName) {
+    window.openMidiFilePreview = function(midiUrl, fileName, documentId, assetId) {
         if (!window.MidiPianoRollRenderer || !window.MidiLoopPlayback) {
             console.warn('Piano roll preview not available');
             return;
@@ -41,7 +41,7 @@
         }
 
         // Setup modal for MIDI file preview (fullMidiPreview mode)
-        setupPreviewModal(midiUrl, fileName);
+        setupPreviewModal(midiUrl, fileName, documentId, assetId);
         modal.removeAttribute('hidden');
         document.body.style.overflow = 'hidden';
     };
@@ -50,7 +50,7 @@
      * Setup modal state for MIDI file preview
      * Toon DEZELFDE interface als loop editor - met selectie + stepper
      */
-    async function setupPreviewModal(midiUrl, fileName) {
+    async function setupPreviewModal(midiUrl, fileName, documentId, assetId) {
         const modal = document.getElementById('piano-roll-modal');
         const canvas = document.getElementById('piano-roll-canvas');
         const ctx = canvas.getContext('2d');
@@ -129,6 +129,8 @@
             modal.dataset.previewTotalBeats = totalBeats;
             modal.dataset.isFullMidiPreview = 'true';
             modal.dataset.previewFileName = fileName;
+            modal.dataset.previewDocumentId = documentId;
+            modal.dataset.previewSourceAssetId = assetId;
 
             infoSpan.textContent = `Totaal: ${totalBeats} tellen • ${bpm} BPM • ${timeSigStr}`;
 
@@ -163,6 +165,8 @@
         modal.removeAttribute('data-previewTotalBeats');
         modal.removeAttribute('data-isFullMidiPreview');
         modal.removeAttribute('data-previewFileName');
+        modal.removeAttribute('data-previewDocumentId');
+        modal.removeAttribute('data-previewSourceAssetId');
 
         modal.setAttribute('hidden', '');
         document.body.style.overflow = '';

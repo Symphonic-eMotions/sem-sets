@@ -237,28 +237,185 @@
     /**
      * Export selected loop from MIDI file
      */
-    function exportLoopFromMidi(offset, length) {
+    async function exportLoopFromMidi(offset, length) {
         const modal = document.getElementById('piano-roll-modal');
-        const midiUrl = modal.dataset.previewUrl;
+        const documentId = modal.dataset.previewDocumentId;
+        const sourceAssetId = modal.dataset.previewSourceAssetId;
         const fileName = modal.dataset.previewFileName;
-        const bpm = parseInt(modal.dataset.previewBpm, 10) || 120;
-        const timeSig = modal.dataset.previewTimeSig || '4/4';
 
-        console.log('Export loop from MIDI:', {
-            file: fileName,
-            offset: offset,
-            length: length,
-            bpm: bpm,
-            timeSig: timeSig
+        if (!documentId || !sourceAssetId) {
+            alert('Documentgegevens ontbreken.');
+            return;
+        }
+
+        // Show export dialog
+        showExportDialog(documentId, sourceAssetId, offset, length, fileName);
+    }
+
+    /**
+     * Show dialog for choosing export target (new file or existing)
+     */
+    async function showExportDialog(documentId, sourceAssetId, offset, length, sourceFileName) {
+        // Check for remembered destination
+        const remembered = JSON.parse(sessionStorage.getItem('lastLoopTarget') || 'null');
+
+        // Get list of MIDI assets from global variable
+        let assets = [];
+        if (window.MIDI_ASSETS && Array.isArray(window.MIDI_ASSETS)) {
+            // Use all MIDI assets (user can export to same file or different)
+            assets = window.MIDI_ASSETS;
+            console.log('Available assets for append:', assets);
+        }
+
+        // Create dialog element
+        const dialog = document.createElement('div');
+        dialog.className = 'export-dialog-overlay';
+        dialog.innerHTML = `
+            <div class="export-dialog">
+                <div class="dialog-header">
+                    <h3>Loop exporteren</h3>
+                    <p class="subtle">Selecteer bestemming voor de loop</p>
+                </div>
+                <div class="dialog-body">
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="targetMode" value="new" ${!remembered ? 'checked' : ''}>
+                            <span class="label-text">🆕 Nieuw MIDI bestand</span>
+                        </label>
+                        <div class="radio-option-detail" style="display: ${!remembered ? 'block' : 'none'}">
+                            <input type="text" class="new-filename-input" placeholder="Bijv. My Composition" value="${sourceFileName}_Composition">
+                        </div>
+                    </div>
+
+                    <div class="radio-group">
+                        <label class="radio-option">
+                            <input type="radio" name="targetMode" value="existing" ${remembered ? 'checked' : ''}>
+                            <span class="label-text">📁 Toevoegen aan bestaand</span>
+                        </label>
+                        <div class="radio-option-detail" style="display: ${remembered ? 'block' : 'none'}">
+                            <select class="existing-asset-select">
+                                <option value="">-- Selecteer een bestand --</option>
+                                ${assets.filter(a => String(a.id) !== String(sourceAssetId)).map(a => `<option value="${a.id}" ${remembered?.assetId === a.id ? 'selected' : ''}>${a.displayName || a.originalName || 'Unknown'}</option>`).join('')}
+                                ${String(sourceAssetId) && assets.some(a => String(a.id) === String(sourceAssetId)) ? `<optgroup label="Huidig bestand"><option value="${sourceAssetId}" disabled>(Kan niet naar jezelf exporteren)</option></optgroup>` : ''}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dialog-footer">
+                    <button type="button" class="btn-secondary export-cancel">Annuleren</button>
+                    <button type="button" class="btn-primary export-submit">Exporteren</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(dialog);
+
+        // Event handlers
+        const radioButtons = dialog.querySelectorAll('input[name="targetMode"]');
+        const details = dialog.querySelectorAll('.radio-option-detail');
+
+        radioButtons.forEach((radio, i) => {
+            radio.addEventListener('change', () => {
+                details.forEach(d => d.style.display = 'none');
+                if (radio.checked) {
+                    details[i].style.display = 'block';
+                }
+            });
         });
 
-        // TODO: Implementeer MIDI export logica
-        // For now: show confirmation
-        const startBar = (offset / state.beatsPerBar) + 1;
-        const lengthBars = length / state.beatsPerBar;
-        alert(`Geselecteerde loop:\n${fileName}\nMaat ${startBar} - ${lengthBars} maten\n\n(Export functie in development)`);
+        const cancelBtn = dialog.querySelector('.export-cancel');
+        const submitBtn = dialog.querySelector('.export-submit');
 
-        closeModal();
+        cancelBtn.addEventListener('click', () => {
+            dialog.remove();
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            const mode = dialog.querySelector('input[name="targetMode"]:checked').value;
+            const filenameInput = dialog.querySelector('.new-filename-input');
+            const selectInput = dialog.querySelector('.existing-asset-select');
+
+            let targetAssetId = null;
+            let targetFileName = null;
+
+            if (mode === 'new') {
+                targetFileName = filenameInput.value.trim() || 'Composition';
+            } else {
+                targetAssetId = selectInput.value;
+                if (!targetAssetId) {
+                    alert('Selecteer alstublieft een bestand.');
+                    return;
+                }
+            }
+
+            console.log('Exporting loop:', {
+                documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName
+            });
+
+            // Submit export
+            await submitExport(documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName);
+            dialog.remove();
+        });
+    }
+
+    /**
+     * Submit export request to backend
+     */
+    async function submitExport(documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName) {
+        try {
+            const payload = {
+                sourceAssetId: sourceAssetId,
+                offset: offset,
+                length: length,
+                targetMode: mode,
+                targetAssetId: targetAssetId,
+                fileName: targetFileName
+            };
+            console.log('Sending export request:', payload);
+
+            const response = await fetch(`/documents/${documentId}/api/midi/append-loop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                let errorMsg = `HTTP ${response.status}`;
+                try {
+                    const errorData = await response.json();
+                    if (errorData.error) {
+                        errorMsg = errorData.error;
+                        if (errorData.debug && errorData.debug.message) {
+                            console.error('Server debug info:', errorData.debug);
+                        }
+                    }
+                } catch (e) {
+                    // Not JSON
+                }
+                throw new Error(errorMsg);
+            }
+
+            const result = await response.json();
+
+            // Remember this destination
+            sessionStorage.setItem('lastLoopTarget', JSON.stringify({
+                assetId: result.assetId || targetAssetId,
+                fileName: result.fileName || targetFileName
+            }));
+
+            alert(`✓ Loop succesvol geëxporteerd naar "${result.fileName || targetFileName}"`);
+            closeModal();
+
+            // Refresh the page to show the new MIDI file in the assets list
+            setTimeout(() => {
+                window.location.reload();
+            }, 500);
+
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Fout bij exporteren: ' + error.message);
+        }
     }
 
     function xToBeat(x) {

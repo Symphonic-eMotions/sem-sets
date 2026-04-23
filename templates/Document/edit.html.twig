@@ -150,7 +150,7 @@
                                     <button
                                             type="button"
                                             class="btn-mini"
-                                            onclick="toggleMidiPreview('{{ midiUrl }}', this)"
+                                            onclick="toggleMidiPreview('{{ midiUrl }}', this, '{{ document.id }}', '{{ a.id }}')"
                                             title="Preview en piano roll"
                                     >▶ Preview</button>
 
@@ -635,6 +635,143 @@
             display: flex;
             gap: 10px;
         }
+
+        /* Export Dialog */
+        .export-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .export-dialog {
+            background: #1e1e2e;
+            border: 1px solid #404060;
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            color: #e0e0e0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .dialog-header {
+            margin-bottom: 20px;
+        }
+
+        .dialog-header h3 {
+            margin: 0 0 8px 0;
+            font-size: 18px;
+            color: #fff;
+        }
+
+        .dialog-header .subtle {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .dialog-body {
+            margin-bottom: 20px;
+        }
+
+        .radio-group {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            margin-bottom: 8px;
+        }
+
+        .radio-option input[type="radio"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .label-text {
+            flex: 1;
+        }
+
+        .radio-option-detail {
+            margin-left: 28px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .new-filename-input,
+        .existing-asset-select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #2a2a3e;
+            border: 1px solid #404060;
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .new-filename-input:focus,
+        .existing-asset-select:focus {
+            outline: none;
+            border-color: #3bcdf7;
+            box-shadow: 0 0 0 2px rgba(59, 205, 247, 0.2);
+        }
+
+        .existing-asset-select option {
+            background: #1e1e2e;
+            color: #e0e0e0;
+        }
+
+        .dialog-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .export-cancel,
+        .export-submit {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .export-cancel {
+            background: #404060;
+            color: #e0e0e0;
+        }
+
+        .export-cancel:hover {
+            background: #505080;
+        }
+
+        .export-submit {
+            background: #3bcdf7;
+            color: #0f172a;
+            font-weight: 600;
+        }
+
+        .export-submit:hover {
+            background: #5adeff;
+        }
+
+        .export-submit:active {
+            transform: scale(0.98);
+        }
     </style>
 
     {# Tone.js audio engine #}
@@ -662,14 +799,21 @@
     <script src="{{ asset('js/collapsibleRestore.js?v=2') }}" defer></script>
     <script>
         window.EFFECT_PRESET_MAP = {{ allEffectPresetsMap|json_encode|raw }};
+        window.MIDI_ASSETS = [
+        {%- for a in (assetsParents ?? []) -%}
+            {%- if a.getMimeType() == 'audio/midi' -%}
+            {id: {{ a.getId() }}, originalName: "{{ a.getOriginalName()|escape('js') }}", displayName: "{{ (a.getDisplayName() ?? '')|escape('js') }}"}{{ not loop.last ? ',' : '' }}
+            {%- endif -%}
+        {%- endfor -%}
+        ];
 
-        function toggleMidiPreview(midiUrl, btn) {
+        function toggleMidiPreview(midiUrl, btn, documentId, assetId) {
             // Get file name from chip
             const chip = btn.closest('.chip');
             const fileName = chip.querySelector('.chip-name-display').textContent.trim();
 
             // Open piano roll modal with MIDI file preview
-            window.openMidiFilePreview(midiUrl, fileName);
+            window.openMidiFilePreview(midiUrl, fileName, documentId, assetId);
         }
     </script>
 

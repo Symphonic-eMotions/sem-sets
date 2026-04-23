@@ -180,7 +180,7 @@ class MidiLoopPlayback {
             }
 
             const arrayBuffer = await response.arrayBuffer();
-            // Use @tonejs/midi directly (NOT Tone.Midi)
+            // @tonejs/midi exposes a global 'Midi' class/function
             const midi = new Midi(arrayBuffer);
 
             // Cache for future use
@@ -264,37 +264,39 @@ class MidiLoopPlayback {
             throw new Error('MIDI object is null/undefined');
         }
 
+        console.log('🎵 Scheduling MIDI Loop:', { startBeat, endBeat, bpm, tracks: midi.tracks.length });
+
         // Check for tracks in different possible locations
         let tracks = midi.tracks || midi.track || [];
-
-        if (!Array.isArray(tracks)) {
-            console.error('MIDI tracks is not an array:', tracks);
-            throw new Error('MIDI tracks are not in array format');
-        }
-
-        if (tracks.length === 0) {
-            console.warn('MIDI has no tracks');
-        }
 
         const beatsPerSecond = bpm / 60;
         const startSeconds = startBeat / beatsPerSecond;
         const endSeconds = endBeat / beatsPerSecond;
         const loopDurationSeconds = endSeconds - startSeconds;
 
+        console.log(`⏱️ Time Range: ${startSeconds.toFixed(3)}s to ${endSeconds.toFixed(3)}s (Duration: ${loopDurationSeconds.toFixed(3)}s)`);
+
         // Clear any previously scheduled notes
         Tone.Transport.cancel();
 
         // Collect all notes from all tracks
         const allNotes = [];
-        tracks.forEach(track => {
+        tracks.forEach((track, tIdx) => {
             if (track.notes && Array.isArray(track.notes)) {
-                allNotes.push(...track.notes);
+                track.notes.forEach(note => {
+                    allNotes.push({
+                        // Gebruik de eigenschappen zoals ze in @tonejs/midi objecten staan
+                        name: note.name,
+                        time: note.time,
+                        duration: note.duration,
+                        midi: note.midi,
+                        trackIndex: tIdx
+                    });
+                });
             }
         });
 
-        if (allNotes.length === 0) {
-            console.warn('⚠️  No notes found in MIDI file');
-        }
+        console.log(`📝 Total notes in MIDI file: ${allNotes.length}`);
 
         // Filter notes that fall within our loop range
         let scheduledCount = 0;
@@ -302,20 +304,47 @@ class MidiLoopPlayback {
             // Check if note starts within the loop range (met 0.05s slack marge voor slightly vroege noten op de maat)
             if (note.time >= startSeconds - 0.05 && note.time < endSeconds) {
                 scheduledCount++;
-                // Zorg dat the note niet voor de loop start gepulled wordt
                 const relativeTime = Math.max(0, note.time - startSeconds);
-                const noteDuration = Math.min(note.duration, loopDurationSeconds - relativeTime);
+                
+                // Gebruik de originele duration als basis
+                let noteDuration = note.duration;
 
-                Tone.Transport.schedule((time) => {
-                    this.synth.triggerAttackRelease(
-                        note.name,
-                        noteDuration,
-                        time
-                    );
-                }, `+${relativeTime}`);
+                // Alleen afkappen als de noot voorbij het einde van de loop zou klinken
+                if (relativeTime + noteDuration > loopDurationSeconds) {
+                    noteDuration = loopDurationSeconds - relativeTime;
+                }
+
+                // Voorkom 0-duration fouten
+                if (noteDuration <= 0 && note.duration > 0) {
+                    noteDuration = 0.02; 
+                }
+
+                if (noteDuration > 0) {
+                    if (scheduledCount <= 16) { // Log meer noten voor debug
+                        console.log(`  🎹 Note #${scheduledCount}: ${note.name}, time=${note.time.toFixed(3)}s, relTime=${relativeTime.toFixed(3)}s, dur=${noteDuration.toFixed(3)}s`);
+                    }
+                    Tone.Transport.schedule((time) => {
+                        this.synth.triggerAttackRelease(
+                            note.name,
+                            noteDuration,
+                            time
+                        );
+                    }, `+${relativeTime}`);
+                }
             }
         });
 
+        console.log(`✅ Scheduled ${scheduledCount} notes for this loop`);
+        
+        if (scheduledCount === 0 && allNotes.length > 0) {
+            console.log('🔍 Inspecting first 5 notes of MIDI file:', allNotes.slice(0, 5));
+            const firstNotes = allNotes.slice(0, 5).map(n => {
+                if (n && typeof n.time === 'number') return n.time.toFixed(3) + 's';
+                return 'unknown time';
+            }).join(', ');
+            console.warn(`⚠️  No notes in range ${startSeconds.toFixed(3)}s-${endSeconds.toFixed(3)}s. Note times found: ${firstNotes}`);
+        }
+        
         return loopDurationSeconds;
     }
 

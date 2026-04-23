@@ -36,7 +36,9 @@ const synth = new Tone.PolySynth(Tone.Synth).toDestination();
 
 midi.tracks.forEach(track => {
     track.notes.forEach(note => {
-        synth.triggerAttackRelease(note.name, note.duration, note.time);
+        if (note.duration > 0) {
+            synth.triggerAttackRelease(note.name, note.duration, note.time);
+        }
     });
 });
 Tone.Transport.start();

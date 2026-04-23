@@ -11,6 +11,7 @@ use App\Entity\InstrumentPart;
 use App\Enum\SemVersion;
 use App\Form\DocumentFormType;
 use App\Midi\MidiAnalyzer;
+use App\Midi\MidiLoopExtractor;
 use App\Repository\AssetRepository;
 use App\Repository\DocumentRepository;
 use App\Repository\DocumentVersionRepository;
@@ -47,6 +48,7 @@ final class DocumentController extends AbstractController
         private readonly AssetRepository $assetRepo,
         private readonly DocumentPayloadBuilder $payloadBuilder,
         private readonly DocumentExportService $exportService,
+        private readonly MidiLoopExtractor $midiLoopExtractor,
     ) {
     }
 
@@ -831,6 +833,105 @@ final class DocumentController extends AbstractController
             'ok' => true,
             'displayName' => $asset->getDisplayName()
         ]);
+    }
+
+    /**
+     * Append a loop segment from one MIDI file to another (or create new file)
+     * POST /documents/{id}/api/midi/append-loop
+     */
+    #[Route('documents/{id}/api/midi/append-loop', name: 'doc_api_midi_append_loop', methods: ['POST'])]
+    public function apiMidiAppendLoop(
+        Document $doc,
+        Request $req,
+        AssetRepository $assetRepo,
+        MidiAnalyzer $midiAnalyzer
+    ): Response {
+        try {
+            // Parse JSON body
+            $data = json_decode($req->getContent(), true);
+            if (!is_array($data)) {
+                return $this->json(['error' => 'Ongeldige JSON'], Response::HTTP_BAD_REQUEST);
+            }
+
+            $sourceAssetId = (int) ($data['sourceAssetId'] ?? 0);
+            $offset = (int) ($data['offset'] ?? 0);
+            $length = (int) ($data['length'] ?? 0);
+            $targetMode = (string) ($data['targetMode'] ?? '');
+            $targetAssetId = (int) ($data['targetAssetId'] ?? 0);
+            $targetFileName = (string) ($data['fileName'] ?? '');
+
+            // Validation
+            if ($sourceAssetId <= 0 || $offset < 0 || $length <= 0) {
+                return $this->json(['error' => 'Ongeldige parameters'], Response::HTTP_BAD_REQUEST);
+            }
+
+            if (!in_array($targetMode, ['new', 'existing'], true)) {
+                return $this->json(['error' => 'Ongeldige targetMode'], Response::HTTP_BAD_REQUEST);
+            }
+
+            // Load source asset
+            $sourceAsset = $assetRepo->find($sourceAssetId);
+            if (!$sourceAsset || $sourceAsset->getDocument()->getId() !== $doc->getId()) {
+                return $this->json(['error' => 'Bronbestand niet gevonden'], Response::HTTP_NOT_FOUND);
+            }
+
+            // Get target asset or prepare new file
+            $targetAsset = null;
+            if ($targetMode === 'existing') {
+                // Prevent appending to the same asset
+                if ($targetAssetId === $sourceAssetId) {
+                    return $this->json(['error' => 'Je kan niet naar hetzelfde bestand exporteren'], Response::HTTP_BAD_REQUEST);
+                }
+
+                $targetAsset = $assetRepo->find($targetAssetId);
+                if (!$targetAsset || $targetAsset->getDocument()->getId() !== $doc->getId()) {
+                    return $this->json(['error' => 'Doelbestand niet gevonden'], Response::HTTP_NOT_FOUND);
+                }
+            } else {
+                // Create new asset placeholder
+                if (empty($targetFileName)) {
+                    $targetFileName = 'Composition_' . date('YmdHis');
+                }
+                // Ensure .mid extension
+                if (!str_ends_with($targetFileName, '.mid')) {
+                    $targetFileName .= '.mid';
+                }
+            }
+
+            // Get current user
+            $user = $this->getUser();
+
+            // Extract loop and create/update target asset
+            $resultAsset = $this->midiLoopExtractor->exportLoop(
+                doc: $doc,
+                sourceAsset: $sourceAsset,
+                offsetQuarters: $offset,
+                lengthQuarters: $length,
+                targetMode: $targetMode,
+                targetAsset: $targetAsset,
+                newFileName: $targetFileName,
+                user: $user,
+            );
+
+            return $this->json([
+                'assetId' => $resultAsset->getId(),
+                'fileName' => $resultAsset->getDisplayName() ?? $resultAsset->getOriginalName(),
+                'totalBeats' => $length,
+                'message' => 'Loop succesvol geëxporteerd'
+            ]);
+
+        } catch (Throwable $e) {
+            error_log('MIDI append-loop error: ' . $e->getMessage());
+            error_log('Stack trace: ' . $e->getTraceAsString());
+            return $this->json([
+                'error' => 'Serverfout: ' . $e->getMessage(),
+                'debug' => [
+                    'message' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                ]
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
     }
 
     #[Route('documents/{id}/api.json', name: 'doc_api_json', methods: ['GET'])]
