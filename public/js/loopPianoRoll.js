@@ -298,6 +298,10 @@
                                 ${assets.filter(a => String(a.id) !== String(sourceAssetId)).map(a => `<option value="${a.id}" ${remembered?.assetId === a.id ? 'selected' : ''}>${a.displayName || a.originalName || 'Unknown'}</option>`).join('')}
                                 ${String(sourceAssetId) && assets.some(a => String(a.id) === String(sourceAssetId)) ? `<optgroup label="Huidig bestand"><option value="${sourceAssetId}" disabled>(Kan niet naar jezelf exporteren)</option></optgroup>` : ''}
                             </select>
+                            <div class="mt-2">
+                                <label style="font-size: 0.85em; display: block; margin-bottom: 4px;">Invoegen op tel (optioneel):</label>
+                                <input type="number" class="target-offset-input" placeholder="Laat leeg voor achteraan" min="0" style="width: 100%; padding: 4px;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -335,9 +339,11 @@
             const mode = dialog.querySelector('input[name="targetMode"]:checked').value;
             const filenameInput = dialog.querySelector('.new-filename-input');
             const selectInput = dialog.querySelector('.existing-asset-select');
+            const offsetInput = dialog.querySelector('.target-offset-input');
 
             let targetAssetId = null;
             let targetFileName = null;
+            let targetOffset = null;
 
             if (mode === 'new') {
                 targetFileName = filenameInput.value.trim() || 'Composition';
@@ -347,14 +353,17 @@
                     alert('Selecteer alstublieft een bestand.');
                     return;
                 }
+                if (offsetInput && offsetInput.value !== '') {
+                    targetOffset = parseInt(offsetInput.value, 10);
+                }
             }
 
             console.log('Exporting loop:', {
-                documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName
+                documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName, targetOffset
             });
 
             // Submit export
-            await submitExport(documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName);
+            await submitExport(documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName, targetOffset);
             dialog.remove();
         });
     }
@@ -362,7 +371,7 @@
     /**
      * Submit export request to backend
      */
-    async function submitExport(documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName) {
+    async function submitExport(documentId, sourceAssetId, offset, length, mode, targetAssetId, targetFileName, targetOffset) {
         try {
             const payload = {
                 sourceAssetId: sourceAssetId,
@@ -370,7 +379,8 @@
                 length: length,
                 targetMode: mode,
                 targetAssetId: targetAssetId,
-                fileName: targetFileName
+                fileName: targetFileName,
+                targetOffset: targetOffset
             };
             console.log('Sending export request:', payload);
 

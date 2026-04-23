@@ -859,6 +859,7 @@ final class DocumentController extends AbstractController
             $targetMode = (string) ($data['targetMode'] ?? '');
             $targetAssetId = (int) ($data['targetAssetId'] ?? 0);
             $targetFileName = (string) ($data['fileName'] ?? '');
+            $targetOffset = isset($data['targetOffset']) ? (int)$data['targetOffset'] : null;
 
             // Validation
             if ($sourceAssetId <= 0 || $offset < 0 || $length <= 0) {
@@ -911,6 +912,7 @@ final class DocumentController extends AbstractController
                 targetAsset: $targetAsset,
                 newFileName: $targetFileName,
                 user: $user,
+                targetOffsetQuarters: $targetOffset,
             );
 
             return $this->json([
