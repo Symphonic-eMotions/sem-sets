@@ -414,6 +414,13 @@
                 fileName: result.fileName || targetFileName
             }));
 
+            // Ensure the MIDI assets section is expanded after reload
+            if (window.SemSetCollapsibleRestore && typeof window.SemSetCollapsibleRestore.saveAction === 'function') {
+                window.SemSetCollapsibleRestore.saveAction({
+                    keys: ['page-collapsible-assets']
+                });
+            }
+
             alert(`✓ Loop succesvol geëxporteerd naar "${result.fileName || targetFileName}"`);
             closeModal();
 
